@@ -1,39 +1,35 @@
 export const calculateHBNaik = (hbReal: number, adjustmentPercentage: number): number => {
-  return hbReal * (1 + adjustmentPercentage / 100);
-};
-
-export const calculateCustomerPrices = (
-  hbNaik: number,
-  categories: { name: string; multiplier: number }[],
-  customMultipliers?: Record<string, number>
-) => {
-  let prices: Record<string, number> = {};
-  let previousPrice = hbNaik;
-
-  categories.forEach((category) => {
-    const multiplier = customMultipliers?.[category.name.toLowerCase()] ?? category.multiplier;
-    const price = Math.round(previousPrice * multiplier);
-    prices[category.name.toLowerCase()] = price;
-    previousPrice = price;
-  });
-
-  return prices;
+  return Math.round(hbReal * (1 + adjustmentPercentage / 100));
 };
 
 export const calculateQuantityPrices = (hbNaik: number) => {
-  const quantityFactors = {
-    min15: 1.15,
-    min10: 1.2,
-    min5: 1.25,
-    single: 1.3,
-    retail: 1.4,
+  return {
+    min15: Math.round(hbNaik * 1.45), // 45% markup for 15+ pieces
+    min10: Math.round(hbNaik * 1.49), // 49% markup for 10+ pieces
+    min5: Math.round(hbNaik * 1.57),  // 57% markup for 5+ pieces
+    single: Math.round(hbNaik * 1.65), // 65% markup for single piece
+    retail: Math.round(hbNaik * 1.81), // 81% markup for retail
   };
+};
+
+export const calculateCustomerPrices = (hbNaik: number) => {
+  // Base multiplier for Platinum
+  const platinumMultiplier = 1.45;
+  const platinumPrice = Math.round(hbNaik * platinumMultiplier);
+  
+  // Each tier adds a percentage to the previous tier
+  const goldMultiplier = 1.03; // 3% more than Platinum
+  const silverMultiplier = 1.05; // 5% more than Gold
+  const bronzeMultiplier = 1.05; // 5% more than Silver
+
+  const goldPrice = Math.round(platinumPrice * goldMultiplier);
+  const silverPrice = Math.round(goldPrice * silverMultiplier);
+  const bronzePrice = Math.round(silverPrice * bronzeMultiplier);
 
   return {
-    min15: Math.round(hbNaik * quantityFactors.min15),
-    min10: Math.round(hbNaik * quantityFactors.min10),
-    min5: Math.round(hbNaik * quantityFactors.min5),
-    single: Math.round(hbNaik * quantityFactors.single),
-    retail: Math.round(hbNaik * quantityFactors.retail),
+    platinum: platinumPrice,
+    gold: goldPrice,
+    silver: silverPrice,
+    bronze: bronzePrice,
   };
 };

@@ -1,16 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Button } from '@/components/ui/button';
+import { Form } from '@/components/ui/form';
+import { useToast } from '@/components/ui/use-toast';
+import { productFormSchema, type ProductFormValues } from './form-schema';
 import {
-  Form,
-  FormControl,
   FormField,
   FormItem,
   FormLabel,
+  FormControl,
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -21,41 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
-
-const formSchema = z.object({
-  brand: z.string().min(1, 'Brand is required'),
-  sku: z.string().min(1, 'SKU is required'),
-  productName: z.string().min(1, 'Product name is required'),
-  unit: z.enum(['PC', 'PACK', 'SET']),
-  hbReal: z.number().min(0, 'HB Real must be greater than 0'),
-  adjustmentPercentage: z.number().min(0, 'Adjustment percentage must be greater than or equal to 0'),
-  hbNaik: z.number(),
-  usdPrice: z.number().min(0, 'USD Price must be greater than 0'),
-  exchangeRate: z.number().min(0, 'Exchange rate must be greater than 0'),
-  quantities: z.object({
-    min15: z.number(),
-    min10: z.number(),
-    min5: z.number(),
-    single: z.number(),
-    retail: z.number(),
-  }),
-  customerPrices: z.object({
-    platinum: z.number(),
-    gold: z.number(),
-    silver: z.number(),
-    bronze: z.number(),
-  }),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+import { calculateHBNaik, calculateQuantityPrices, calculateCustomerPrices } from '@/lib/utils/price-calculator';
 
 export function ProductForm() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productFormSchema),
     defaultValues: {
       brand: '',
       sku: '',
@@ -94,42 +68,27 @@ export function ProductForm() {
     field.onChange(numberValue);
   };
 
-  // Calculate HB Naik and other prices when base values change
+  // Auto-calculate prices when base values change
   useEffect(() => {
     const hbReal = form.watch('hbReal');
     const adjustmentPercentage = form.watch('adjustmentPercentage');
 
     if (hbReal > 0) {
       // Calculate HB Naik
-      const hbNaik = Math.round(hbReal * (1 + adjustmentPercentage / 100));
+      const hbNaik = calculateHBNaik(hbReal, adjustmentPercentage);
       form.setValue('hbNaik', hbNaik);
 
       // Calculate quantity-based prices
-      const quantities = {
-        min15: Math.round(hbNaik * 1.45), // 45% markup
-        min10: Math.round(hbNaik * 1.49), // 49% markup
-        min5: Math.round(hbNaik * 1.57),  // 57% markup
-        single: Math.round(hbNaik * 1.65), // 65% markup
-        retail: Math.round(hbNaik * 1.81), // 81% markup
-      };
-      form.setValue('quantities', quantities);
+      const quantityPrices = calculateQuantityPrices(hbNaik);
+      form.setValue('quantities', quantityPrices);
 
       // Calculate customer category prices
-      const platinum = Math.round(hbNaik * 1.45); // 45% markup from HB Naik
-      const gold = Math.round(platinum * 1.03);    // 3% markup from Platinum
-      const silver = Math.round(gold * 1.05);      // 5% markup from Gold
-      const bronze = Math.round(silver * 1.05);    // 5% markup from Silver
-
-      form.setValue('customerPrices', {
-        platinum,
-        gold,
-        silver,
-        bronze,
-      });
+      const customerPrices = calculateCustomerPrices(hbNaik);
+      form.setValue('customerPrices', customerPrices);
     }
   }, [form.watch('hbReal'), form.watch('adjustmentPercentage')]);
 
-  const onSubmit = async (values: FormValues) => {
+  const onSubmit = async (values: ProductFormValues) => {
     try {
       setIsSubmitting(true);
       console.log('Saving product:', values);
