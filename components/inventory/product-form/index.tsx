@@ -14,7 +14,11 @@ import { CustomerPrices } from './customer-prices';
 import { usePriceCategories } from '@/lib/hooks/use-price-categories';
 import { calculateHBNaik, calculateQuantityPrices, calculateCustomerPrices } from '@/lib/utils/price-calculator';
 
-export function ProductForm() {
+interface ProductFormProps {
+  onSuccess?: () => void;
+}
+
+export function ProductForm({ onSuccess }: ProductFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { categories } = usePriceCategories();
@@ -61,16 +65,8 @@ export function ProductForm() {
       const quantityPrices = calculateQuantityPrices(hbNaik);
       form.setValue('quantities', quantityPrices);
 
-      // Calculate customer category prices based on dynamic categories
-      let previousPrice = hbNaik;
-      const customerPrices = {};
-      
-      categories.forEach((category) => {
-        const price = Math.round(previousPrice * category.multiplier);
-        customerPrices[category.name.toLowerCase()] = price;
-        previousPrice = price;
-      });
-
+      // Calculate customer category prices
+      const customerPrices = calculateCustomerPrices(hbNaik, categories);
       form.setValue('customerPrices', customerPrices);
     }
   }, [form.watch('hbReal'), form.watch('adjustmentPercentage'), categories]);
@@ -84,6 +80,8 @@ export function ProductForm() {
         title: 'Success',
         description: 'Product has been added successfully',
       });
+      
+      onSuccess?.();
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -101,7 +99,7 @@ export function ProductForm() {
         <BasicInfo form={form} />
         <PricingInfo form={form} />
         <QuantityPrices form={form} />
-        <CustomerPrices form={form} categories={categories} />
+        <CustomerPrices form={form} />
 
         <div className="flex justify-end space-x-4">
           <Button type="button" variant="outline">

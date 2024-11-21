@@ -6,13 +6,14 @@ import { Input } from '@/components/ui/input';
 import { UseFormReturn } from 'react-hook-form';
 import { ProductFormValues } from './form-schema';
 import type { PriceCategory } from '@/types/settings';
+import { usePriceCategories } from '@/lib/hooks/use-price-categories';
 
 interface CustomerPricesProps {
   form: UseFormReturn<ProductFormValues>;
-  categories: PriceCategory[];
 }
 
-export function CustomerPrices({ form, categories }: CustomerPricesProps) {
+export function CustomerPrices({ form }: CustomerPricesProps) {
+  const { categories } = usePriceCategories();
   const hbNaik = form.watch('hbNaik') || 0;
   const customerPrices = form.watch('customerPrices') || {};
 
@@ -29,6 +30,7 @@ export function CustomerPrices({ form, categories }: CustomerPricesProps) {
         {categories.map((category, index) => {
           const categoryKey = category.name.toLowerCase();
           const price = customerPrices[categoryKey] || 0;
+          const previousCategory = index > 0 ? categories[index - 1] : null;
 
           return (
             <FormField
@@ -47,10 +49,8 @@ export function CustomerPrices({ form, categories }: CustomerPricesProps) {
                     />
                   </FormControl>
                   <p className="text-sm text-muted-foreground">
-                    {(category.multiplier * 100 - 100).toFixed(0)}% markup
-                    {index === 0 
-                      ? ' from HB Naik' 
-                      : ` from ${categories[index - 1].name}`}
+                    {(category.multiplier * 100 - 100).toFixed(0)}% markup from{' '}
+                    {index === 0 ? 'HB Naik' : previousCategory?.name}
                   </p>
                 </FormItem>
               )}
