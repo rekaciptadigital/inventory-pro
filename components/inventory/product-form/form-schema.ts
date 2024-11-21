@@ -1,17 +1,4 @@
 import * as z from 'zod';
-import { usePriceCategories } from '@/lib/hooks/use-price-categories';
-
-// Dynamic schema for customer prices based on categories
-const createCustomerPricesSchema = () => {
-  const { categories } = usePriceCategories();
-  const priceFields = {};
-  
-  categories.forEach(category => {
-    priceFields[category.name.toLowerCase()] = z.number();
-  });
-
-  return z.object(priceFields);
-};
 
 export const productFormSchema = z.object({
   brand: z.string().min(1, 'Brand is required'),
@@ -31,6 +18,7 @@ export const productFormSchema = z.object({
     retail: z.number(),
   }),
   customerPrices: z.record(z.string(), z.number()),
+  multipliers: z.record(z.string(), z.number()).optional(),
 });
 
 export type ProductFormValues = z.infer<typeof productFormSchema>;
