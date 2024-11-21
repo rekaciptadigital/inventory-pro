@@ -19,12 +19,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { ProductForm } from '@/components/inventory/product-form';
+import { ProductForm } from '@/components/inventory/product-form/index';
 
 export default function InventoryPage() {
-  const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
 
   return (
     <div className="space-y-6">

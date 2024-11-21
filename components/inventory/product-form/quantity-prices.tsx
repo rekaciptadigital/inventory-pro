@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { UseFormReturn } from 'react-hook-form';
 import { ProductFormValues } from './form-schema';
@@ -11,6 +11,8 @@ interface QuantityPricesProps {
 }
 
 export function QuantityPrices({ form }: QuantityPricesProps) {
+  const quantities = form.watch('quantities');
+
   return (
     <div className="rounded-lg border p-4">
       <h3 className="text-lg font-medium mb-4">Quantity-based Prices</h3>
@@ -23,8 +25,8 @@ export function QuantityPrices({ form }: QuantityPricesProps) {
               <FormLabel>Min 15 pcs Price</FormLabel>
               <FormControl>
                 <Input
-                  type="number"
-                  value={field.value.toLocaleString()}
+                  type="text"
+                  value={(quantities?.min15 || 0).toLocaleString()}
                   className="bg-muted"
                   disabled
                 />
@@ -42,8 +44,8 @@ export function QuantityPrices({ form }: QuantityPricesProps) {
               <FormLabel>Min 10 pcs Price</FormLabel>
               <FormControl>
                 <Input
-                  type="number"
-                  value={field.value.toLocaleString()}
+                  type="text"
+                  value={(quantities?.min10 || 0).toLocaleString()}
                   className="bg-muted"
                   disabled
                 />
@@ -61,8 +63,8 @@ export function QuantityPrices({ form }: QuantityPricesProps) {
               <FormLabel>Min 5 pcs Price</FormLabel>
               <FormControl>
                 <Input
-                  type="number"
-                  value={field.value.toLocaleString()}
+                  type="text"
+                  value={(quantities?.min5 || 0).toLocaleString()}
                   className="bg-muted"
                   disabled
                 />
@@ -80,8 +82,8 @@ export function QuantityPrices({ form }: QuantityPricesProps) {
               <FormLabel>Single pc Price</FormLabel>
               <FormControl>
                 <Input
-                  type="number"
-                  value={field.value.toLocaleString()}
+                  type="text"
+                  value={(quantities?.single || 0).toLocaleString()}
                   className="bg-muted"
                   disabled
                 />
@@ -99,8 +101,8 @@ export function QuantityPrices({ form }: QuantityPricesProps) {
               <FormLabel>Retail Price</FormLabel>
               <FormControl>
                 <Input
-                  type="number"
-                  value={field.value.toLocaleString()}
+                  type="text"
+                  value={(quantities?.retail || 0).toLocaleString()}
                   className="bg-muted"
                   disabled
                 />

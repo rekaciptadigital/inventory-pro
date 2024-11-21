@@ -1,3 +1,5 @@
+import { PriceCategory } from '@/types/settings';
+
 export const calculateHBNaik = (hbReal: number, adjustmentPercentage: number): number => {
   return Math.round(hbReal * (1 + adjustmentPercentage / 100));
 };
@@ -12,24 +14,15 @@ export const calculateQuantityPrices = (hbNaik: number) => {
   };
 };
 
-export const calculateCustomerPrices = (hbNaik: number) => {
-  // Base multiplier for Platinum
-  const platinumMultiplier = 1.45;
-  const platinumPrice = Math.round(hbNaik * platinumMultiplier);
-  
-  // Each tier adds a percentage to the previous tier
-  const goldMultiplier = 1.03; // 3% more than Platinum
-  const silverMultiplier = 1.05; // 5% more than Gold
-  const bronzeMultiplier = 1.05; // 5% more than Silver
+export const calculateCustomerPrices = (hbNaik: number, categories: PriceCategory[]) => {
+  let previousPrice = hbNaik;
+  const prices = {};
 
-  const goldPrice = Math.round(platinumPrice * goldMultiplier);
-  const silverPrice = Math.round(goldPrice * silverMultiplier);
-  const bronzePrice = Math.round(silverPrice * bronzeMultiplier);
+  categories.forEach((category) => {
+    const price = Math.round(previousPrice * category.multiplier);
+    prices[category.name.toLowerCase()] = price;
+    previousPrice = price;
+  });
 
-  return {
-    platinum: platinumPrice,
-    gold: goldPrice,
-    silver: silverPrice,
-    bronze: bronzePrice,
-  };
+  return prices;
 };
