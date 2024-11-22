@@ -18,8 +18,9 @@ import type { Brand } from '@/types/brand';
 
 export default function BrandsPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isAddingBrand, setIsAddingBrand] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [selectedBrand, setSelectedBrand] = useState<Brand | undefined>();
 
   // Load brands from localStorage on component mount
   useEffect(() => {
@@ -30,8 +31,20 @@ export default function BrandsPage() {
   }, []);
 
   const handleSuccess = (brand: Brand) => {
-    setBrands([...brands, brand]);
-    setIsAddingBrand(false);
+    if (selectedBrand) {
+      // Update existing brand in the list
+      setBrands(brands.map(b => b.id === brand.id ? brand : b));
+    } else {
+      // Add new brand to the list
+      setBrands([...brands, brand]);
+    }
+    setIsDialogOpen(false);
+    setSelectedBrand(undefined);
+  };
+
+  const handleEdit = (brand: Brand) => {
+    setSelectedBrand(brand);
+    setIsDialogOpen(true);
   };
 
   const filteredBrands = brands.filter(brand =>
@@ -47,7 +60,10 @@ export default function BrandsPage() {
             Manage your product brands
           </p>
         </div>
-        <Dialog open={isAddingBrand} onOpenChange={setIsAddingBrand}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) setSelectedBrand(undefined);
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -56,12 +72,18 @@ export default function BrandsPage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Brand</DialogTitle>
+              <DialogTitle>{selectedBrand ? 'Edit Brand' : 'Add New Brand'}</DialogTitle>
               <DialogDescription>
-                Add a new brand to your product catalog.
+                {selectedBrand 
+                  ? 'Edit the brand details below.'
+                  : 'Add a new brand to your product catalog.'
+                }
               </DialogDescription>
             </DialogHeader>
-            <BrandForm onSuccess={handleSuccess} />
+            <BrandForm 
+              onSuccess={handleSuccess}
+              initialData={selectedBrand}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -76,7 +98,10 @@ export default function BrandsPage() {
         </div>
       </div>
 
-      <BrandList brands={filteredBrands} />
+      <BrandList 
+        brands={filteredBrands}
+        onEdit={handleEdit}
+      />
     </div>
   );
 }

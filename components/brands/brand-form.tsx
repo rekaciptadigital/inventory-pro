@@ -25,17 +25,18 @@ const formSchema = z.object({
 
 interface BrandFormProps {
   onSuccess: (brand: Brand) => void;
+  initialData?: Brand;
 }
 
-export function BrandForm({ onSuccess }: BrandFormProps) {
+export function BrandForm({ onSuccess, initialData }: BrandFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
-      description: '',
+      name: initialData?.name || '',
+      description: initialData?.description || '',
     },
   });
 
@@ -43,35 +44,49 @@ export function BrandForm({ onSuccess }: BrandFormProps) {
     try {
       setIsSubmitting(true);
       
-      // Create new brand object
-      const newBrand: Brand = {
-        id: Date.now().toString(),
-        name: values.name,
-        description: values.description,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
       // Get existing brands from localStorage
       const existingBrands = JSON.parse(localStorage.getItem('brands') || '[]');
       
-      // Add new brand
-      const updatedBrands = [...existingBrands, newBrand];
+      let updatedBrands;
+      let resultBrand;
+
+      if (initialData) {
+        // Update existing brand
+        resultBrand = {
+          ...initialData,
+          name: values.name,
+          description: values.description,
+          updatedAt: new Date().toISOString(),
+        };
+        updatedBrands = existingBrands.map((brand: Brand) =>
+          brand.id === initialData.id ? resultBrand : brand
+        );
+      } else {
+        // Create new brand
+        resultBrand = {
+          id: Date.now().toString(),
+          name: values.name,
+          description: values.description,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        updatedBrands = [...existingBrands, resultBrand];
+      }
       
       // Save to localStorage
       localStorage.setItem('brands', JSON.stringify(updatedBrands));
 
       toast({
         title: 'Success',
-        description: 'Brand has been added successfully',
+        description: `Brand has been ${initialData ? 'updated' : 'added'} successfully`,
       });
 
-      onSuccess(newBrand);
+      onSuccess(resultBrand);
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to add brand. Please try again.',
+        description: `Failed to ${initialData ? 'update' : 'add'} brand. Please try again.`,
       });
     } finally {
       setIsSubmitting(false);
@@ -115,7 +130,10 @@ export function BrandForm({ onSuccess }: BrandFormProps) {
 
         <div className="flex justify-end space-x-4">
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Adding Brand...' : 'Add Brand'}
+            {isSubmitting 
+              ? (initialData ? 'Updating Brand...' : 'Adding Brand...') 
+              : (initialData ? 'Update Brand' : 'Add Brand')
+            }
           </Button>
         </div>
       </form>

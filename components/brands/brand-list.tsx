@@ -6,14 +6,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Edit } from 'lucide-react';
 import { formatDate } from '@/lib/utils/format';
 import type { Brand } from '@/types/brand';
 
 interface BrandListProps {
   brands: Brand[];
+  onEdit: (brand: Brand) => void;
 }
 
-export function BrandList({ brands }: BrandListProps) {
+export function BrandList({ brands, onEdit }: BrandListProps) {
   if (brands.length === 0) {
     return (
       <div className="border rounded-lg p-8 text-center text-muted-foreground">
@@ -31,6 +34,7 @@ export function BrandList({ brands }: BrandListProps) {
             <TableHead>Description</TableHead>
             <TableHead>Created At</TableHead>
             <TableHead>Updated At</TableHead>
+            <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -40,6 +44,15 @@ export function BrandList({ brands }: BrandListProps) {
               <TableCell>{brand.description || '-'}</TableCell>
               <TableCell>{formatDate(brand.createdAt)}</TableCell>
               <TableCell>{formatDate(brand.updatedAt)}</TableCell>
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onEdit(brand)}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
