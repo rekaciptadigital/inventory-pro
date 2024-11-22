@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils/format';
+import { useBrands } from '@/lib/hooks/use-brands';
 import type { Product } from '@/types/inventory';
 
 interface ProductListProps {
@@ -15,6 +16,8 @@ interface ProductListProps {
 }
 
 export function ProductList({ products }: ProductListProps) {
+  const { getBrandName } = useBrands();
+
   if (products.length === 0) {
     return (
       <div className="border rounded-lg p-8 text-center text-muted-foreground">
@@ -40,7 +43,7 @@ export function ProductList({ products }: ProductListProps) {
         <TableBody>
           {products.map((product) => (
             <TableRow key={product.id}>
-              <TableCell>{product.brand}</TableCell>
+              <TableCell>{getBrandName(product.brand)}</TableCell>
               <TableCell>{product.sku}</TableCell>
               <TableCell>{product.productName}</TableCell>
               <TableCell>
