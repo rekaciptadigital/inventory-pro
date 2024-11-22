@@ -13,17 +13,25 @@ import { QuantityPrices } from './quantity-prices';
 import { CustomerPrices } from './customer-prices';
 import { usePriceCategories } from '@/lib/hooks/use-price-categories';
 import { calculateHBNaik, calculateQuantityPrices, calculateCustomerPrices } from '@/lib/utils/price-calculator';
+import type { Brand } from '@/types/brand';
 
 interface ProductFormProps {
-  onSuccess?: () => void;
+  onSuccess?: (product: any) => void;
 }
 
 export function ProductForm({ onSuccess }: ProductFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const { categories } = usePriceCategories();
 
-  // Create dynamic customer prices schema based on categories
+  useEffect(() => {
+    const savedBrands = localStorage.getItem('brands');
+    if (savedBrands) {
+      setBrands(JSON.parse(savedBrands));
+    }
+  }, []);
+
   const defaultCustomerPrices = Object.fromEntries(
     categories.map(cat => [cat.name.toLowerCase(), 0])
   );
@@ -51,21 +59,17 @@ export function ProductForm({ onSuccess }: ProductFormProps) {
     },
   });
 
-  // Calculate prices when base values change
   useEffect(() => {
     const hbReal = form.watch('hbReal');
     const adjustmentPercentage = form.watch('adjustmentPercentage');
 
     if (hbReal > 0) {
-      // Calculate HB Naik
       const hbNaik = calculateHBNaik(hbReal, adjustmentPercentage);
       form.setValue('hbNaik', hbNaik);
 
-      // Calculate quantity-based prices
       const quantityPrices = calculateQuantityPrices(hbNaik);
       form.setValue('quantities', quantityPrices);
 
-      // Calculate customer category prices
       const customerPrices = calculateCustomerPrices(hbNaik, categories);
       form.setValue('customerPrices', customerPrices);
     }
@@ -74,14 +78,30 @@ export function ProductForm({ onSuccess }: ProductFormProps) {
   const onSubmit = async (values: ProductFormValues) => {
     try {
       setIsSubmitting(true);
-      console.log('Saving product:', values);
+      
+      // Create new product object with ID
+      const newProduct = {
+        id: Date.now().toString(),
+        ...values,
+      };
+
+      // Get existing products from localStorage
+      const existingProducts = JSON.parse(localStorage.getItem('products') || '[]');
+      
+      // Add new product
+      const updatedProducts = [...existingProducts, newProduct];
+      
+      // Save to localStorage
+      localStorage.setItem('products', JSON.stringify(updatedProducts));
       
       toast({
         title: 'Success',
         description: 'Product has been added successfully',
       });
       
-      onSuccess?.();
+      if (onSuccess) {
+        onSuccess(newProduct);
+      }
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -96,7 +116,7 @@ export function ProductForm({ onSuccess }: ProductFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <BasicInfo form={form} />
+        <BasicInfo form={form} brands={brands} />
         <PricingInfo form={form} />
         <QuantityPrices form={form} />
         <CustomerPrices form={form} />

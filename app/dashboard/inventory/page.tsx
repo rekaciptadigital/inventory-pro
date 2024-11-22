@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,11 +20,39 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ProductForm } from '@/components/inventory/product-form/index';
+import { ProductList } from '@/components/inventory/product-list';
+import type { Product } from '@/types/inventory';
 
 export default function InventoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+
+  // Load products from localStorage on component mount
+  useEffect(() => {
+    const savedProducts = localStorage.getItem('products');
+    if (savedProducts) {
+      setProducts(JSON.parse(savedProducts));
+    }
+  }, []);
+
+  const handleSuccess = (product: Product) => {
+    setProducts([...products, product]);
+    setIsAddingProduct(false);
+  };
+
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = (
+      product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.productName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="space-y-6">
@@ -49,7 +77,7 @@ export default function InventoryPage() {
                 Fill in the product details below. Prices will be automatically calculated based on HB Real and adjustment percentage.
               </DialogDescription>
             </DialogHeader>
-            <ProductForm onSuccess={() => setIsAddingProduct(false)} />
+            <ProductForm onSuccess={handleSuccess} />
           </DialogContent>
         </Dialog>
       </div>
@@ -80,9 +108,7 @@ export default function InventoryPage() {
         </Select>
       </div>
 
-      <div className="border rounded-lg p-8 text-center text-muted-foreground">
-        No products added yet. Click the "Add New Product" button to add your first product.
-      </div>
+      <ProductList products={filteredProducts} />
     </div>
   );
 }

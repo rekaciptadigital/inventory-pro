@@ -4,14 +4,22 @@ import React from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { UseFormReturn } from 'react-hook-form';
 import { ProductFormValues } from './form-schema';
+import type { Brand } from '@/types/brand';
 
 interface BasicInfoProps {
   form: UseFormReturn<ProductFormValues>;
+  brands: Brand[];
 }
 
-export function BasicInfo({ form }: BasicInfoProps) {
+export function BasicInfo({ form, brands }: BasicInfoProps) {
+  const brandOptions = brands.map(brand => ({
+    label: brand.name,
+    value: brand.id,
+  }));
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Basic Information</h3>
@@ -23,7 +31,13 @@ export function BasicInfo({ form }: BasicInfoProps) {
             <FormItem>
               <FormLabel>Brand</FormLabel>
               <FormControl>
-                <Input placeholder="Enter brand name" {...field} />
+                <Combobox
+                  options={brandOptions}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  placeholder="Search and select brand"
+                  emptyText="No brands found. Please add a brand first."
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -7,13 +7,13 @@ import {
   BarChart3,
   Box,
   LogOut,
-  Menu,
   Moon,
   Settings,
   Sun,
   Target,
   User,
   Tags,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,6 +27,7 @@ import { useTheme } from 'next-themes';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Target },
   { name: 'Inventory', href: '/dashboard/inventory', icon: Box },
+  { name: 'Brands', href: '/dashboard/brands', icon: BookOpen },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { name: 'Categories', href: '/dashboard/settings/categories', icon: Tags },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
