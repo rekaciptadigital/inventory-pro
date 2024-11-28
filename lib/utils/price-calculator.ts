@@ -15,13 +15,11 @@ export const calculateQuantityPrices = (hbNaik: number) => {
 };
 
 export const calculateCustomerPrices = (hbNaik: number, categories: PriceCategory[]) => {
-  let previousPrice = hbNaik;
   const prices = {};
-
+  
   categories.forEach((category) => {
-    const price = Math.round(previousPrice * category.multiplier);
+    const price = Math.round(hbNaik * category.multiplier);
     prices[category.name.toLowerCase()] = price;
-    previousPrice = price;
   });
 
   return prices;

@@ -9,6 +9,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils/format';
 import { useBrands } from '@/lib/hooks/use-brands';
+import { useProductTypes } from '@/lib/hooks/use-product-types';
 import type { Product } from '@/types/inventory';
 
 interface ProductListProps {
@@ -17,6 +18,7 @@ interface ProductListProps {
 
 export function ProductList({ products }: ProductListProps) {
   const { getBrandName } = useBrands();
+  const { getProductTypeName } = useProductTypes();
 
   if (products.length === 0) {
     return (
@@ -32,6 +34,7 @@ export function ProductList({ products }: ProductListProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Brand</TableHead>
+            <TableHead>Type</TableHead>
             <TableHead>SKU</TableHead>
             <TableHead>Product Name</TableHead>
             <TableHead>Unit</TableHead>
@@ -44,6 +47,7 @@ export function ProductList({ products }: ProductListProps) {
           {products.map((product) => (
             <TableRow key={product.id}>
               <TableCell>{getBrandName(product.brand)}</TableCell>
+              <TableCell>{getProductTypeName(product.productTypeId)}</TableCell>
               <TableCell>{product.sku}</TableCell>
               <TableCell>{product.productName}</TableCell>
               <TableCell>

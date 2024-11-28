@@ -1,6 +1,7 @@
 export interface Product {
   id: string;
   brand: string;
+  productTypeId: string;  // Added product type reference
   sku: string;
   productName: string;
   unit: 'PC' | 'PACK' | 'SET';

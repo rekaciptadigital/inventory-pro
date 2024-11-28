@@ -23,17 +23,9 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
     const numValue = value === '' ? 1 : parseFloat(value);
     form.setValue(`multipliers.${categoryKey}`, numValue);
     
-    // Recalculate prices based on new multiplier
-    let previousPrice = hbNaik;
-    categories.forEach((cat, index) => {
-      const key = cat.name.toLowerCase();
-      const currentMultiplier = key === categoryKey ? numValue : 
-        (multipliers[key] || cat.multiplier);
-      
-      const price = Math.round(previousPrice * currentMultiplier);
-      form.setValue(`customerPrices.${key}`, price);
-      previousPrice = price;
-    });
+    // Calculate price directly from HB Naik
+    const price = Math.round(hbNaik * numValue);
+    form.setValue(`customerPrices.${categoryKey}`, price);
   };
 
   return (
@@ -46,10 +38,9 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {categories.map((category, index) => {
+        {categories.map((category) => {
           const categoryKey = category.name.toLowerCase();
           const price = customerPrices?.[categoryKey] || 0;
-          const previousCategory = index > 0 ? categories[index - 1] : null;
           const currentMultiplier = multipliers[categoryKey] || category.multiplier;
           const markup = ((currentMultiplier - 1) * 100).toFixed(0);
           const isCustom = useCustomMultipliers[categoryKey];
@@ -111,7 +102,7 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
                       />
                     </FormControl>
                     <p className="text-sm text-muted-foreground">
-                      {markup}% markup from {index === 0 ? 'HB Naik' : previousCategory?.name}
+                      {markup}% markup from HB Naik
                       {isCustom && ' (Custom)'}
                     </p>
                   </FormItem>
@@ -125,16 +116,14 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
       <div className="mt-4 bg-muted/50 p-4 rounded-lg">
         <h4 className="font-medium mb-2">Price Calculation Formula</h4>
         <ul className="space-y-1 text-sm text-muted-foreground">
-          {categories.map((category, index) => {
+          {categories.map((category) => {
             const categoryKey = category.name.toLowerCase();
             const currentMultiplier = multipliers[categoryKey] || category.multiplier;
             const isCustom = useCustomMultipliers[categoryKey];
 
             return (
               <li key={category.id}>
-                • {category.name}: {index === 0 
-                  ? `HB Naik × ${currentMultiplier} (${((currentMultiplier - 1) * 100).toFixed(0)}% markup)`
-                  : `${categories[index - 1].name} × ${currentMultiplier} (${((currentMultiplier - 1) * 100).toFixed(0)}% markup)`}
+                • {category.name}: HB Naik × {currentMultiplier} ({((currentMultiplier - 1) * 100).toFixed(0)}% markup)
                 {isCustom && ' (Custom)'}
               </li>
             );
