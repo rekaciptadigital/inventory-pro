@@ -11,15 +11,18 @@ import { BasicInfo } from './basic-info';
 import { PricingInfo } from './pricing-info';
 import { QuantityPrices } from './quantity-prices';
 import { CustomerPrices } from './customer-prices';
+import { VariantSelection } from './variant-selection';
 import { usePriceCategories } from '@/lib/hooks/use-price-categories';
 import { calculateHBNaik, calculateQuantityPrices, calculateCustomerPrices } from '@/lib/utils/price-calculator';
 import type { Brand } from '@/types/brand';
+import type { Product } from '@/types/inventory';
 
 interface ProductFormProps {
-  onSuccess?: (product: any) => void;
+  onSuccess?: (product: Product) => void;
+  initialData?: Product;
 }
 
-export function ProductForm({ onSuccess }: ProductFormProps) {
+export function ProductForm({ onSuccess, initialData }: ProductFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -38,8 +41,12 @@ export function ProductForm({ onSuccess }: ProductFormProps) {
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
-    defaultValues: {
+    defaultValues: initialData ? {
+      ...initialData,
+      variants: initialData.variants || [],
+    } : {
       brand: '',
+      productTypeId: '',
       sku: '',
       productName: '',
       unit: 'PC',
@@ -56,6 +63,7 @@ export function ProductForm({ onSuccess }: ProductFormProps) {
         retail: 0,
       },
       customerPrices: defaultCustomerPrices,
+      variants: [],
     },
   });
 
@@ -80,33 +88,35 @@ export function ProductForm({ onSuccess }: ProductFormProps) {
       setIsSubmitting(true);
       
       // Create new product object with ID
-      const newProduct = {
-        id: Date.now().toString(),
+      const product: Product = {
+        id: initialData?.id || Date.now().toString(),
         ...values,
       };
 
       // Get existing products from localStorage
       const existingProducts = JSON.parse(localStorage.getItem('products') || '[]');
       
-      // Add new product
-      const updatedProducts = [...existingProducts, newProduct];
+      // Update or add product
+      const updatedProducts = initialData
+        ? existingProducts.map((p: Product) => p.id === product.id ? product : p)
+        : [...existingProducts, product];
       
       // Save to localStorage
       localStorage.setItem('products', JSON.stringify(updatedProducts));
       
       toast({
         title: 'Success',
-        description: 'Product has been added successfully',
+        description: `Product has been ${initialData ? 'updated' : 'added'} successfully`,
       });
       
       if (onSuccess) {
-        onSuccess(newProduct);
+        onSuccess(product);
       }
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to add product. Please try again.',
+        description: 'Failed to save product. Please try again.',
       });
     } finally {
       setIsSubmitting(false);
@@ -120,13 +130,17 @@ export function ProductForm({ onSuccess }: ProductFormProps) {
         <PricingInfo form={form} />
         <QuantityPrices form={form} />
         <CustomerPrices form={form} />
+        <VariantSelection />
 
         <div className="flex justify-end space-x-4">
           <Button type="button" variant="outline">
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Adding Product...' : 'Add Product'}
+            {isSubmitting 
+              ? (initialData ? 'Updating Product...' : 'Adding Product...') 
+              : (initialData ? 'Update Product' : 'Add Product')
+            }
           </Button>
         </div>
       </form>

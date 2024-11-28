@@ -1,7 +1,7 @@
 export interface Product {
   id: string;
   brand: string;
-  productTypeId: string;  // Added product type reference
+  productTypeId: string;
   sku: string;
   productName: string;
   unit: 'PC' | 'PACK' | 'SET';
@@ -18,11 +18,12 @@ export interface Product {
     retail: number;
   };
   customerPrices: {
-    platinum: number;
-    gold: number;
-    silver: number;
-    bronze: number;
+    [key: string]: number;
   };
+  variants?: Array<{
+    typeId: string;
+    values: string[];
+  }>;
 }
 
 export interface ProductFormData extends Omit<Product, 'id' | 'hbNaik'> {}

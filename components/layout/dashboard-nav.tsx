@@ -15,6 +15,7 @@ import {
   Tags,
   BookOpen,
   ListTree,
+  Layers,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,6 +31,7 @@ const navigation = [
   { name: 'Inventory', href: '/dashboard/inventory', icon: Box },
   { name: 'Brands', href: '/dashboard/brands', icon: BookOpen },
   { name: 'Product Types', href: '/dashboard/product-types', icon: ListTree },
+  { name: 'Variants', href: '/dashboard/variants', icon: Layers },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { name: 'Categories', href: '/dashboard/settings/categories', icon: Tags },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },

@@ -20,6 +20,10 @@ export const productFormSchema = z.object({
   }),
   customerPrices: z.record(z.string(), z.number()),
   multipliers: z.record(z.string(), z.number()).optional(),
+  variants: z.array(z.object({
+    typeId: z.string(),
+    values: z.array(z.string()),
+  })).optional(),
 });
 
 export type ProductFormValues = z.infer<typeof productFormSchema>;

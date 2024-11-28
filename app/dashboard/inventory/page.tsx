@@ -21,15 +21,17 @@ import {
 } from '@/components/ui/dialog';
 import { ProductForm } from '@/components/inventory/product-form/index';
 import { ProductList } from '@/components/inventory/product-list';
+import { useToast } from '@/components/ui/use-toast';
 import type { Product } from '@/types/inventory';
 
 export default function InventoryPage() {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
 
-  // Load products from localStorage on component mount
   useEffect(() => {
     const savedProducts = localStorage.getItem('products');
     if (savedProducts) {
@@ -38,8 +40,26 @@ export default function InventoryPage() {
   }, []);
 
   const handleSuccess = (product: Product) => {
-    setProducts([...products, product]);
-    setIsAddingProduct(false);
+    if (selectedProduct) {
+      // Update existing product
+      setProducts(products.map(p => p.id === product.id ? product : p));
+    } else {
+      // Add new product
+      setProducts([...products, product]);
+    }
+    setIsDialogOpen(false);
+    setSelectedProduct(undefined);
+  };
+
+  const handleEdit = (product: Product) => {
+    setSelectedProduct(product);
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    const updatedProducts = products.filter(product => product.id !== id);
+    setProducts(updatedProducts);
+    localStorage.setItem('products', JSON.stringify(updatedProducts));
   };
 
   const filteredProducts = products.filter(product => {
@@ -63,7 +83,10 @@ export default function InventoryPage() {
             Manage your archery equipment inventory
           </p>
         </div>
-        <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) setSelectedProduct(undefined);
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -72,12 +95,17 @@ export default function InventoryPage() {
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add New Product</DialogTitle>
+              <DialogTitle>
+                {selectedProduct ? 'Edit Product' : 'Add New Product'}
+              </DialogTitle>
               <DialogDescription>
                 Fill in the product details below. Prices will be automatically calculated based on HB Real and adjustment percentage.
               </DialogDescription>
             </DialogHeader>
-            <ProductForm onSuccess={handleSuccess} />
+            <ProductForm 
+              onSuccess={handleSuccess}
+              initialData={selectedProduct}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -108,7 +136,11 @@ export default function InventoryPage() {
         </Select>
       </div>
 
-      <ProductList products={filteredProducts} />
+      <ProductList 
+        products={filteredProducts}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }
