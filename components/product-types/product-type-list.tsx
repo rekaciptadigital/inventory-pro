@@ -62,6 +62,7 @@ export function ProductTypeList({ onEdit }: ProductTypeListProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Type Name</TableHead>
+            <TableHead>Type Code</TableHead>
             <TableHead>Created At</TableHead>
             <TableHead>Updated At</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
@@ -71,6 +72,7 @@ export function ProductTypeList({ onEdit }: ProductTypeListProps) {
           {productTypes.map((type) => (
             <TableRow key={type.id}>
               <TableCell className="font-medium">{type.name}</TableCell>
+              <TableCell>{type.code}</TableCell>
               <TableCell>{formatDate(type.createdAt)}</TableCell>
               <TableCell>{formatDate(type.updatedAt)}</TableCell>
               <TableCell>
