@@ -12,14 +12,21 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import { generateBrandCode, validateBrandCode } from '@/lib/utils/brand-utils';
 import type { Brand } from '@/types/brand';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Brand name is required'),
+  code: z.string()
+    .max(10, 'Brand code cannot exceed 10 characters')
+    .refine(val => val === '' || validateBrandCode(val), {
+      message: 'Brand code must contain only letters and numbers'
+    }),
   description: z.string().optional(),
 });
 
@@ -36,6 +43,7 @@ export function BrandForm({ onSuccess, initialData }: BrandFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: initialData?.name || '',
+      code: initialData?.code || '',
       description: initialData?.description || '',
     },
   });
@@ -47,6 +55,23 @@ export function BrandForm({ onSuccess, initialData }: BrandFormProps) {
       // Get existing brands from localStorage
       const existingBrands = JSON.parse(localStorage.getItem('brands') || '[]');
       
+      // Check for duplicate code if provided
+      if (values.code && existingBrands.some((brand: Brand) => 
+        brand.code === values.code && brand.id !== initialData?.id
+      )) {
+        form.setError('code', {
+          type: 'manual',
+          message: 'This brand code is already in use'
+        });
+        return;
+      }
+
+      let brandCode = values.code;
+      if (!brandCode) {
+        const existingCodes = existingBrands.map((brand: Brand) => brand.code);
+        brandCode = generateBrandCode(existingCodes);
+      }
+      
       let updatedBrands;
       let resultBrand;
 
@@ -55,6 +80,7 @@ export function BrandForm({ onSuccess, initialData }: BrandFormProps) {
         resultBrand = {
           ...initialData,
           name: values.name,
+          code: brandCode,
           description: values.description,
           updatedAt: new Date().toISOString(),
         };
@@ -66,6 +92,7 @@ export function BrandForm({ onSuccess, initialData }: BrandFormProps) {
         resultBrand = {
           id: Date.now().toString(),
           name: values.name,
+          code: brandCode,
           description: values.description,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -105,6 +132,27 @@ export function BrandForm({ onSuccess, initialData }: BrandFormProps) {
               <FormControl>
                 <Input placeholder="Enter brand name" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="code"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Brand Code</FormLabel>
+              <FormControl>
+                <Input 
+                  placeholder="Enter brand code" 
+                  {...field} 
+                  maxLength={10}
+                />
+              </FormControl>
+              <FormDescription>
+                Optional. Leave empty for auto-generated code. Max 10 characters.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

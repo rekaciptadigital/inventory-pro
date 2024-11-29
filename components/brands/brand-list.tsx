@@ -31,6 +31,7 @@ export function BrandList({ brands, onEdit }: BrandListProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Brand Name</TableHead>
+            <TableHead>Brand Code</TableHead>
             <TableHead>Description</TableHead>
             <TableHead>Created At</TableHead>
             <TableHead>Updated At</TableHead>
@@ -41,6 +42,7 @@ export function BrandList({ brands, onEdit }: BrandListProps) {
           {brands.map((brand) => (
             <TableRow key={brand.id}>
               <TableCell className="font-medium">{brand.name}</TableCell>
+              <TableCell>{brand.code}</TableCell>
               <TableCell>{brand.description || '-'}</TableCell>
               <TableCell>{formatDate(brand.createdAt)}</TableCell>
               <TableCell>{formatDate(brand.updatedAt)}</TableCell>
