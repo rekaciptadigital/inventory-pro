@@ -16,6 +16,7 @@ import {
   BookOpen,
   ListTree,
   Layers,
+  Menu,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useTheme } from 'next-themes';
+import { useState } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Target },
@@ -40,61 +42,90 @@ const navigation = [
 export function DashboardNav() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="flex h-screen flex-col bg-muted/40 border-r">
-      <div className="p-6">
-        <Link href="/dashboard" className="flex items-center space-x-2">
-          <Target className="h-6 w-6" />
-          <span className="font-bold">Archery Pro</span>
-        </Link>
-      </div>
-
-      <div className="flex-1 flex flex-col space-y-1 p-4">
-        {navigation.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                'flex items-center space-x-2 px-4 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground',
-                pathname === item.href ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{item.name}</span>
-            </Link>
-          );
-        })}
-      </div>
-
-      <div className="p-4 border-t">
-        <div className="flex items-center justify-between">
+    <div className={cn(
+      'flex-shrink-0 transition-all duration-200',
+      isOpen ? 'w-64' : 'w-20',
+      'lg:w-64'
+    )}>
+      <div className="flex h-screen flex-col bg-muted/40 border-r">
+        <div className="flex h-16 items-center justify-between px-4">
+          <Link href="/dashboard" className="flex items-center space-x-2">
+            <Target className="h-6 w-6" />
+            <span className={cn(
+              'font-bold transition-opacity duration-200',
+              isOpen ? 'opacity-100' : 'opacity-0 hidden',
+              'lg:opacity-100 lg:inline'
+            )}>
+              Archery Pro
+            </span>
+          </Link>
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="lg:hidden"
+            onClick={() => setIsOpen(!isOpen)}
           >
-            {theme === 'dark' ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
+            <Menu className="h-5 w-5" />
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <User className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        </div>
+
+        <div className="flex-1 overflow-y-auto py-4">
+          <nav className="space-y-1 px-2">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center space-x-2 px-4 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors',
+                    pathname === item.href ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
+                  )}
+                >
+                  <Icon className="h-5 w-5 flex-shrink-0" />
+                  <span className={cn(
+                    'transition-opacity duration-200',
+                    isOpen ? 'opacity-100' : 'opacity-0 hidden',
+                    'lg:opacity-100 lg:inline'
+                  )}>
+                    {item.name}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        <div className="border-t p-4">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <User className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </div>
