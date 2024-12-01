@@ -3,6 +3,7 @@ export interface Product {
   brand: string;
   productTypeId: string;
   sku: string;
+  vendorSku?: string;
   productName: string;
   unit: 'PC' | 'PACK' | 'SET';
   hbReal: number;

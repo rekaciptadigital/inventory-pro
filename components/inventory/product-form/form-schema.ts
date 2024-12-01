@@ -4,6 +4,7 @@ export const productFormSchema = z.object({
   brand: z.string().min(1, 'Brand is required'),
   productTypeId: z.string().min(1, 'Product type is required'),
   sku: z.string().min(1, 'SKU is required'),
+  vendorSku: z.string().optional(),
   productName: z.string().min(1, 'Product name is required'),
   unit: z.enum(['PC', 'PACK', 'SET']),
   hbReal: z.number().min(0, 'HB Real must be greater than 0'),

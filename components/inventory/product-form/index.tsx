@@ -48,6 +48,7 @@ export function ProductForm({ onSuccess, initialData }: ProductFormProps) {
       brand: '',
       productTypeId: '',
       sku: '',
+      vendorSku: '',
       productName: '',
       unit: 'PC',
       hbReal: 0,
@@ -126,11 +127,13 @@ export function ProductForm({ onSuccess, initialData }: ProductFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <BasicInfo form={form} brands={brands} />
-        <PricingInfo form={form} />
-        <QuantityPrices form={form} />
-        <CustomerPrices form={form} />
-        <VariantSelection />
+        <div className="space-y-4">
+          <BasicInfo form={form} brands={brands} />
+          <VariantSelection />
+          <PricingInfo form={form} />
+          <QuantityPrices form={form} />
+          <CustomerPrices form={form} />
+        </div>
 
         <div className="flex justify-end space-x-4">
           <Button type="button" variant="outline">

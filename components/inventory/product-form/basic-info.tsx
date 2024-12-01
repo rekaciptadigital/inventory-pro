@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
@@ -76,12 +76,12 @@ export function BasicInfo({ form, brands }: BasicInfoProps) {
 
       <FormField
         control={form.control}
-        name="sku"
+        name="productName"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>SKU</FormLabel>
+            <FormLabel>Product Name</FormLabel>
             <FormControl>
-              <Input placeholder="Enter SKU" {...field} />
+              <Input placeholder="Enter product name" {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -90,13 +90,16 @@ export function BasicInfo({ form, brands }: BasicInfoProps) {
 
       <FormField
         control={form.control}
-        name="productName"
+        name="vendorSku"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Product Name</FormLabel>
+            <FormLabel>Vendor SKU</FormLabel>
             <FormControl>
-              <Input placeholder="Enter product name" {...field} />
+              <Input placeholder="Enter vendor SKU (optional)" {...field} />
             </FormControl>
+            <FormDescription>
+              Enter original vendor SKU if available
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
