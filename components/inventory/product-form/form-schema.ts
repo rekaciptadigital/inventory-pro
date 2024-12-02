@@ -13,13 +13,6 @@ export const productFormSchema = z.object({
   hbNaik: z.number(),
   usdPrice: z.number().min(0, 'USD Price must be greater than 0'),
   exchangeRate: z.number().min(0, 'Exchange rate must be greater than 0'),
-  quantities: z.object({
-    min15: z.number(),
-    min10: z.number(),
-    min5: z.number(),
-    single: z.number(),
-    retail: z.number(),
-  }),
   customerPrices: z.record(z.string(), z.number()),
   multipliers: z.record(z.string(), z.number()).optional(),
   variants: z.array(z.object({
