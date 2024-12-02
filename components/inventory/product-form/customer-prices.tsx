@@ -15,7 +15,7 @@ interface CustomerPricesProps {
 export function CustomerPrices({ form }: CustomerPricesProps) {
   const { categories } = usePriceCategories();
   const [useCustomMultipliers, setUseCustomMultipliers] = useState<{ [key: string]: boolean }>({});
-  const hbNaik = form.watch('hbNaik') || 0;
+  const basePriceAdjusted = form.watch('basePriceAdjusted') || 0;
   const customerPrices = form.watch('customerPrices');
   const multipliers = form.watch('multipliers') || {};
 
@@ -23,8 +23,8 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
     const numValue = value === '' ? 1 : parseFloat(value);
     form.setValue(`multipliers.${categoryKey}`, numValue);
     
-    // Calculate price directly from HB Naik
-    const price = Math.round(hbNaik * numValue);
+    // Calculate price directly from Base Price Adjusted
+    const price = Math.round(basePriceAdjusted * numValue);
     form.setValue(`customerPrices.${categoryKey}`, price);
   };
 
@@ -33,7 +33,7 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-medium">Customer Category Prices</h3>
         <div className="text-sm text-muted-foreground">
-          Base Price (HB Naik): Rp {hbNaik.toLocaleString()}
+          Base Price Adjusted: Rp {basePriceAdjusted.toLocaleString()}
         </div>
       </div>
 
@@ -102,7 +102,7 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
                       />
                     </FormControl>
                     <p className="text-sm text-muted-foreground">
-                      {markup}% markup from HB Naik
+                      {markup}% markup from Base Price Adjusted
                       {isCustom && ' (Custom)'}
                     </p>
                   </FormItem>
@@ -123,7 +123,7 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
 
             return (
               <li key={category.id}>
-                • {category.name}: HB Naik × {currentMultiplier} ({((currentMultiplier - 1) * 100).toFixed(0)}% markup)
+                • {category.name}: Base Price Adjusted × {currentMultiplier} ({((currentMultiplier - 1) * 100).toFixed(0)}% markup)
                 {isCustom && ' (Custom)'}
               </li>
             );

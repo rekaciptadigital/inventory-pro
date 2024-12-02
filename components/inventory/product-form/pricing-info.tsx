@@ -23,19 +23,19 @@ export function PricingInfo({ form }: PricingInfoProps) {
     field.onChange(numberValue);
   };
 
-  // Calculate HB Real when USD Price or Exchange Rate changes
+  // Calculate Base Price when USD Price or Exchange Rate changes
   useEffect(() => {
     const usdPrice = form.watch('usdPrice');
     const exchangeRate = form.watch('exchangeRate');
     
     if (usdPrice > 0 && exchangeRate > 0) {
-      const hbReal = Math.round(usdPrice * exchangeRate);
-      form.setValue('hbReal', hbReal);
+      const basePrice = Math.round(usdPrice * exchangeRate);
+      form.setValue('basePrice', basePrice);
     }
   }, [form.watch('usdPrice'), form.watch('exchangeRate')]);
 
-  const hbReal = form.watch('hbReal') || 0;
-  const hbNaik = form.watch('hbNaik') || 0;
+  const basePrice = form.watch('basePrice') || 0;
+  const basePriceAdjusted = form.watch('basePriceAdjusted') || 0;
 
   return (
     <div className="rounded-lg border p-4">
@@ -86,11 +86,11 @@ export function PricingInfo({ form }: PricingInfoProps) {
           />
         </div>
 
-        {/* HB Real Display */}
+        {/* Base Price Display */}
         <div className="bg-muted/50 p-4 rounded-lg">
-          <FormLabel>HB Real (Base Price)</FormLabel>
+          <FormLabel>Base Price</FormLabel>
           <div className="text-2xl font-bold mt-1">
-            Rp {hbReal.toLocaleString()}
+            Rp {basePrice.toLocaleString()}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             Automatically calculated: USD Price × Exchange Rate
@@ -119,14 +119,14 @@ export function PricingInfo({ form }: PricingInfoProps) {
           )}
         />
 
-        {/* HB Naik Display */}
+        {/* Base Price Adjusted Display */}
         <div className="bg-muted/50 p-4 rounded-lg">
-          <FormLabel>HB Naik (Adjusted Price)</FormLabel>
+          <FormLabel>Base Price Adjusted</FormLabel>
           <div className="text-2xl font-bold mt-1">
-            Rp {hbNaik.toLocaleString()}
+            Rp {basePriceAdjusted.toLocaleString()}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Automatically calculated: HB Real × (1 + Adjustment/100)
+            Automatically calculated: Base Price × (1 + Adjustment/100)
           </p>
         </div>
       </div>

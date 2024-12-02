@@ -71,8 +71,8 @@ export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
             <TableHead>SKU</TableHead>
             <TableHead>Product Name</TableHead>
             <TableHead>Unit</TableHead>
-            <TableHead>HB Real</TableHead>
-            <TableHead>HB Naik</TableHead>
+            <TableHead>Base Price</TableHead>
+            <TableHead>Base Price Adjusted</TableHead>
             <TableHead>Retail Price</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
@@ -87,8 +87,8 @@ export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
               <TableCell>
                 <Badge variant="secondary">{product.unit}</Badge>
               </TableCell>
-              <TableCell>{formatCurrency(product.hbReal)}</TableCell>
-              <TableCell>{formatCurrency(product.hbNaik)}</TableCell>
+              <TableCell>{formatCurrency(product.basePrice)}</TableCell>
+              <TableCell>{formatCurrency(product.basePriceAdjusted)}</TableCell>
               <TableCell>{formatCurrency(product.quantities.retail)}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
