@@ -1,14 +1,14 @@
 import { PriceCategory } from '@/types/settings';
 
-export const calculateBasePriceAdjusted = (basePrice: number, adjustmentPercentage: number): number => {
-  return Math.round(basePrice * (1 + adjustmentPercentage / 100));
+export const calculateHBNaik = (hbReal: number, adjustmentPercentage: number): number => {
+  return Math.round(hbReal * (1 + adjustmentPercentage / 100));
 };
 
-export const calculateCustomerPrices = (basePriceAdjusted: number, categories: PriceCategory[]) => {
+export const calculateCustomerPrices = (hbNaik: number, categories: PriceCategory[]) => {
   const prices = {};
   
   categories.forEach((category) => {
-    const price = Math.round(basePriceAdjusted * category.multiplier);
+    const price = Math.round(hbNaik * category.multiplier);
     prices[category.name.toLowerCase()] = price;
   });
 

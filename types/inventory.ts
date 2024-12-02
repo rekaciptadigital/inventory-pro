@@ -6,9 +6,9 @@ export interface Product {
   vendorSku?: string;
   productName: string;
   unit: 'PC' | 'PACK' | 'SET';
-  basePrice: number;
+  hbReal: number;
   adjustmentPercentage: number;
-  basePriceAdjusted: number;
+  hbNaik: number;
   usdPrice: number;
   exchangeRate: number;
   quantities: {
@@ -27,4 +27,4 @@ export interface Product {
   }>;
 }
 
-export interface ProductFormData extends Omit<Product, 'id' | 'basePriceAdjusted'> {}
+export interface ProductFormData extends Omit<Product, 'id' | 'hbNaik'> {}
