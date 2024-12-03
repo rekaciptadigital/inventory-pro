@@ -15,8 +15,9 @@ import {
   Tags,
   BookOpen,
   ListTree,
-  FolderTree,
+  Layers,
   Menu,
+  FolderTree,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,6 +37,7 @@ const navigation = [
   { name: 'Product Types', href: '/dashboard/product-types', icon: ListTree },
   { name: 'Product Categories', href: '/dashboard/product-categories', icon: FolderTree },
   { name: 'Price Categories', href: '/dashboard/settings/categories', icon: Tags },
+  { name: 'Variants', href: '/dashboard/variants', icon: Layers },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
@@ -53,7 +55,7 @@ export function DashboardNav() {
       <div className="flex h-screen flex-col bg-muted/40 border-r">
         <div className="flex h-16 items-center justify-between px-4">
           <Link href="/dashboard" className="flex items-center space-x-2">
-            <Target className="h-6 w-6" />
+            <Target className="h-6 w-6 text-primary" />
             <span className={cn(
               'font-bold transition-opacity duration-200',
               isOpen ? 'opacity-100' : 'opacity-0 hidden',
