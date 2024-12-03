@@ -1,7 +1,7 @@
 export interface PriceCategory {
   id: string;
   name: string;
-  multiplier: number;
+  percentage: number;
   order: number;
 }
 

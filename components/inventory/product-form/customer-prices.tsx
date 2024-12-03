@@ -17,14 +17,14 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
   const [useCustomMultipliers, setUseCustomMultipliers] = useState<{ [key: string]: boolean }>({});
   const hbNaik = form.watch('hbNaik') || 0;
   const customerPrices = form.watch('customerPrices');
-  const multipliers = form.watch('multipliers') || {};
+  const percentages = form.watch('percentages') || {};
 
-  const handleMultiplierChange = (categoryKey: string, value: string) => {
-    const numValue = value === '' ? 1 : parseFloat(value);
-    form.setValue(`multipliers.${categoryKey}`, numValue);
+  const handlePercentageChange = (categoryKey: string, value: string) => {
+    const numValue = value === '' ? 0 : parseInt(value);
+    form.setValue(`percentages.${categoryKey}`, numValue);
     
     // Calculate price directly from HB Naik
-    const price = Math.round(hbNaik * numValue);
+    const price = Math.round(hbNaik * (1 + numValue / 100));
     form.setValue(`customerPrices.${categoryKey}`, price);
   };
 
@@ -41,8 +41,7 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
         {categories.map((category) => {
           const categoryKey = category.name.toLowerCase();
           const price = customerPrices?.[categoryKey] || 0;
-          const currentMultiplier = multipliers[categoryKey] || category.multiplier;
-          const markup = ((currentMultiplier - 1) * 100).toFixed(0);
+          const currentPercentage = percentages[categoryKey] || category.percentage;
           const isCustom = useCustomMultipliers[categoryKey];
 
           return (
@@ -50,15 +49,15 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
               <div className="flex items-center justify-between">
                 <FormLabel>{category.name} Price Settings</FormLabel>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">Custom Multiplier</span>
+                  <span className="text-sm text-muted-foreground">Custom Percentage</span>
                   <Switch
                     checked={isCustom}
                     onCheckedChange={(checked) => {
                       const newState = { ...useCustomMultipliers, [categoryKey]: checked };
                       setUseCustomMultipliers(newState);
                       if (!checked) {
-                        // Reset to default multiplier
-                        handleMultiplierChange(categoryKey, category.multiplier.toString());
+                        // Reset to default percentage
+                        handlePercentageChange(categoryKey, category.percentage.toString());
                       }
                     }}
                   />
@@ -68,17 +67,18 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
               {isCustom && (
                 <FormField
                   control={form.control}
-                  name={`multipliers.${categoryKey}`}
+                  name={`percentages.${categoryKey}`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Custom Multiplier</FormLabel>
+                      <FormLabel>Custom Percentage</FormLabel>
                       <FormControl>
                         <Input
-                          type="number"
-                          step="0.01"
-                          placeholder={category.multiplier.toString()}
-                          value={field.value || category.multiplier}
-                          onChange={(e) => handleMultiplierChange(categoryKey, e.target.value)}
+                          type="text"
+                          inputMode="decimal"
+                          pattern="[0-9]*"
+                          placeholder={category.percentage.toString()}
+                          value={field.value || category.percentage}
+                          onChange={(e) => handlePercentageChange(categoryKey, e.target.value.replace(/[^0-9]/g, ''))}
                         />
                       </FormControl>
                       <FormMessage />
@@ -102,7 +102,7 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
                       />
                     </FormControl>
                     <p className="text-sm text-muted-foreground">
-                      {markup}% markup from HB Naik
+                      {currentPercentage}% markup from HB Naik
                       {isCustom && ' (Custom)'}
                     </p>
                   </FormItem>
@@ -118,12 +118,12 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
         <ul className="space-y-1 text-sm text-muted-foreground">
           {categories.map((category) => {
             const categoryKey = category.name.toLowerCase();
-            const currentMultiplier = multipliers[categoryKey] || category.multiplier;
+            const currentPercentage = percentages[categoryKey] || category.percentage;
             const isCustom = useCustomMultipliers[categoryKey];
 
             return (
               <li key={category.id}>
-                • {category.name}: HB Naik × {currentMultiplier} ({((currentMultiplier - 1) * 100).toFixed(0)}% markup)
+                • {category.name}: HB Naik + {currentPercentage}% markup
                 {isCustom && ' (Custom)'}
               </li>
             );

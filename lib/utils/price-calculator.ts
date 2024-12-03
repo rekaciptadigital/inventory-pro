@@ -8,7 +8,7 @@ export const calculateCustomerPrices = (hbNaik: number, categories: PriceCategor
   const prices = {};
   
   categories.forEach((category) => {
-    const price = Math.round(hbNaik * category.multiplier);
+    const price = Math.round(hbNaik * (1 + category.percentage / 100));
     prices[category.name.toLowerCase()] = price;
   });
 

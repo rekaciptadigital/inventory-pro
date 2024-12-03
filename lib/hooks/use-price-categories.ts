@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import type { PriceCategory } from '@/types/settings';
 
 const defaultCategories: PriceCategory[] = [
-  { id: '1', name: 'Elite', multiplier: 1.1, order: 0 },
-  { id: '2', name: 'Super', multiplier: 1.2, order: 1 },
-  { id: '3', name: 'Basic', multiplier: 1.3, order: 2 },
+  { id: '1', name: 'Elite', percentage: 10, order: 0 },
+  { id: '2', name: 'Super', percentage: 20, order: 1 },
+  { id: '3', name: 'Basic', percentage: 30, order: 2 },
 ];
 
 export function usePriceCategories() {
