@@ -4,9 +4,11 @@ import React, { useState } from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import { UseFormReturn } from 'react-hook-form';
 import { ProductFormValues } from './form-schema';
 import { usePriceCategories } from '@/lib/hooks/use-price-categories';
+import { useTaxes } from '@/lib/hooks/use-taxes';
 
 interface CustomerPricesProps {
   form: UseFormReturn<ProductFormValues>;
@@ -14,6 +16,8 @@ interface CustomerPricesProps {
 
 export function CustomerPrices({ form }: CustomerPricesProps) {
   const { categories } = usePriceCategories();
+  const { taxes } = useTaxes();
+  const activeTaxes = taxes.filter(tax => tax.status === 'active');
   const [useCustomMultipliers, setUseCustomMultipliers] = useState<{ [key: string]: boolean }>({});
   const hbNaik = form.watch('hbNaik') || 0;
   const customerPrices = form.watch('customerPrices');
@@ -23,8 +27,14 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
     const numValue = value === '' ? 0 : parseInt(value);
     form.setValue(`percentages.${categoryKey}`, numValue);
     
-    // Calculate price directly from HB Naik
-    const price = Math.round(hbNaik * (1 + numValue / 100));
+    // Calculate base price from HB Naik
+    const basePrice = Math.round(hbNaik * (1 + numValue / 100));
+    
+    // Calculate tax-inclusive price
+    const totalTaxPercentage = activeTaxes.reduce((sum, tax) => sum + tax.percentage, 0);
+    const taxMultiplier = 1 + (totalTaxPercentage / 100);
+    const price = Math.round(basePrice * taxMultiplier);
+    
     form.setValue(`customerPrices.${categoryKey}`, price);
   };
 
@@ -72,7 +82,7 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
                     <FormItem>
                       <FormLabel>Custom Percentage</FormLabel>
                       <FormControl>
-                        <Input
+                        <Input 
                           type="text"
                           inputMode="decimal"
                           pattern="[0-9]*"
@@ -87,27 +97,57 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
                 />
               )}
 
-              <FormField
-                control={form.control}
-                name={`customerPrices.${categoryKey}`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Price</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        value={price.toLocaleString()}
-                        className="bg-muted"
-                        disabled
-                      />
-                    </FormControl>
-                    <p className="text-sm text-muted-foreground">
-                      {currentPercentage}% markup from HB Naik
-                      {isCustom && ' (Custom)'}
-                    </p>
-                  </FormItem>
-                )}
-              />
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name={`customerPrices.${categoryKey}.basePrice`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pre-tax Price</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          value={price.basePrice?.toLocaleString() || '0'}
+                          className="bg-muted"
+                          disabled
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name={`customerPrices.${categoryKey}.taxInclusivePrice`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tax-inclusive Price</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          value={price.taxInclusivePrice?.toLocaleString() || '0'}
+                          className="bg-muted font-medium"
+                          disabled
+                        />
+                      </FormControl>
+                      <p className="text-sm text-muted-foreground">
+                        {currentPercentage}% markup from HB Naik
+                        {isCustom && ' (Custom)'}
+                      </p>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              {activeTaxes.length > 0 && (
+                <div className="mt-2 text-sm text-muted-foreground">
+                  <Separator className="my-2" />
+                  <p>Applied Taxes:</p>
+                  {activeTaxes.map(tax => (
+                    <p key={tax.id}>• {tax.name}: {tax.percentage}%</p>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -120,11 +160,19 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
             const categoryKey = category.name.toLowerCase();
             const currentPercentage = percentages[categoryKey] || category.percentage;
             const isCustom = useCustomMultipliers[categoryKey];
+            const totalTaxPercentage = activeTaxes.reduce((sum, tax) => sum + tax.percentage, 0);
 
             return (
               <li key={category.id}>
-                • {category.name}: HB Naik + {currentPercentage}% markup
-                {isCustom && ' (Custom)'}
+                <div>
+                  • {category.name}: HB Naik + {currentPercentage}% markup
+                  {isCustom && ' (Custom)'}
+                </div>
+                {activeTaxes.length > 0 && (
+                  <div className="ml-4 text-muted-foreground">
+                    + {totalTaxPercentage}% tax
+                  </div>
+                )}
               </li>
             );
           })}

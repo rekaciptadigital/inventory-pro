@@ -19,7 +19,11 @@ export interface Product {
     retail: number;
   };
   customerPrices: {
-    [key: string]: number;
+    [key: string]: {
+      basePrice: number;
+      taxInclusivePrice: number;
+      appliedTaxPercentage: number;
+    };
   };
   variants?: Array<{
     typeId: string;

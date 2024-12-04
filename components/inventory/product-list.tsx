@@ -73,7 +73,12 @@ export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
             <TableHead>Unit</TableHead>
             <TableHead>HB Real</TableHead>
             <TableHead>HB Naik</TableHead>
-            <TableHead>Retail Price</TableHead>
+            <TableHead>
+              <div className="space-y-1">
+                <div>Retail Price</div>
+                <div className="text-xs font-normal text-muted-foreground">(Pre-tax / With Tax)</div>
+              </div>
+            </TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -89,7 +94,12 @@ export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
               </TableCell>
               <TableCell>{formatCurrency(product.hbReal)}</TableCell>
               <TableCell>{formatCurrency(product.hbNaik)}</TableCell>
-              <TableCell>{formatCurrency(product.quantities.retail)}</TableCell>
+              <TableCell>
+                <div className="space-y-1">
+                  <div>{formatCurrency(product.customerPrices.retail.basePrice)}</div>
+                  <div className="font-medium">{formatCurrency(product.customerPrices.retail.taxInclusivePrice)}</div>
+                </div>
+              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Button

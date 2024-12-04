@@ -13,6 +13,7 @@ import {
   Target,
   User,
   Tags,
+  DollarSign,
   BookOpen,
   ListTree,
   Layers,
@@ -38,6 +39,7 @@ const navigation = [
   { name: 'Product Categories', href: '/dashboard/product-categories', icon: FolderTree },
   { name: 'Price Categories', href: '/dashboard/settings/categories', icon: Tags },
   { name: 'Variants', href: '/dashboard/variants', icon: Layers },
+  { name: 'Taxes', href: '/dashboard/taxes', icon: DollarSign },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
