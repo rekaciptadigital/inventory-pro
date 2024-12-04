@@ -7,6 +7,7 @@ export const productFormSchema = z.object({
   fullProductName: z.string(),
   vendorSku: z.string().optional(),
   productName: z.string().min(1, 'Product name is required'),
+  description: z.string().optional(),
   unit: z.enum(['PC', 'PACK', 'SET']),
   hbReal: z.number().min(0, 'HB Real must be greater than 0'),
   adjustmentPercentage: z.number().min(0, 'Adjustment percentage must be greater than or equal to 0'),

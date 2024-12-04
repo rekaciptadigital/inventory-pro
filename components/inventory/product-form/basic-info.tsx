@@ -3,6 +3,7 @@
 import React from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { UseFormReturn } from 'react-hook-form';
@@ -83,6 +84,27 @@ export function BasicInfo({ form, brands }: BasicInfoProps) {
             <FormControl>
               <Input placeholder="Enter product name" {...field} />
             </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="description"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Description</FormLabel>
+            <FormControl>
+              <Textarea 
+                placeholder="Enter product description (optional)"
+                className="min-h-[100px] resize-none"
+                {...field}
+              />
+            </FormControl>
+            <FormDescription>
+              Provide detailed information about the product
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}

@@ -5,6 +5,7 @@ export interface Product {
   sku: string;
   vendorSku?: string;
   productName: string;
+  description?: string;
   unit: 'PC' | 'PACK' | 'SET';
   hbReal: number;
   adjustmentPercentage: number;
