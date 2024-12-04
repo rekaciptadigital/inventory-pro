@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -9,6 +9,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { ProductFormValues } from './form-schema';
 import { usePriceCategories } from '@/lib/hooks/use-price-categories';
 import { useTaxes } from '@/lib/hooks/use-taxes';
+import { calculateCustomerPrices } from '@/lib/utils/price-calculator';
 
 interface CustomerPricesProps {
   form: UseFormReturn<ProductFormValues>;
@@ -19,6 +20,7 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
   const { taxes } = useTaxes();
   const activeTaxes = taxes.filter(tax => tax.status === 'active');
   const [useCustomMultipliers, setUseCustomMultipliers] = useState<{ [key: string]: boolean }>({});
+  
   const hbNaik = form.watch('hbNaik') || 0;
   const customerPrices = form.watch('customerPrices');
   const percentages = form.watch('percentages') || {};
@@ -27,16 +29,17 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
     const numValue = value === '' ? 0 : parseInt(value);
     form.setValue(`percentages.${categoryKey}`, numValue);
     
-    // Calculate base price from HB Naik
-    const basePrice = Math.round(hbNaik * (1 + numValue / 100));
+    const prices = calculateCustomerPrices(hbNaik, [{
+      id: '1',
+      name: categoryKey,
+      percentage: numValue,
+      order: 0
+    }], activeTaxes);
     
-    // Calculate tax-inclusive price
-    const totalTaxPercentage = activeTaxes.reduce((sum, tax) => sum + tax.percentage, 0);
-    const taxMultiplier = 1 + (totalTaxPercentage / 100);
-    const price = Math.round(basePrice * taxMultiplier);
-    
-    form.setValue(`customerPrices.${categoryKey}`, price);
+    form.setValue(`customerPrices.${categoryKey}`, prices[categoryKey]);
   };
+
+  const totalTaxPercentage = activeTaxes.reduce((sum, tax) => sum + tax.percentage, 0);
 
   return (
     <div className="rounded-lg border p-4">
@@ -50,7 +53,7 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
       <div className="grid grid-cols-2 gap-4">
         {categories.map((category) => {
           const categoryKey = category.name.toLowerCase();
-          const price = customerPrices?.[categoryKey] || 0;
+          const price = customerPrices?.[categoryKey];
           const currentPercentage = percentages[categoryKey] || category.percentage;
           const isCustom = useCustomMultipliers[categoryKey];
 
@@ -66,7 +69,6 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
                       const newState = { ...useCustomMultipliers, [categoryKey]: checked };
                       setUseCustomMultipliers(newState);
                       if (!checked) {
-                        // Reset to default percentage
                         handlePercentageChange(categoryKey, category.percentage.toString());
                       }
                     }}
@@ -107,11 +109,14 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
                       <FormControl>
                         <Input
                           type="text"
-                          value={price.basePrice?.toLocaleString() || '0'}
+                          value={price?.basePrice?.toLocaleString() || '0'}
                           className="bg-muted"
                           disabled
                         />
                       </FormControl>
+                      <p className="text-sm text-muted-foreground">
+                        {currentPercentage}% markup from HB Naik
+                      </p>
                     </FormItem>
                   )}
                 />
@@ -125,20 +130,19 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
                       <FormControl>
                         <Input
                           type="text"
-                          value={price.taxInclusivePrice?.toLocaleString() || '0'}
+                          value={price?.taxInclusivePrice?.toLocaleString() || '0'}
                           className="bg-muted font-medium"
                           disabled
                         />
                       </FormControl>
                       <p className="text-sm text-muted-foreground">
-                        {currentPercentage}% markup from HB Naik
-                        {isCustom && ' (Custom)'}
+                        Including {totalTaxPercentage}% tax
                       </p>
                     </FormItem>
                   )}
                 />
               </div>
-              
+
               {activeTaxes.length > 0 && (
                 <div className="mt-2 text-sm text-muted-foreground">
                   <Separator className="my-2" />
@@ -160,7 +164,6 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
             const categoryKey = category.name.toLowerCase();
             const currentPercentage = percentages[categoryKey] || category.percentage;
             const isCustom = useCustomMultipliers[categoryKey];
-            const totalTaxPercentage = activeTaxes.reduce((sum, tax) => sum + tax.percentage, 0);
 
             return (
               <li key={category.id}>
