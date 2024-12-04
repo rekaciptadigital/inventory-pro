@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -9,7 +9,8 @@ import { UseFormReturn } from 'react-hook-form';
 import { ProductFormValues } from './form-schema';
 import { usePriceCategories } from '@/lib/hooks/use-price-categories';
 import { useTaxes } from '@/lib/hooks/use-taxes';
-import { calculateCustomerPrices } from '@/lib/utils/price-calculator';
+import { usePriceCalculations } from '@/lib/hooks/use-price-calculations';
+import { formatCurrency } from '@/lib/utils/format';
 
 interface CustomerPricesProps {
   form: UseFormReturn<ProductFormValues>;
@@ -18,43 +19,56 @@ interface CustomerPricesProps {
 export function CustomerPrices({ form }: CustomerPricesProps) {
   const { categories } = usePriceCategories();
   const { taxes } = useTaxes();
-  const activeTaxes = taxes.filter(tax => tax.status === 'active');
-  const [useCustomMultipliers, setUseCustomMultipliers] = useState<{ [key: string]: boolean }>({});
+  const { updateCustomerPrices } = usePriceCalculations(form);
+  const [useCustomMultipliers, setUseCustomMultipliers] = useState<Record<string, boolean>>({});
   
   const hbNaik = form.watch('hbNaik') || 0;
-  const customerPrices = form.watch('customerPrices');
+  const customerPrices = form.watch('customerPrices') || {};
   const percentages = form.watch('percentages') || {};
 
-  const handlePercentageChange = (categoryKey: string, value: string) => {
-    const numValue = value === '' ? 0 : parseInt(value);
-    form.setValue(`percentages.${categoryKey}`, numValue);
-    
-    const prices = calculateCustomerPrices(hbNaik, [{
-      id: '1',
-      name: categoryKey,
-      percentage: numValue,
-      order: 0
-    }], activeTaxes);
-    
-    form.setValue(`customerPrices.${categoryKey}`, prices[categoryKey]);
-  };
-
+  const activeTaxes = taxes.filter(tax => tax.status === 'active');
   const totalTaxPercentage = activeTaxes.reduce((sum, tax) => sum + tax.percentage, 0);
+
+  // Update customer prices when relevant values change
+  useEffect(() => {
+    const unsubscribe = form.watch((value, { name }) => {
+      if (name === 'hbNaik' || name?.startsWith('percentages.')) {
+        const updatedCategories = categories.map(category => ({
+          name: category.name,
+          percentage: percentages[category.name.toLowerCase()] ?? category.percentage
+        }));
+        updateCustomerPrices(hbNaik, updatedCategories, activeTaxes);
+      }
+    });
+    return () => unsubscribe.unsubscribe();
+  }, [form, hbNaik, categories, percentages, activeTaxes, updateCustomerPrices]);
+
+  const handlePercentageChange = (categoryKey: string, value: string) => {
+    const numValue = value === '' ? 0 : parseFloat(value);
+    if (!isNaN(numValue)) {
+      form.setValue(`percentages.${categoryKey}`, numValue, { shouldValidate: true });
+    }
+  };
 
   return (
     <div className="rounded-lg border p-4">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-medium">Customer Category Prices</h3>
         <div className="text-sm text-muted-foreground">
-          Base Price (HB Naik): Rp {hbNaik.toLocaleString()}
+          Base Price (HB Naik): {formatCurrency(hbNaik)}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         {categories.map((category) => {
           const categoryKey = category.name.toLowerCase();
-          const price = customerPrices?.[categoryKey];
-          const currentPercentage = percentages[categoryKey] || category.percentage;
+          const price = customerPrices[categoryKey] || {
+            basePrice: 0,
+            taxAmount: 0,
+            taxInclusivePrice: 0,
+            appliedTaxPercentage: 0
+          };
+          const currentPercentage = percentages[categoryKey] ?? category.percentage;
           const isCustom = useCustomMultipliers[categoryKey];
 
           return (
@@ -66,8 +80,7 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
                   <Switch
                     checked={isCustom}
                     onCheckedChange={(checked) => {
-                      const newState = { ...useCustomMultipliers, [categoryKey]: checked };
-                      setUseCustomMultipliers(newState);
+                      setUseCustomMultipliers(prev => ({ ...prev, [categoryKey]: checked }));
                       if (!checked) {
                         handlePercentageChange(categoryKey, category.percentage.toString());
                       }
@@ -85,12 +98,13 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
                       <FormLabel>Custom Percentage</FormLabel>
                       <FormControl>
                         <Input 
-                          type="text"
-                          inputMode="decimal"
-                          pattern="[0-9]*"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
                           placeholder={category.percentage.toString()}
-                          value={field.value || category.percentage}
-                          onChange={(e) => handlePercentageChange(categoryKey, e.target.value.replace(/[^0-9]/g, ''))}
+                          value={field.value ?? category.percentage}
+                          onChange={(e) => handlePercentageChange(categoryKey, e.target.value)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -103,13 +117,13 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
                 <FormField
                   control={form.control}
                   name={`customerPrices.${categoryKey}.basePrice`}
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
                       <FormLabel>Pre-tax Price</FormLabel>
                       <FormControl>
                         <Input
                           type="text"
-                          value={price?.basePrice?.toLocaleString() || '0'}
+                          value={formatCurrency(price.basePrice)}
                           className="bg-muted"
                           disabled
                         />
@@ -124,19 +138,19 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
                 <FormField
                   control={form.control}
                   name={`customerPrices.${categoryKey}.taxInclusivePrice`}
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
                       <FormLabel>Tax-inclusive Price</FormLabel>
                       <FormControl>
                         <Input
                           type="text"
-                          value={price?.taxInclusivePrice?.toLocaleString() || '0'}
+                          value={formatCurrency(price.taxInclusivePrice)}
                           className="bg-muted font-medium"
                           disabled
                         />
                       </FormControl>
                       <p className="text-sm text-muted-foreground">
-                        Including {totalTaxPercentage}% tax
+                        Including {totalTaxPercentage}% tax ({formatCurrency(price.taxAmount)})
                       </p>
                     </FormItem>
                   )}
@@ -162,7 +176,7 @@ export function CustomerPrices({ form }: CustomerPricesProps) {
         <ul className="space-y-1 text-sm text-muted-foreground">
           {categories.map((category) => {
             const categoryKey = category.name.toLowerCase();
-            const currentPercentage = percentages[categoryKey] || category.percentage;
+            const currentPercentage = percentages[categoryKey] ?? category.percentage;
             const isCustom = useCustomMultipliers[categoryKey];
 
             return (

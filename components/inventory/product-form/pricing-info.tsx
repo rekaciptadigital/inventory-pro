@@ -1,16 +1,20 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { UseFormReturn } from 'react-hook-form';
 import { ProductFormValues } from './form-schema';
+import { usePriceCalculations } from '@/lib/hooks/use-price-calculations';
+import { formatCurrency } from '@/lib/utils/format';
 
 interface PricingInfoProps {
   form: UseFormReturn<ProductFormValues>;
 }
 
 export function PricingInfo({ form }: PricingInfoProps) {
+  const { updateHBNaik, updateHBReal } = usePriceCalculations(form);
+
   const handleNumericChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     field: {
@@ -20,19 +24,30 @@ export function PricingInfo({ form }: PricingInfoProps) {
   ) => {
     const value = e.target.value;
     const numberValue = value === '' ? 0 : parseFloat(value);
-    field.onChange(numberValue);
+    if (!isNaN(numberValue)) {
+      field.onChange(numberValue);
+    }
   };
 
   // Calculate HB Real when USD Price or Exchange Rate changes
   useEffect(() => {
-    const usdPrice = form.watch('usdPrice');
-    const exchangeRate = form.watch('exchangeRate');
-    
-    if (usdPrice > 0 && exchangeRate > 0) {
-      const hbReal = Math.round(usdPrice * exchangeRate);
-      form.setValue('hbReal', hbReal);
-    }
-  }, [form.watch('usdPrice'), form.watch('exchangeRate')]);
+    const unsubscribe = form.watch((value, { name }) => {
+      if (name === 'usdPrice' || name === 'exchangeRate') {
+        updateHBReal();
+      }
+    });
+    return () => unsubscribe.unsubscribe();
+  }, [form, updateHBReal]);
+
+  // Calculate HB Naik when HB Real or Adjustment Percentage changes
+  useEffect(() => {
+    const unsubscribe = form.watch((value, { name }) => {
+      if (name === 'hbReal' || name === 'adjustmentPercentage') {
+        updateHBNaik();
+      }
+    });
+    return () => unsubscribe.unsubscribe();
+  }, [form, updateHBNaik]);
 
   const hbReal = form.watch('hbReal') || 0;
   const hbNaik = form.watch('hbNaik') || 0;
@@ -42,7 +57,6 @@ export function PricingInfo({ form }: PricingInfoProps) {
       <h3 className="text-lg font-medium mb-4">Pricing Information</h3>
       
       <div className="grid gap-6">
-        {/* USD and Exchange Rate Section */}
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -53,6 +67,7 @@ export function PricingInfo({ form }: PricingInfoProps) {
                 <FormControl>
                   <Input
                     type="number"
+                    min="0"
                     step="0.01"
                     placeholder="Enter USD price"
                     value={field.value || ''}
@@ -74,6 +89,7 @@ export function PricingInfo({ form }: PricingInfoProps) {
                 <FormControl>
                   <Input
                     type="number"
+                    min="0"
                     placeholder="Enter exchange rate"
                     value={field.value || ''}
                     onChange={(e) => handleNumericChange(e, field)}
@@ -86,18 +102,16 @@ export function PricingInfo({ form }: PricingInfoProps) {
           />
         </div>
 
-        {/* HB Real Display */}
         <div className="bg-muted/50 p-4 rounded-lg">
           <FormLabel>HB Real (Base Price)</FormLabel>
           <div className="text-2xl font-bold mt-1">
-            Rp {hbReal.toLocaleString()}
+            {formatCurrency(hbReal)}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             Automatically calculated: USD Price × Exchange Rate
           </p>
         </div>
 
-        {/* Adjustment Section */}
         <FormField
           control={form.control}
           name="adjustmentPercentage"
@@ -107,8 +121,10 @@ export function PricingInfo({ form }: PricingInfoProps) {
               <FormControl>
                 <Input
                   type="number"
-                  step="0.01"
-                  placeholder="Enter adjustment %"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  placeholder="Enter adjustment percentage"
                   value={field.value || ''}
                   onChange={(e) => handleNumericChange(e, field)}
                   onBlur={field.onBlur}
@@ -119,14 +135,17 @@ export function PricingInfo({ form }: PricingInfoProps) {
           )}
         />
 
-        {/* HB Naik Display */}
         <div className="bg-muted/50 p-4 rounded-lg">
           <FormLabel>HB Naik (Adjusted Price)</FormLabel>
           <div className="text-2xl font-bold mt-1">
-            Rp {hbNaik.toLocaleString()}
+            {formatCurrency(hbNaik)}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Automatically calculated: HB Real × (1 + Adjustment/100)
+            {hbNaik === hbReal ? (
+              'Same as HB Real (no adjustment applied)'
+            ) : (
+              'Automatically calculated: HB Real × (1 + Adjustment/100)'
+            )}
           </p>
         </div>
       </div>

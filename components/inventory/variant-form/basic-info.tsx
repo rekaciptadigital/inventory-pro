@@ -6,23 +6,27 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
+import { ProductSearchSelect } from '@/components/inventory/product-search/product-search-select';
 import { UseFormReturn } from 'react-hook-form';
-import { ProductFormValues } from './form-schema';
+import { VariantFormValues } from './variant-form-schema';
 import { useProductTypes } from '@/lib/hooks/use-product-types';
 import { useBrands } from '@/lib/hooks/use-brands';
 
 interface BasicInfoProps {
-  form: UseFormReturn<ProductFormValues>;
+  form: UseFormReturn<VariantFormValues>;
 }
 
 export function BasicInfo({ form }: BasicInfoProps) {
   const { productTypes } = useProductTypes();
   const { brands } = useBrands();
   
-  const brandOptions = (brands || []).map(brand => ({
+  const brandOptions = brands.map(brand => ({
     label: brand.name,
     value: brand.id,
   }));
+
+  const selectedBrand = form.watch('brand');
+  const selectedProductType = form.watch('productTypeId');
 
   return (
     <div className="space-y-4">
@@ -39,7 +43,11 @@ export function BasicInfo({ form }: BasicInfoProps) {
                 <Combobox
                   options={brandOptions}
                   value={field.value}
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    // Reset product selection when brand changes
+                    form.setValue('productId', '');
+                  }}
                   placeholder="Search and select brand"
                   emptyText="No brands found. Please add a brand first."
                 />
@@ -55,14 +63,21 @@ export function BasicInfo({ form }: BasicInfoProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Product Type</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+              <Select 
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  // Reset product selection when type changes
+                  form.setValue('productId', '');
+                }} 
+                value={field.value}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select product type" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {(productTypes || []).map((type) => (
+                  {productTypes.map((type) => (
                     <SelectItem key={type.id} value={type.id}>
                       {type.name}
                     </SelectItem>
@@ -77,13 +92,22 @@ export function BasicInfo({ form }: BasicInfoProps) {
 
       <FormField
         control={form.control}
-        name="productName"
+        name="productId"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Product Name</FormLabel>
+            <FormLabel>Product</FormLabel>
             <FormControl>
-              <Input placeholder="Enter product name" {...field} />
+              <ProductSearchSelect
+                brandId={selectedBrand}
+                productTypeId={selectedProductType}
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={!selectedBrand || !selectedProductType}
+              />
             </FormControl>
+            <FormDescription>
+              Select a product to create variants for. Only products matching the selected brand and type will be shown.
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -97,54 +121,14 @@ export function BasicInfo({ form }: BasicInfoProps) {
             <FormLabel>Description</FormLabel>
             <FormControl>
               <Textarea 
-                placeholder="Enter product description (optional)"
+                placeholder="Enter variant description (optional)"
                 className="min-h-[100px] resize-none"
                 {...field}
               />
             </FormControl>
             <FormDescription>
-              Provide detailed information about the product
+              Provide additional details about these variants
             </FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="vendorSku"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Vendor SKU</FormLabel>
-            <FormControl>
-              <Input placeholder="Enter vendor SKU (optional)" {...field} />
-            </FormControl>
-            <FormDescription>
-              Enter original vendor SKU if available
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="unit"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Unit</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select unit" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                <SelectItem value="PC">Piece (PC)</SelectItem>
-                <SelectItem value="PACK">Pack</SelectItem>
-                <SelectItem value="SET">Set</SelectItem>
-              </SelectContent>
-            </Select>
             <FormMessage />
           </FormItem>
         )}

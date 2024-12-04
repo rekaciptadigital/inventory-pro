@@ -1,34 +1,48 @@
-import { PriceCategory } from '@/types/settings';
-import { Tax } from '@/types/tax';
+import type { CustomerPrice, PriceCategory, Tax } from '@/types/pricing';
 
 export const calculateHBNaik = (hbReal: number, adjustmentPercentage: number): number => {
+  if (!hbReal || isNaN(hbReal)) return 0;
+  if (!adjustmentPercentage || isNaN(adjustmentPercentage)) return hbReal;
   return Math.round(hbReal * (1 + adjustmentPercentage / 100));
 };
 
+export const calculateBasePrice = (hbNaik: number, percentage: number): number => {
+  if (!hbNaik || isNaN(hbNaik)) return 0;
+  if (isNaN(percentage)) return hbNaik;
+  return Math.round(hbNaik * (1 + percentage / 100));
+};
+
+export const calculateTaxAmount = (basePrice: number, taxPercentage: number): number => {
+  if (!basePrice || isNaN(basePrice)) return 0;
+  if (!taxPercentage || isNaN(taxPercentage)) return 0;
+  return Math.round(basePrice * (taxPercentage / 100));
+};
+
 export const calculateCustomerPrices = (
-  hbNaik: number, 
+  hbNaik: number,
   categories: PriceCategory[],
   activeTaxes: Tax[] = []
-) => {
-  const prices = {};
+): Record<string, CustomerPrice> => {
+  if (!hbNaik || isNaN(hbNaik)) {
+    return {};
+  }
+
   const totalTaxPercentage = activeTaxes
     .filter(tax => tax.status === 'active')
     .reduce((sum, tax) => sum + tax.percentage, 0);
-  
-  categories.forEach((category) => {
-    // Calculate base price with markup
-    const basePrice = Math.round(hbNaik * (1 + category.percentage / 100));
-    
-    // Calculate tax-inclusive price
-    const taxMultiplier = 1 + (totalTaxPercentage / 100);
-    const taxInclusivePrice = Math.round(basePrice * taxMultiplier);
-    
+
+  return categories.reduce((prices, category) => {
+    const basePrice = calculateBasePrice(hbNaik, category.percentage);
+    const taxAmount = calculateTaxAmount(basePrice, totalTaxPercentage);
+    const taxInclusivePrice = basePrice + taxAmount;
+
     prices[category.name.toLowerCase()] = {
       basePrice,
+      taxAmount,
       taxInclusivePrice,
       appliedTaxPercentage: totalTaxPercentage
     };
-  });
 
-  return prices;
+    return prices;
+  }, {} as Record<string, CustomerPrice>);
 };

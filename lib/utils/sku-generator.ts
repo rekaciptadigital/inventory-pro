@@ -1,3 +1,5 @@
+'use client';
+
 import type { Brand } from '@/types/brand';
 import type { ProductType } from '@/types/product-type';
 import type { VariantType } from '@/types/variant';
@@ -38,6 +40,17 @@ export function generateSKU(
   parts.push(timestamp);
 
   return parts.join('-');
+}
+
+export function generateVariantSKU(
+  parentSku: string,
+  variant: { typeId: string; values: string[] }
+): string {
+  const variantCode = variant.values
+    .map(value => value.charAt(0).toUpperCase())
+    .join('');
+  
+  return `${parentSku}-${variantCode}`;
 }
 
 export function generateFullProductName(

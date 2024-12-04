@@ -83,60 +83,67 @@ export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {products.map((product) => (
-            <TableRow key={product.id}>
-              <TableCell>{getBrandName(product.brand)}</TableCell>
-              <TableCell>{getProductTypeName(product.productTypeId)}</TableCell>
-              <TableCell>{product.sku}</TableCell>
-              <TableCell>{product.productName}</TableCell>
-              <TableCell>
-                <Badge variant="secondary">{product.unit}</Badge>
-              </TableCell>
-              <TableCell>{formatCurrency(product.hbReal)}</TableCell>
-              <TableCell>{formatCurrency(product.hbNaik)}</TableCell>
-              <TableCell>
-                <div className="space-y-1">
-                  <div>{formatCurrency(product.customerPrices.retail.basePrice)}</div>
-                  <div className="font-medium">{formatCurrency(product.customerPrices.retail.taxInclusivePrice)}</div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onEdit(product)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Product</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this product? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(product.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+          {products.map((product) => {
+            const retailPrices = product.customerPrices?.retail || {
+              basePrice: 0,
+              taxInclusivePrice: 0
+            };
+
+            return (
+              <TableRow key={product.id}>
+                <TableCell>{getBrandName(product.brand)}</TableCell>
+                <TableCell>{getProductTypeName(product.productTypeId)}</TableCell>
+                <TableCell>{product.sku}</TableCell>
+                <TableCell>{product.productName}</TableCell>
+                <TableCell>
+                  <Badge variant="secondary">{product.unit}</Badge>
+                </TableCell>
+                <TableCell>{formatCurrency(product.hbReal)}</TableCell>
+                <TableCell>{formatCurrency(product.hbNaik)}</TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    <div>{formatCurrency(retailPrices.basePrice)}</div>
+                    <div className="font-medium">{formatCurrency(retailPrices.taxInclusivePrice)}</div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onEdit(product)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Product</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this product? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(product.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

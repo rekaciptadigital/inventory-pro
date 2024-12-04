@@ -11,15 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { ProductForm } from '@/components/inventory/product-form/index';
+import { ProductActions } from '@/components/inventory/product-actions';
 import { ProductList } from '@/components/inventory/product-list';
 import { useToast } from '@/components/ui/use-toast';
 import type { Product } from '@/types/inventory';
@@ -28,10 +20,9 @@ export default function InventoryPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
 
+  // Load products from localStorage on component mount
   useEffect(() => {
     const savedProducts = localStorage.getItem('products');
     if (savedProducts) {
@@ -39,27 +30,27 @@ export default function InventoryPage() {
     }
   }, []);
 
-  const handleSuccess = (product: Product) => {
-    if (selectedProduct) {
-      // Update existing product
-      setProducts(products.map(p => p.id === product.id ? product : p));
-    } else {
-      // Add new product
-      setProducts([...products, product]);
-    }
-    setIsDialogOpen(false);
-    setSelectedProduct(undefined);
-  };
-
   const handleEdit = (product: Product) => {
-    setSelectedProduct(product);
-    setIsDialogOpen(true);
+    // Handle edit action
   };
 
   const handleDelete = async (id: string) => {
-    const updatedProducts = products.filter(product => product.id !== id);
-    setProducts(updatedProducts);
-    localStorage.setItem('products', JSON.stringify(updatedProducts));
+    try {
+      const updatedProducts = products.filter(product => product.id !== id);
+      setProducts(updatedProducts);
+      localStorage.setItem('products', JSON.stringify(updatedProducts));
+      
+      toast({
+        title: 'Success',
+        description: 'Product has been deleted successfully',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to delete product',
+      });
+    }
   };
 
   const filteredProducts = products.filter(product => {
@@ -69,7 +60,7 @@ export default function InventoryPage() {
       product.productName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+    const matchesCategory = categoryFilter === 'all' || product.productTypeId === categoryFilter;
 
     return matchesSearch && matchesCategory;
   });
@@ -83,31 +74,7 @@ export default function InventoryPage() {
             Manage your archery equipment inventory
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) setSelectedProduct(undefined);
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add New Product
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {selectedProduct ? 'Edit Product' : 'Add New Product'}
-              </DialogTitle>
-              <DialogDescription>
-                Fill in the product details below. Prices will be automatically calculated based on HB Real and adjustment percentage.
-              </DialogDescription>
-            </DialogHeader>
-            <ProductForm 
-              onSuccess={handleSuccess}
-              initialData={selectedProduct}
-            />
-          </DialogContent>
-        </Dialog>
+        <ProductActions />
       </div>
 
       <div className="flex gap-4">

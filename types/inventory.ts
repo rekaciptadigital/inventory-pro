@@ -12,24 +12,23 @@ export interface Product {
   hbNaik: number;
   usdPrice: number;
   exchangeRate: number;
-  quantities: {
-    min15: number;
-    min10: number;
-    min5: number;
-    single: number;
-    retail: number;
-  };
   customerPrices: {
     [key: string]: {
       basePrice: number;
+      taxAmount: number;
       taxInclusivePrice: number;
       appliedTaxPercentage: number;
     };
+  };
+  percentages: {
+    [key: string]: number;
   };
   variants?: Array<{
     typeId: string;
     values: string[];
   }>;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface ProductFormData extends Omit<Product, 'id' | 'hbNaik'> {}
+export interface ProductFormData extends Omit<Product, 'id' | 'createdAt' | 'updatedAt'> {}
