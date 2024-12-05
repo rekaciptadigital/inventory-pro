@@ -21,8 +21,24 @@ export async function createUser(data: UserFormData) {
 }
 
 export async function updateUser(id: string, data: UserFormData) {
-  const response = await axios.put<ApiResponse<User>>(`${API_URL}/${id}`, data);
-  return response.data;
+  try {
+    const response = await axios.put<ApiResponse<User>>(`${API_URL}/${id}`, {
+      nip: null,
+      nik: null,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      phone_number: data.phone_number,
+      address: null,
+      status: data.status
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      // Extract the error message from the API response
+      throw new Error(error.response.data.message || 'Failed to update user');
+    }
+    throw error;
+  }
 }
 
 export async function deleteUser(id: string) {

@@ -24,7 +24,7 @@ const formSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
   phone_number: z.string()
     .nullable()
     .refine((val) => val === null || val === '' || isValidPhoneNumber(val), {
@@ -59,6 +59,12 @@ export function UserForm({ onSubmit, initialData, isSubmitting }: UserFormProps)
     try {
       setFormError(null);
       const sanitizedData = sanitizeFormData(values);
+      
+      // Remove password if empty when editing
+      if (initialData && !sanitizedData.password) {
+        delete sanitizedData.password;
+      }
+      
       await onSubmit(sanitizedData);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'An error occurred';
@@ -114,7 +120,8 @@ export function UserForm({ onSubmit, initialData, isSubmitting }: UserFormProps)
                 <Input 
                   type="email" 
                   placeholder="Enter email address" 
-                  {...field} 
+                  {...field}
+                  disabled={!!initialData} // Disable email field when editing
                 />
               </FormControl>
               <FormMessage />
@@ -127,15 +134,20 @@ export function UserForm({ onSubmit, initialData, isSubmitting }: UserFormProps)
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>{initialData ? 'New Password (optional)' : 'Password'}</FormLabel>
               <FormControl>
                 <Input 
                   type="password" 
-                  placeholder="Enter password" 
+                  placeholder={initialData ? 'Leave blank to keep current password' : 'Enter password'} 
                   {...field} 
                 />
               </FormControl>
-              <FormDescription>Must be at least 8 characters</FormDescription>
+              <FormDescription>
+                {initialData 
+                  ? 'Only enter if you want to change the password'
+                  : 'Must be at least 8 characters'
+                }
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
