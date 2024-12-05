@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { User, UserFormData, PaginatedResponse } from '@/types/user';
 
-const API_URL = 'http://api.proarchery.id/users';
+const API_URL = 'https://api.proarchery.id/users';
 
 export async function getUsers(page = 1, search = '') {
   const params = new URLSearchParams({
