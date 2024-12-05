@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -46,8 +45,8 @@ export function UserTable({ users, onEdit, onDelete }: UserTableProps) {
         <TableBody>
           {users.map((user) => (
             <TableRow key={user.id}>
-              <TableCell>{user.firstName}</TableCell>
-              <TableCell>{user.lastName}</TableCell>
+              <TableCell>{user.first_name}</TableCell>
+              <TableCell>{user.last_name}</TableCell>
               <TableCell>{user.email}</TableCell>
               <TableCell>
                 <Badge
@@ -56,7 +55,7 @@ export function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                   {user.status ? 'Active' : 'Inactive'}
                 </Badge>
               </TableCell>
-              <TableCell>{formatDate(user.createdAt)}</TableCell>
+              <TableCell>{formatDate(user.created_at)}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Button

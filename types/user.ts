@@ -1,27 +1,47 @@
 export interface User {
   id: string;
-  firstName: string;
-  lastName: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  first_name: string;
+  last_name: string;
+  photo_profile: string | null;
   email: string;
+  password?: string;
+  phone_number: string | null;
   status: boolean;
-  createdAt: string;
-  updatedAt: string;
+  user_roles: any[];
 }
 
 export interface UserFormData {
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   email: string;
+  password: string;
+  phone_number: string | null;
   status: boolean;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  meta: {
+export interface ApiResponse<T> {
+  status: {
+    code: number;
+    message: string;
+  };
+  data: T;
+  pagination?: {
+    links: {
+      first: string;
+      previous: string | null;
+      current: string;
+      next: string | null;
+      last: string;
+    };
     currentPage: number;
     totalPages: number;
+    pageSize: number;
     totalItems: number;
-    itemsPerPage: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
   };
 }
 

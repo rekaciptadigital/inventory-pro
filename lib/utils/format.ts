@@ -1,11 +1,11 @@
+import { format, parseISO } from 'date-fns';
+
 export function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  try {
+    return format(parseISO(dateString), 'yyyy-MM-dd HH:mm:ss');
+  } catch (error) {
+    return dateString;
+  }
 }
 
 export function formatCurrency(amount: number): string {

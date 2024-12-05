@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { User, UserFormData, PaginatedResponse } from '@/types/user';
+import type { User, UserFormData, ApiResponse } from '@/types/user';
 
 const API_URL = 'https://api.proarchery.id/users';
 
@@ -9,19 +9,19 @@ export async function getUsers(page = 1, search = '') {
     ...(search && { search }),
   });
 
-  const response = await axios.get<PaginatedResponse<User>>(
+  const response = await axios.get<ApiResponse<User[]>>(
     `${API_URL}?${params.toString()}`
   );
   return response.data;
 }
 
 export async function createUser(data: UserFormData) {
-  const response = await axios.post<User>(API_URL, data);
+  const response = await axios.post<ApiResponse<User>>(API_URL, data);
   return response.data;
 }
 
 export async function updateUser(id: string, data: UserFormData) {
-  const response = await axios.put<User>(`${API_URL}/${id}`, data);
+  const response = await axios.put<ApiResponse<User>>(`${API_URL}/${id}`, data);
   return response.data;
 }
 
