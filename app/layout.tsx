@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { LanguageProvider } from '@/lib/i18n/language-context';
+import { Providers } from './providers';
 import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
 
@@ -27,8 +28,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <LanguageProvider>
-            {children}
-            <Toaster />
+            <Providers>
+              {children}
+              <Toaster />
+            </Providers>
           </LanguageProvider>
         </ThemeProvider>
       </body>

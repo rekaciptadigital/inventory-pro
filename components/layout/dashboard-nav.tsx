@@ -19,6 +19,7 @@ import {
   Layers,
   Menu,
   FolderTree,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +41,7 @@ const navigation = [
   { name: 'Price Categories', href: '/dashboard/settings/categories', icon: Tags },
   { name: 'Variants', href: '/dashboard/variants', icon: Layers },
   { name: 'Taxes', href: '/dashboard/taxes', icon: DollarSign },
+  { name: 'Users', href: '/dashboard/users', icon: Users },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
