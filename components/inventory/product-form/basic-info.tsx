@@ -27,6 +27,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
 
   const selectedBrand = form.watch('brand');
   const selectedProductType = form.watch('productTypeId');
+  const productName = form.watch('productName');
   const uniqueCode = form.watch('uniqueCode');
 
   useEffect(() => {
@@ -35,11 +36,18 @@ export function BasicInfo({ form }: BasicInfoProps) {
       const productType = productTypes.find(pt => pt.id === selectedProductType);
       
       if (brand && productType) {
+        // Generate SKU
         const sku = generateSKU(brand, productType, uniqueCode);
         form.setValue('sku', sku);
+
+        // Generate full product name
+        if (productName) {
+          const fullName = `${brand.name} ${productType.name} ${productName}`;
+          form.setValue('fullProductName', fullName);
+        }
       }
     }
-  }, [selectedBrand, selectedProductType, uniqueCode, form, brands, productTypes]);
+  }, [selectedBrand, selectedProductType, productName, uniqueCode, form, brands, productTypes]);
 
   return (
     <div className="space-y-4">
@@ -140,6 +148,23 @@ export function BasicInfo({ form }: BasicInfoProps) {
             <FormControl>
               <Input placeholder="Enter product name" {...field} />
             </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="fullProductName"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Full Product Name</FormLabel>
+            <FormControl>
+              <Input {...field} readOnly className="bg-muted" />
+            </FormControl>
+            <FormDescription>
+              Auto-generated based on brand, product type, and product name
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
