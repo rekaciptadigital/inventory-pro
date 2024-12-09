@@ -7,6 +7,7 @@ import type { VariantType } from '@/types/variant';
 export function generateSKU(
   brand: Brand,
   productType: ProductType,
+  uniqueCode?: string,
   variants?: Array<{typeId: string; values: string[]}>,
   variantTypes?: VariantType[]
 ): string {
@@ -29,17 +30,17 @@ export function generateSKU(
     }).join('');
   }
 
-  // Combine all parts with hyphens
+  // Use provided unique code or generate timestamp-based one
+  const uniqueIdentifier = uniqueCode || Date.now().toString().slice(-4);
+  
+  // Combine all parts without hyphens
   const parts = [brandCode, typeCode];
   if (variantCode) {
     parts.push(variantCode);
   }
-  
-  // Add sequential number to ensure uniqueness
-  const timestamp = Date.now().toString().slice(-4);
-  parts.push(timestamp);
+  parts.push(uniqueIdentifier);
 
-  return parts.join('-');
+  return parts.join('');
 }
 
 export function generateVariantSKU(
@@ -50,7 +51,7 @@ export function generateVariantSKU(
     .map(value => value.charAt(0).toUpperCase())
     .join('');
   
-  return `${parentSku}-${variantCode}`;
+  return `${parentSku}${variantCode}`;
 }
 
 export function generateFullProductName(

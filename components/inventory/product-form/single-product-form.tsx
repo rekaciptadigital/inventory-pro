@@ -25,9 +25,11 @@ const defaultValues: ProductFormValues = {
   brand: '',
   productTypeId: '',
   sku: '',
+  uniqueCode: '',
   fullProductName: '',
   productName: '',
   description: '',
+  vendorSku: '',
   unit: 'PC',
   hbReal: 0,
   adjustmentPercentage: 0,
@@ -66,7 +68,7 @@ export function SingleProductForm({ onSuccess, onClose, initialData }: SinglePro
 
       // Generate SKU if not provided
       if (!values.sku) {
-        values.sku = generateSKU(brand, productType);
+        values.sku = generateSKU(brand, productType, values.uniqueCode);
       }
 
       // Get existing products from localStorage

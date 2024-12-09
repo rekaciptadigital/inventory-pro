@@ -11,8 +11,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ProductActions } from '@/components/inventory/product-actions';
 import { ProductList } from '@/components/inventory/product-list';
+import { SingleProductForm } from '@/components/inventory/product-form/single-product-form';
 import { useToast } from '@/components/ui/use-toast';
 import type { Product } from '@/types/inventory';
 
@@ -21,6 +29,8 @@ export default function InventoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [products, setProducts] = useState<Product[]>([]);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   // Load products from localStorage on component mount
   useEffect(() => {
@@ -31,7 +41,23 @@ export default function InventoryPage() {
   }, []);
 
   const handleEdit = (product: Product) => {
-    // Handle edit action
+    setSelectedProduct(product);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSuccess = (updatedProduct: Product) => {
+    const updatedProducts = products.map(product => 
+      product.id === updatedProduct.id ? updatedProduct : product
+    );
+    setProducts(updatedProducts);
+    localStorage.setItem('products', JSON.stringify(updatedProducts));
+    setIsEditDialogOpen(false);
+    setSelectedProduct(null);
+    
+    toast({
+      title: 'Success',
+      description: 'Product has been updated successfully',
+    });
   };
 
   const handleDelete = async (id: string) => {
@@ -108,6 +134,27 @@ export default function InventoryPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
+
+      <Dialog 
+        open={isEditDialogOpen} 
+        onOpenChange={setIsEditDialogOpen}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+            <DialogDescription>
+              Update product details
+            </DialogDescription>
+          </DialogHeader>
+          {selectedProduct && (
+            <SingleProductForm
+              initialData={selectedProduct}
+              onSuccess={handleEditSuccess}
+              onClose={() => setIsEditDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

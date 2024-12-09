@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,6 +10,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { ProductFormValues } from './form-schema';
 import { useProductTypes } from '@/lib/hooks/use-product-types';
 import { useBrands } from '@/lib/hooks/use-brands';
+import { generateSKU } from '@/lib/utils/sku-generator';
 
 interface BasicInfoProps {
   form: UseFormReturn<ProductFormValues>;
@@ -19,10 +20,26 @@ export function BasicInfo({ form }: BasicInfoProps) {
   const { productTypes } = useProductTypes();
   const { brands } = useBrands();
   
-  const brandOptions = (brands || []).map(brand => ({
+  const brandOptions = brands.map(brand => ({
     label: brand.name,
     value: brand.id,
   }));
+
+  const selectedBrand = form.watch('brand');
+  const selectedProductType = form.watch('productTypeId');
+  const uniqueCode = form.watch('uniqueCode');
+
+  useEffect(() => {
+    if (selectedBrand && selectedProductType) {
+      const brand = brands.find(b => b.id === selectedBrand);
+      const productType = productTypes.find(pt => pt.id === selectedProductType);
+      
+      if (brand && productType) {
+        const sku = generateSKU(brand, productType, uniqueCode);
+        form.setValue('sku', sku);
+      }
+    }
+  }, [selectedBrand, selectedProductType, uniqueCode, form, brands, productTypes]);
 
   return (
     <div className="space-y-4">
@@ -62,13 +79,52 @@ export function BasicInfo({ form }: BasicInfoProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {(productTypes || []).map((type) => (
+                  {productTypes.map((type) => (
                     <SelectItem key={type.id} value={type.id}>
                       {type.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <FormField
+          control={form.control}
+          name="uniqueCode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Unique Code</FormLabel>
+              <FormControl>
+                <Input 
+                  placeholder="Enter unique code (optional)"
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>
+                Leave empty for auto-generated code
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="sku"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>SKU</FormLabel>
+              <FormControl>
+                <Input {...field} readOnly className="bg-muted" />
+              </FormControl>
+              <FormDescription>
+                Auto-generated based on brand, type, and unique code
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -91,6 +147,23 @@ export function BasicInfo({ form }: BasicInfoProps) {
 
       <FormField
         control={form.control}
+        name="vendorSku"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Vendor SKU</FormLabel>
+            <FormControl>
+              <Input placeholder="Enter vendor SKU (optional)" {...field} />
+            </FormControl>
+            <FormDescription>
+              Enter original vendor SKU if available
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
         name="description"
         render={({ field }) => (
           <FormItem>
@@ -104,23 +177,6 @@ export function BasicInfo({ form }: BasicInfoProps) {
             </FormControl>
             <FormDescription>
               Provide detailed information about the product
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="vendorSku"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Vendor SKU</FormLabel>
-            <FormControl>
-              <Input placeholder="Enter vendor SKU (optional)" {...field} />
-            </FormControl>
-            <FormDescription>
-              Enter original vendor SKU if available
             </FormDescription>
             <FormMessage />
           </FormItem>
