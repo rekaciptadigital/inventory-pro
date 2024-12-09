@@ -18,22 +18,31 @@ export function SkuList({ baseSku, selectedVariants }: SkuListProps) {
     const skus = generateAllVariantSkus(baseSku, selectedVariants, variantTypes);
     
     return skus.map(sku => {
+      // Extract variant codes from SKU (after the dash)
+      const variantCodes = sku.split('-')[1];
+      
+      // Map each variant type to its selected values
       const variantInfo = selectedVariants.map(variant => {
         const variantType = variantTypes.find(t => t.id === variant.typeId);
+        if (!variantType) return '';
+
         const values = variant.values
           .map(valueId => {
-            const value = variantType?.values.find(v => v.id === valueId);
-            return value?.name;
+            const value = variantType.values.find(v => v.id === valueId);
+            // Only include values whose codes are in the SKU
+            if (value && variantCodes.includes(value.code)) {
+              return value.name;
+            }
+            return null;
           })
-          .filter(Boolean)
-          .join(', ');
+          .filter(Boolean);
 
-        return `${variantType?.name || ''}: ${values}`;
-      }).join(' | ');
+        return `${variantType.name} ${values.join(', ')}`;
+      }).filter(Boolean);
 
       return {
         sku,
-        variantInfo,
+        variantInfo: variantInfo.join(' | '),
       };
     });
   }, [baseSku, selectedVariants, variantTypes]);
