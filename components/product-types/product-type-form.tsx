@@ -17,15 +17,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { useProductTypes } from '@/lib/hooks/use-product-types';
-import { generateTypeCode, validateTypeCode, formatTypeCode } from '@/lib/utils/type-code';
+import { isValidProductTypeCode, formatProductTypeCode } from '@/lib/utils/validation/product-type';
 import type { ProductType } from '@/types/product-type';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Product type name is required'),
   code: z.string()
-    .max(3, 'Type code must be exactly 3 characters')
-    .refine(val => val === '' || validateTypeCode(val), {
-      message: 'Type code must be 3 characters of letters and numbers only'
+    .min(1, 'Product type code is required')
+    .refine(isValidProductTypeCode, {
+      message: 'Code must contain only letters and numbers'
     }),
 });
 
@@ -36,7 +36,7 @@ interface ProductTypeFormProps {
 
 export function ProductTypeForm({ onSuccess, initialData }: ProductTypeFormProps) {
   const { toast } = useToast();
-  const { addProductType, updateProductType } = useProductTypes();
+  const { productTypes, addProductType, updateProductType } = useProductTypes();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -51,39 +51,41 @@ export function ProductTypeForm({ onSuccess, initialData }: ProductTypeFormProps
     try {
       setIsSubmitting(true);
       
-      // Get existing product types
-      const savedTypes = localStorage.getItem('productTypes');
-      const existingTypes = savedTypes ? JSON.parse(savedTypes) : [];
-      
-      // Format the code to uppercase
-      let typeCode = values.code ? formatTypeCode(values.code) : '';
-      
-      // Check for duplicate code if provided
-      if (typeCode && existingTypes.some((type: ProductType) => 
-        type.code === typeCode && type.id !== initialData?.id
+      // Check for duplicate names, excluding current product type when editing
+      if (productTypes.some(type => 
+        type.name.toLowerCase() === values.name.toLowerCase() &&
+        type.id !== initialData?.id
       )) {
-        form.setError('code', {
+        form.setError('name', {
           type: 'manual',
-          message: 'This type code is already in use'
+          message: 'A product type with this name already exists'
         });
-        setIsSubmitting(false);
         return;
       }
 
-      // Generate code if not provided
-      if (!typeCode) {
-        const existingCodes = existingTypes.map((type: ProductType) => type.code);
-        typeCode = generateTypeCode(existingCodes);
+      // Format code to uppercase
+      const formattedCode = formatProductTypeCode(values.code);
+      
+      // Check for duplicate codes, excluding current product type when editing
+      if (productTypes.some(type => 
+        type.code === formattedCode &&
+        type.id !== initialData?.id
+      )) {
+        form.setError('code', {
+          type: 'manual',
+          message: 'A product type with this code already exists'
+        });
+        return;
       }
 
       if (initialData) {
-        await updateProductType(initialData.id, values.name, typeCode);
+        await updateProductType(initialData.id, values.name, formattedCode);
         toast({
           title: 'Success',
           description: 'Product type has been updated successfully',
         });
       } else {
-        await addProductType(values.name, typeCode);
+        await addProductType(values.name, formattedCode);
         toast({
           title: 'Success',
           description: 'Product type has been added successfully',
@@ -110,7 +112,7 @@ export function ProductTypeForm({ onSuccess, initialData }: ProductTypeFormProps
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Type Name</FormLabel>
+              <FormLabel>Product Type Name</FormLabel>
               <FormControl>
                 <Input placeholder="Enter product type name" {...field} />
               </FormControl>
@@ -124,18 +126,16 @@ export function ProductTypeForm({ onSuccess, initialData }: ProductTypeFormProps
           name="code"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Type Code</FormLabel>
+              <FormLabel>Product Type Code</FormLabel>
               <FormControl>
                 <Input 
-                  placeholder="Enter type code" 
+                  placeholder="Enter product type code" 
                   {...field} 
-                  maxLength={3}
                   className="uppercase"
                 />
               </FormControl>
               <FormDescription>
-                Optional. Leave empty for auto-generated code. Must be exactly 3 characters
-                (letters and/or numbers).
+                Enter a unique code using letters and numbers only
               </FormDescription>
               <FormMessage />
             </FormItem>

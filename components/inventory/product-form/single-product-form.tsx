@@ -21,6 +21,24 @@ interface SingleProductFormProps {
   initialData?: ProductFormValues;
 }
 
+const defaultValues: ProductFormValues = {
+  brand: '',
+  productTypeId: '',
+  sku: '',
+  fullProductName: '',
+  productName: '',
+  description: '',
+  unit: 'PC',
+  hbReal: 0,
+  adjustmentPercentage: 0,
+  hbNaik: 0,
+  usdPrice: 0,
+  exchangeRate: 0,
+  customerPrices: {},
+  percentages: {},
+  variants: [],
+};
+
 export function SingleProductForm({ onSuccess, onClose, initialData }: SingleProductFormProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -30,22 +48,7 @@ export function SingleProductForm({ onSuccess, onClose, initialData }: SinglePro
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
-    defaultValues: initialData || {
-      brand: '',
-      productTypeId: '',
-      sku: '',
-      fullProductName: '',
-      productName: '',
-      description: '',
-      unit: 'PC',
-      hbReal: 0,
-      adjustmentPercentage: 0,
-      hbNaik: 0,
-      usdPrice: 0,
-      exchangeRate: 0,
-      customerPrices: {},
-      percentages: {},
-    },
+    defaultValues: initialData || defaultValues,
     mode: 'onChange'
   });
 
@@ -119,7 +122,7 @@ export function SingleProductForm({ onSuccess, onClose, initialData }: SinglePro
 
   const handleCancel = () => {
     // Reset form state
-    form.reset();
+    form.reset(defaultValues);
     
     // Handle closing based on context
     if (onClose) {
