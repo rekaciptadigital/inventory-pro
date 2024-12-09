@@ -7,9 +7,9 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { useToast } from '@/components/ui/use-toast';
-import { BasicInfo } from './basic-info';
-import { VariantConfiguration } from './variant-configuration';
-import { VariantPricing } from './variant-pricing';
+import { BasicInfo } from './sections/basic-info';
+import { VariantConfiguration } from './sections/variant-configuration';
+import { SkuList } from './sections/sku-list';
 import { variantFormSchema, type VariantFormValues } from './variant-form-schema';
 import { generateVariantSKU } from '@/lib/utils/sku-generator';
 import type { Product } from '@/types/inventory';
@@ -34,9 +34,10 @@ export function VariantForm({ onSuccess, onClose }: VariantFormProps) {
       brand: '',
       productTypeId: '',
       productId: '',
+      baseSku: '',
       description: '',
       variants: [],
-      prices: {},
+      skus: [],
     },
   });
 
@@ -46,13 +47,12 @@ export function VariantForm({ onSuccess, onClose }: VariantFormProps) {
 
       // Generate variant products
       const variantProducts = selectedVariants.map(variant => {
-        const sku = generateVariantSKU(values.productId, variant);
+        const sku = generateVariantSKU(values.baseSku, variant);
         return {
           id: Date.now().toString(),
           ...values,
           sku,
           variant,
-          price: values.prices[sku] || 0,
         };
       });
 
@@ -95,15 +95,31 @@ export function VariantForm({ onSuccess, onClose }: VariantFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <BasicInfo form={form} />
-        <VariantConfiguration
-          selectedVariants={selectedVariants}
-          onVariantsChange={setSelectedVariants}
-        />
-        <VariantPricing
-          form={form}
-          selectedVariants={selectedVariants}
-        />
+        <div className="space-y-6">
+          <div className="rounded-lg border p-4">
+            <h3 className="text-lg font-medium mb-4">Basic Information</h3>
+            <BasicInfo form={form} />
+          </div>
+
+          <div className="rounded-lg border p-4">
+            <h3 className="text-lg font-medium mb-4">Variant Configuration</h3>
+            <VariantConfiguration
+              selectedVariants={selectedVariants}
+              onVariantsChange={setSelectedVariants}
+              form={form}
+            />
+          </div>
+
+          {selectedVariants.length > 0 && (
+            <div className="rounded-lg border p-4">
+              <h3 className="text-lg font-medium mb-4">Generated SKUs</h3>
+              <SkuList
+                baseSku={form.watch('baseSku')}
+                selectedVariants={selectedVariants}
+              />
+            </div>
+          )}
+        </div>
 
         <div className="flex justify-end space-x-4">
           <Button 
@@ -116,7 +132,7 @@ export function VariantForm({ onSuccess, onClose }: VariantFormProps) {
           </Button>
           <Button 
             type="submit" 
-            disabled={isSubmitting}
+            disabled={isSubmitting || selectedVariants.length === 0}
             data-testid="submit-button"
           >
             {isSubmitting ? 'Adding Variants...' : 'Add Variants'}
