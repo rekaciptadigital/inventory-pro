@@ -16,8 +16,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { useProducts } from '@/lib/hooks/use-products';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useProducts } from '@/lib/hooks/use-products';
 
 interface ProductSearchSelectProps {
   brandId?: string;
@@ -38,10 +38,13 @@ export function ProductSearchSelect({
   const [searchTerm, setSearchTerm] = React.useState('');
   const { getFilteredProducts, getProductById } = useProducts();
 
-  const filteredProducts = React.useMemo(() => 
-    getFilteredProducts(brandId, productTypeId, searchTerm),
-    [brandId, productTypeId, searchTerm, getFilteredProducts]
-  );
+  const filteredProducts = React.useMemo(() => {
+    const products = getFilteredProducts(brandId, productTypeId, searchTerm);
+    // Filter out products that already have variants
+    return products.filter(product => 
+      !product.variants || product.variants.length === 0
+    );
+  }, [brandId, productTypeId, searchTerm, getFilteredProducts]);
 
   const selectedProduct = React.useMemo(() => 
     value ? getProductById(value) : undefined,
@@ -71,9 +74,9 @@ export function ProductSearchSelect({
           disabled={disabled}
         >
           {selectedProduct ? (
-            <span className="truncate">
-              {selectedProduct.fullProductName}
-              <span className="text-muted-foreground ml-2">
+            <span className="flex items-center gap-2">
+              <span className="font-medium">{selectedProduct.productName}</span>
+              <span className="text-muted-foreground text-sm">
                 ({selectedProduct.sku})
               </span>
             </span>
@@ -94,7 +97,7 @@ export function ProductSearchSelect({
             {!brandId || !productTypeId ? (
               "Please select brand and product type first"
             ) : (
-              "No products found"
+              "No base products found"
             )}
           </CommandEmpty>
           <ScrollArea className="h-[200px]">
@@ -115,7 +118,7 @@ export function ProductSearchSelect({
                     )}
                   />
                   <div className="flex flex-col">
-                    <span>{product.fullProductName}</span>
+                    <span>{product.productName}</span>
                     <span className="text-sm text-muted-foreground">
                       SKU: {product.sku}
                     </span>

@@ -25,8 +25,9 @@ export function useProducts() {
         const matchesSearch = product.productName
           .toLowerCase()
           .includes(searchTerm.toLowerCase());
+        const isBaseProduct = !product.variants || product.variants.length === 0;
         
-        return matchesBrand && matchesType && matchesSearch;
+        return matchesBrand && matchesType && matchesSearch && isBaseProduct;
       })
       .slice(0, 10); // Limit to 10 results
   };
