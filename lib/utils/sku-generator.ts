@@ -11,7 +11,7 @@ export function generateSKU(
 ): string {
   const brandCode = brand.code || brand.name.slice(0, 3).toUpperCase();
   const typeCode = productType.code || productType.name.slice(0, 3).toUpperCase();
-  const uniqueIdentifier = uniqueCode || Date.now().toString().slice(-4);
+  const uniqueIdentifier = uniqueCode || generateUniqueIdentifier();
   return `${brandCode}${typeCode}${uniqueIdentifier}`;
 }
 
@@ -76,4 +76,11 @@ function getCombinations(
   });
 
   return combinations;
+}
+
+// Helper function to generate unique identifiers
+function generateUniqueIdentifier(): string {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 1000);
+  return `${timestamp}${random}`.slice(-8);
 }

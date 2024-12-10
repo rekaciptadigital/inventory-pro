@@ -72,7 +72,7 @@ export function ProductSearchSelect({
         >
           {selectedProduct ? (
             <span className="truncate">
-              {selectedProduct.productName}
+              {selectedProduct.fullProductName}
               <span className="text-muted-foreground ml-2">
                 ({selectedProduct.sku})
               </span>
@@ -115,7 +115,7 @@ export function ProductSearchSelect({
                     )}
                   />
                   <div className="flex flex-col">
-                    <span>{product.productName}</span>
+                    <span>{product.fullProductName}</span>
                     <span className="text-sm text-muted-foreground">
                       SKU: {product.sku}
                     </span>

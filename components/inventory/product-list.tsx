@@ -70,9 +70,7 @@ export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
             <TableHead>Type</TableHead>
             <TableHead>SKU</TableHead>
             <TableHead>Product Name</TableHead>
-            <TableHead>Unit</TableHead>
-            <TableHead>HB Real</TableHead>
-            <TableHead>HB Naik</TableHead>
+            <TableHead>Classification</TableHead>
             <TableHead>
               <div className="space-y-1">
                 <div>Retail Price</div>
@@ -89,17 +87,21 @@ export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
               taxInclusivePrice: 0
             };
 
+            const classification = product.variants && product.variants.length > 0 
+              ? 'Variant'
+              : 'Base Product';
+
             return (
               <TableRow key={product.id}>
                 <TableCell>{getBrandName(product.brand)}</TableCell>
                 <TableCell>{getProductTypeName(product.productTypeId)}</TableCell>
                 <TableCell>{product.sku}</TableCell>
-                <TableCell>{product.productName}</TableCell>
+                <TableCell>{product.fullProductName || product.productName}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{product.unit}</Badge>
+                  <Badge variant={classification === 'Variant' ? 'secondary' : 'default'}>
+                    {classification}
+                  </Badge>
                 </TableCell>
-                <TableCell>{formatCurrency(product.hbReal)}</TableCell>
-                <TableCell>{formatCurrency(product.hbNaik)}</TableCell>
                 <TableCell>
                   <div className="space-y-1">
                     <div>{formatCurrency(retailPrices.basePrice)}</div>

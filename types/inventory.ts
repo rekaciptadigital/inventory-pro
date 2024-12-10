@@ -5,11 +5,8 @@ export interface Product {
   sku: string;
   vendorSku?: string;
   productName: string;
+  fullProductName?: string;
   description?: string;
-  unit: 'PC' | 'PACK' | 'SET';
-  hbReal: number;
-  adjustmentPercentage: number;
-  hbNaik: number;
   usdPrice: number;
   exchangeRate: number;
   customerPrices: {

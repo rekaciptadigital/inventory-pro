@@ -11,7 +11,9 @@ import { BasicInfo } from './sections/basic-info';
 import { VariantConfiguration } from './sections/variant-configuration';
 import { SkuList } from './sections/sku-list';
 import { variantFormSchema, type VariantFormValues } from './variant-form-schema';
-import { generateVariantSKU } from '@/lib/utils/sku-generator';
+import { generateAllVariantSkus } from '@/lib/utils/sku-generator';
+import { useVariantTypes } from '@/lib/hooks/use-variant-types';
+import { useProducts } from '@/lib/hooks/use-products';
 import type { Product } from '@/types/inventory';
 
 interface VariantFormProps {
@@ -27,6 +29,8 @@ export function VariantForm({ onSuccess, onClose }: VariantFormProps) {
     typeId: string;
     values: string[];
   }>>([]);
+  const { variantTypes } = useVariantTypes();
+  const { getProductById } = useProducts();
 
   const form = useForm<VariantFormValues>({
     resolver: zodResolver(variantFormSchema),
@@ -45,14 +49,51 @@ export function VariantForm({ onSuccess, onClose }: VariantFormProps) {
     try {
       setIsSubmitting(true);
 
-      // Generate variant products
-      const variantProducts = selectedVariants.map(variant => {
-        const sku = generateVariantSKU(values.baseSku, variant);
+      // Get parent product details
+      const parentProduct = getProductById(values.productId);
+      if (!parentProduct) {
+        throw new Error('Parent product not found');
+      }
+
+      // Generate all variant SKUs
+      const generatedSkus = generateAllVariantSkus(values.baseSku, selectedVariants, variantTypes);
+
+      // Create variant products
+      const variantProducts = generatedSkus.map((sku, index) => {
+        // Extract variant codes from SKU
+        const variantCodes = sku.split('-')[1];
+        
+        // Map variant information
+        const variants = selectedVariants.map(variant => {
+          const variantType = variantTypes.find(t => t.id === variant.typeId);
+          if (!variantType) return null;
+
+          const selectedValues = variant.values.filter(valueId => {
+            const value = variantType.values.find(v => v.id === valueId);
+            return value && variantCodes.includes(value.code);
+          });
+
+          return {
+            typeId: variant.typeId,
+            values: selectedValues,
+          };
+        }).filter(Boolean);
+
         return {
-          id: Date.now().toString(),
-          ...values,
+          id: `${Date.now()}-${index}`, // Ensure unique IDs
+          brand: parentProduct.brand,
+          productTypeId: parentProduct.productTypeId,
           sku,
-          variant,
+          productName: parentProduct.productName,
+          fullProductName: parentProduct.fullProductName,
+          description: values.description || parentProduct.description,
+          usdPrice: parentProduct.usdPrice,
+          exchangeRate: parentProduct.exchangeRate,
+          customerPrices: parentProduct.customerPrices,
+          percentages: parentProduct.percentages,
+          variants,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
       });
 
@@ -71,6 +112,7 @@ export function VariantForm({ onSuccess, onClose }: VariantFormProps) {
         router.push('/dashboard/inventory');
       }
     } catch (error) {
+      console.error('Error saving variants:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
