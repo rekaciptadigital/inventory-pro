@@ -9,11 +9,12 @@ import { Form } from '@/components/ui/form';
 import { useToast } from '@/components/ui/use-toast';
 import { BasicInfo } from './sections/basic-info';
 import { VariantConfiguration } from './sections/variant-configuration';
-import { SkuList } from './sections/sku-list';
+import { GeneratedSkusTable } from './sections/generated-skus-table';
 import { variantFormSchema, type VariantFormValues } from './variant-form-schema';
-import { generateAllVariantSkus } from '@/lib/utils/sku-generator';
 import { useVariantTypes } from '@/lib/hooks/use-variant-types';
 import { useProducts } from '@/lib/hooks/use-products';
+import { useBrands } from '@/lib/hooks/use-brands';
+import { useProductTypes } from '@/lib/hooks/use-product-types';
 import type { Product } from '@/types/inventory';
 
 interface VariantFormProps {
@@ -29,8 +30,12 @@ export function VariantForm({ onSuccess, onClose }: VariantFormProps) {
     typeId: string;
     values: string[];
   }>>([]);
+  const [variantPrices, setVariantPrices] = useState<Record<string, number>>({});
+  
   const { variantTypes } = useVariantTypes();
   const { getProductById } = useProducts();
+  const { getBrandName } = useBrands();
+  const { getProductTypeName } = useProductTypes();
 
   const form = useForm<VariantFormValues>({
     resolver: zodResolver(variantFormSchema),
@@ -45,25 +50,26 @@ export function VariantForm({ onSuccess, onClose }: VariantFormProps) {
     },
   });
 
+  const parentProduct = form.watch('productId') 
+    ? getProductById(form.watch('productId'))
+    : null;
+
+  const handlePriceChange = (sku: string, price: number) => {
+    setVariantPrices(prev => ({ ...prev, [sku]: price }));
+  };
+
   const onSubmit = async (values: VariantFormValues) => {
     try {
       setIsSubmitting(true);
 
-      // Get parent product details
-      const parentProduct = getProductById(values.productId);
       if (!parentProduct) {
         throw new Error('Parent product not found');
       }
 
-      // Generate all variant SKUs
-      const generatedSkus = generateAllVariantSkus(values.baseSku, selectedVariants, variantTypes);
-
       // Create variant products
-      const variantProducts = generatedSkus.map((sku, index) => {
-        // Extract variant codes from SKU
+      const variantProducts = Object.entries(variantPrices).map(([sku, price], index) => {
         const variantCodes = sku.split('-')[1];
         
-        // Map variant information
         const variants = selectedVariants.map(variant => {
           const variantType = variantTypes.find(t => t.id === variant.typeId);
           if (!variantType) return null;
@@ -80,14 +86,14 @@ export function VariantForm({ onSuccess, onClose }: VariantFormProps) {
         }).filter(Boolean);
 
         return {
-          id: `${Date.now()}-${index}`, // Ensure unique IDs
+          id: `${Date.now()}-${index}`,
           brand: parentProduct.brand,
           productTypeId: parentProduct.productTypeId,
           sku,
           productName: parentProduct.productName,
           fullProductName: parentProduct.fullProductName,
           description: values.description || parentProduct.description,
-          usdPrice: parentProduct.usdPrice,
+          usdPrice: price,
           exchangeRate: parentProduct.exchangeRate,
           customerPrices: parentProduct.customerPrices,
           percentages: parentProduct.percentages,
@@ -126,6 +132,7 @@ export function VariantForm({ onSuccess, onClose }: VariantFormProps) {
   const handleCancel = () => {
     form.reset();
     setSelectedVariants([]);
+    setVariantPrices({});
     
     if (onClose) {
       onClose();
@@ -152,12 +159,19 @@ export function VariantForm({ onSuccess, onClose }: VariantFormProps) {
             />
           </div>
 
-          {selectedVariants.length > 0 && (
+          {selectedVariants.length > 0 && parentProduct && (
             <div className="rounded-lg border p-4">
               <h3 className="text-lg font-medium mb-4">Generated SKUs</h3>
-              <SkuList
+              <GeneratedSkusTable
                 baseSku={form.watch('baseSku')}
+                basePrice={parentProduct.usdPrice}
                 selectedVariants={selectedVariants}
+                onPriceChange={handlePriceChange}
+                productDetails={{
+                  brand: getBrandName(parentProduct.brand),
+                  productType: getProductTypeName(parentProduct.productTypeId),
+                  productName: parentProduct.productName,
+                }}
               />
             </div>
           )}
