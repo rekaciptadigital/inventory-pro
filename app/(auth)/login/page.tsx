@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/lib/hooks/use-auth';
 
 const formSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -25,8 +26,8 @@ const formSchema = z.object({
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { login, isLoading, error, clearError } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -36,30 +37,29 @@ export default function LoginPage() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
+  useEffect(() => {
+    if (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error,
+      });
+      clearError();
+    }
+  }, [error, toast, clearError]);
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // For demo purposes, accept any valid email/password
+      await login(values);
       toast({
         title: 'Success',
         description: 'Logged in successfully',
       });
-      
-      // Redirect to dashboard
       router.push('/dashboard');
     } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to log in',
-      });
-    } finally {
-      setIsLoading(false);
+      // Error is handled by the auth slice
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
