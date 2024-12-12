@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -9,10 +9,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { useVariantTypes } from '@/lib/hooks/use-variant-types';
+import { VariantSkuInput } from './variant-sku-input';
+import { 
+  generateVariantCode, 
+  formatVariantSku,
+  isUniqueVariantCode 
+} from '@/lib/utils/sku/variant-code-generator';
+import { 
+  generateVariantCombinations,
+  formatVariantName,
+  type VariantCombination 
+} from '@/lib/utils/variant/combinations';
 import { formatCurrency } from '@/lib/utils/format';
-import { generateVariantName } from '@/lib/utils/variant-name-generator';
+import { useVariantTypes } from '@/lib/hooks/use-variant-types';
 
 interface GeneratedSkusTableProps {
   baseSku: string;
@@ -26,6 +35,13 @@ interface GeneratedSkusTableProps {
   };
 }
 
+interface VariantRow {
+  mainSku: string;
+  uniqueCode: string;
+  combination: VariantCombination;
+  price: number;
+}
+
 export function GeneratedSkusTable({
   baseSku,
   basePrice,
@@ -34,43 +50,71 @@ export function GeneratedSkusTable({
   productDetails,
 }: GeneratedSkusTableProps) {
   const { variantTypes } = useVariantTypes();
-  const [prices, setPrices] = useState<Record<string, number>>({});
+  const [variants, setVariants] = useState<VariantRow[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  if (!baseSku || selectedVariants.length === 0) return null;
+  useEffect(() => {
+    if (!baseSku || selectedVariants.length === 0) return;
 
-  const getVariantInfo = (variantCodes: string) => {
-    const variantInfo = selectedVariants.map(variant => {
-      const variantType = variantTypes.find(t => t.id === variant.typeId);
-      if (!variantType) return null;
+    // Generate all possible combinations
+    const combinations = generateVariantCombinations(selectedVariants, variantTypes);
 
-      const selectedValues = variant.values
-        .map(valueId => {
-          const value = variantType.values.find(v => v.id === valueId);
-          if (value && variantCodes.includes(value.code)) {
-            return value.name;
-          }
-          return null;
-        })
-        .filter(Boolean);
-
+    // Generate variants with unique codes
+    const existingCodes = variants.map(v => v.uniqueCode);
+    const newVariants = combinations.map((combination, index) => {
+      const { mainSku, uniqueCode } = generateVariantCode(
+        baseSku, 
+        existingCodes,
+        (index + 1).toString().padStart(4, '0')
+      );
+      existingCodes.push(uniqueCode);
+      
       return {
-        type: variantType.name,
-        values: selectedValues,
+        mainSku,
+        uniqueCode,
+        combination,
+        price: basePrice,
       };
-    }).filter(Boolean);
+    });
 
-    return variantInfo;
-  };
+    setVariants(newVariants);
+  }, [baseSku, selectedVariants, variantTypes]);
 
-  const handlePriceChange = (sku: string, value: string) => {
-    const numericValue = value === '' ? 0 : parseFloat(value);
-    if (!isNaN(numericValue)) {
-      setPrices(prev => ({ ...prev, [sku]: numericValue }));
-      onPriceChange(sku, numericValue);
+  const handleCodeChange = (index: number, newCode: string) => {
+    if (!newCode) {
+      setErrors(prev => ({ ...prev, [index]: 'Code is required' }));
+      return;
     }
+
+    // Check uniqueness within current variants
+    const isUnique = isUniqueVariantCode(
+      newCode,
+      baseSku,
+      variants.map(v => ({ sku: formatVariantSku({ mainSku: v.mainSku, uniqueCode: v.uniqueCode }) }))
+    );
+
+    if (!isUnique) {
+      setErrors(prev => ({ ...prev, [index]: 'Code must be unique' }));
+      return;
+    }
+
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[index];
+      return newErrors;
+    });
+
+    setVariants(prev => {
+      const newVariants = [...prev];
+      newVariants[index] = {
+        ...newVariants[index],
+        uniqueCode: newCode,
+      };
+      return newVariants;
+    });
   };
 
-  const skus = generateSkuCombinations(baseSku, selectedVariants, variantTypes);
+  if (!baseSku || variants.length === 0) return null;
 
   return (
     <div className="border rounded-lg">
@@ -79,72 +123,38 @@ export function GeneratedSkusTable({
           <TableRow>
             <TableHead className="w-[40%]">Full Product Name</TableHead>
             <TableHead>SKU Variant</TableHead>
+            <TableHead>Unique Code</TableHead>
             <TableHead className="w-[200px]">Base Value (HB)</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {skus.map(({ sku, variantCodes }) => {
-            const variantInfo = getVariantInfo(variantCodes);
-            const fullName = generateVariantName(
-              productDetails.brand,
-              productDetails.productType,
-              productDetails.productName,
-              variantInfo
-            );
-
-            return (
-              <TableRow key={sku}>
-                <TableCell>{fullName}</TableCell>
-                <TableCell className="font-mono">{sku}</TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    value={prices[sku] || basePrice}
-                    onChange={(e) => handlePriceChange(sku, e.target.value)}
-                    className="w-full"
-                  />
-                </TableCell>
-              </TableRow>
-            );
-          })}
+          {variants.map((variant, index) => (
+            <TableRow key={index}>
+              <TableCell>
+                {formatVariantName(
+                  productDetails.brand,
+                  productDetails.productType,
+                  productDetails.productName,
+                  variant.combination
+                )}
+              </TableCell>
+              <TableCell className="font-mono">
+                {formatVariantSku({ mainSku: variant.mainSku, uniqueCode: variant.uniqueCode })}
+              </TableCell>
+              <TableCell>
+                <VariantSkuInput
+                  value={variant.uniqueCode}
+                  onChange={(value) => handleCodeChange(index, value)}
+                  error={errors[index]}
+                />
+              </TableCell>
+              <TableCell>
+                {formatCurrency(variant.price)}
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>
   );
-}
-
-function generateSkuCombinations(
-  baseSku: string,
-  selectedVariants: Array<{ typeId: string; values: string[] }>,
-  variantTypes: Array<any>
-) {
-  const combinations: Array<{ sku: string; variantCodes: string }> = [];
-  
-  function generateCombinations(
-    currentSku: string,
-    currentCodes: string,
-    variantIndex: number
-  ) {
-    if (variantIndex === selectedVariants.length) {
-      combinations.push({ sku: currentSku, variantCodes: currentCodes });
-      return;
-    }
-
-    const variant = selectedVariants[variantIndex];
-    const variantType = variantTypes.find(t => t.id === variant.typeId);
-    
-    if (!variantType) return;
-
-    variant.values.forEach(valueId => {
-      const value = variantType.values.find(v => v.id === valueId);
-      if (value) {
-        const newSku = currentSku + (currentSku.includes('-') ? '' : '-') + value.code;
-        const newCodes = currentCodes + value.code;
-        generateCombinations(newSku, newCodes, variantIndex + 1);
-      }
-    });
-  }
-
-  generateCombinations(baseSku, '', 0);
-  return combinations;
 }
