@@ -1,40 +1,33 @@
-import axios from 'axios';
+import { api } from './api';
+import { STORAGE_KEYS, API_ENDPOINTS } from '@/lib/config/constants';
 import type { AuthResponse, LoginCredentials } from '@/lib/types/auth';
 
-const API_URL = 'https://api.proarchery.id';
-
-export const authService = {
+class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await axios.post<AuthResponse>(
-      `${API_URL}/auth/login`,
-      credentials,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const response = await api.post<AuthResponse>(API_ENDPOINTS.AUTH.LOGIN, credentials);
     return response.data;
-  },
+  }
 
-  logout() {
-    localStorage.removeItem('user');
-    localStorage.removeItem('tokens');
-  },
+  logout(): void {
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem(STORAGE_KEYS.TOKENS);
+  }
 
   getCurrentUser() {
-    const userStr = localStorage.getItem('user');
+    const userStr = localStorage.getItem(STORAGE_KEYS.USER);
     if (userStr) {
       return JSON.parse(userStr);
     }
     return null;
-  },
+  }
 
   getTokens() {
-    const tokensStr = localStorage.getItem('tokens');
+    const tokensStr = localStorage.getItem(STORAGE_KEYS.TOKENS);
     if (tokensStr) {
       return JSON.parse(tokensStr);
     }
     return null;
-  },
-};
+  }
+}
+
+export const authService = new AuthService();
