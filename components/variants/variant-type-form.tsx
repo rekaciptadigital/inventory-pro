@@ -22,26 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import { useVariantTypes } from '@/lib/hooks/use-variant-types';
-import { generateVariantCode, validateVariantCode } from '@/lib/utils/variant-code';
 import type { VariantType } from '@/types/variant';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Variant type name is required'),
   status: z.enum(['active', 'inactive']),
   valuesString: z.string().min(1, 'At least one value is required'),
-  values: z.array(z.object({
-    name: z.string().max(50, 'Value name cannot exceed 50 characters'),
-    code: z.string()
-      .min(2, 'Code must be at least 2 characters')
-      .max(2, 'Code cannot exceed 2 characters')
-      .refine(validateVariantCode, {
-        message: 'Code must contain only uppercase letters and numbers'
-      }),
-    order: z.number(),
-  })),
 });
 
 interface VariantTypeFormProps {
@@ -53,9 +41,6 @@ export function VariantTypeForm({ onSuccess, initialData }: VariantTypeFormProps
   const { toast } = useToast();
   const { variantTypes, addVariantType, updateVariantType } = useVariantTypes();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [valueCodePairs, setValueCodePairs] = useState<Array<{ value: string; code: string }>>(
-    initialData?.values.map(v => ({ value: v.name, code: v.code })) || []
-  );
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -63,68 +48,43 @@ export function VariantTypeForm({ onSuccess, initialData }: VariantTypeFormProps
       name: initialData?.name || '',
       status: initialData?.status || 'active',
       valuesString: initialData?.values.map(v => v.name).join(', ') || '',
-      values: initialData?.values || [],
     },
   });
-
-  const generateCodes = () => {
-    const valuesString = form.watch('valuesString');
-    if (!valuesString) return;
-
-    const values = valuesString.split(',').map(v => v.trim()).filter(Boolean);
-    const existingCodes = variantTypes
-      .flatMap(type => type.values)
-      .map(value => value.code);
-
-    const newPairs = values.map(value => ({
-      value,
-      code: generateVariantCode(value, existingCodes),
-    }));
-
-    setValueCodePairs(newPairs);
-  };
-
-  const updateCode = (index: number, newCode: string) => {
-    const code = newCode.toUpperCase();
-    if (!validateVariantCode(code) && code.length === 2) return;
-
-    const newPairs = [...valueCodePairs];
-    newPairs[index] = {
-      ...newPairs[index],
-      code,
-    };
-    setValueCodePairs(newPairs);
-  };
 
   const onSubmit = async (formData: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
 
-      // Check for duplicate codes
-      const codes = valueCodePairs.map(p => p.code);
-      if (new Set(codes).size !== codes.length) {
+      // Check for duplicate names
+      if (variantTypes.some(type => 
+        type.name.toLowerCase() === formData.name.toLowerCase() &&
+        type.id !== initialData?.id
+      )) {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'Each variant code must be unique',
+          description: 'A variant type with this name already exists',
         });
         return;
       }
 
       // Create variant values array
-      const variantValues = valueCodePairs.map((pair, index) => ({
-        name: pair.value,
-        code: pair.code,
-        details: '',
-        order: index,
-      }));
+      const values = formData.valuesString
+        .split(',')
+        .map(v => v.trim())
+        .filter(Boolean)
+        .map((name, index) => ({
+          name,
+          details: '',
+          order: index,
+        }));
 
       if (initialData) {
         await updateVariantType(
           initialData.id,
           formData.name,
           formData.status,
-          variantValues
+          values
         );
         toast({
           title: 'Success',
@@ -134,7 +94,7 @@ export function VariantTypeForm({ onSuccess, initialData }: VariantTypeFormProps
         await addVariantType(
           formData.name,
           formData.status,
-          variantValues
+          values
         );
         toast({
           title: 'Success',
@@ -193,67 +153,28 @@ export function VariantTypeForm({ onSuccess, initialData }: VariantTypeFormProps
           )}
         />
 
-        <div className="space-y-2">
-          <FormField
-            control={form.control}
-            name="valuesString"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Variant Values</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Enter values separated by commas (e.g., Red, Blue, Black)"
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Enter each value separated by a comma. Maximum 50 characters per value.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={generateCodes}
-            className="w-full"
-          >
-            Generate Codes
-          </Button>
-        </div>
-
-        {valueCodePairs.length > 0 && (
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Value</TableHead>
-                  <TableHead>Code</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {valueCodePairs.map((pair, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{pair.value}</TableCell>
-                    <TableCell>
-                      <Input
-                        value={pair.code}
-                        onChange={(e) => updateCode(index, e.target.value)}
-                        className="w-24 uppercase"
-                        maxLength={2}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        <FormField
+          control={form.control}
+          name="valuesString"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Variant Values</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Enter values separated by commas (e.g., Red, Blue, Black)"
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>
+                Enter each value separated by a comma. Maximum 50 characters per value.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <div className="flex justify-end space-x-4">
-          <Button type="submit" disabled={isSubmitting || valueCodePairs.length === 0}>
+          <Button type="submit" disabled={isSubmitting}>
             {isSubmitting 
               ? (initialData ? 'Updating...' : 'Adding...') 
               : (initialData ? 'Update Type' : 'Add Type')
