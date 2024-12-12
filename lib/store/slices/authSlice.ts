@@ -1,7 +1,9 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { authService } from '@/lib/services/auth.service';
 import type { AuthUser, AuthTokens, LoginCredentials } from '@/lib/types/auth';
+import type { RootState } from '../store';
 
+// Define a type for the slice state
 interface AuthState {
   user: AuthUser | null;
   tokens: AuthTokens | null;
@@ -9,6 +11,7 @@ interface AuthState {
   error: string | null;
 }
 
+// Define the initial state
 const initialState: AuthState = {
   user: authService.getCurrentUser(),
   tokens: authService.getTokens(),
@@ -16,6 +19,7 @@ const initialState: AuthState = {
   error: null,
 };
 
+// Create async thunks
 export const login = createAsyncThunk(
   'auth/login',
   async (credentials: LoginCredentials, { rejectWithValue }) => {
@@ -40,17 +44,24 @@ export const login = createAsyncThunk(
 
 export const logout = createAsyncThunk(
   'auth/logout',
-  async () => {
+  async (_, { dispatch }) => {
     authService.logout();
   }
 );
 
+// Create the slice
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
     clearError: (state) => {
       state.error = null;
+    },
+    setUser: (state, action: PayloadAction<AuthUser>) => {
+      state.user = action.payload;
+    },
+    setTokens: (state, action: PayloadAction<AuthTokens>) => {
+      state.tokens = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -63,6 +74,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = action.payload.user;
         state.tokens = action.payload.tokens;
+        state.error = null;
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
@@ -71,9 +83,18 @@ const authSlice = createSlice({
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.tokens = null;
+        state.error = null;
       });
   },
 });
 
-export const { clearError } = authSlice.actions;
+// Export actions and selectors
+export const { clearError, setUser, setTokens } = authSlice.actions;
+
+export const selectAuth = (state: RootState) => state.auth;
+export const selectUser = (state: RootState) => state.auth.user;
+export const selectTokens = (state: RootState) => state.auth.tokens;
+export const selectIsLoading = (state: RootState) => state.auth.isLoading;
+export const selectError = (state: RootState) => state.auth.error;
+
 export default authSlice.reducer;

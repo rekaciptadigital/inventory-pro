@@ -5,6 +5,13 @@ export const store = configureStore({
   reducer: {
     auth: authReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        // Ignore these action types
+        ignoredActions: ['auth/login/fulfilled', 'auth/login/rejected'],
+      },
+    }),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

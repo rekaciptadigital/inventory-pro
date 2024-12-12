@@ -1,25 +1,31 @@
-import { useDispatch, useSelector } from 'react-redux';
-import type { AppDispatch, RootState } from '@/lib/store/store';
-import { login, logout, clearError } from '@/lib/store/slices/authSlice';
+import { useCallback } from 'react';
+import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
+import {
+  login,
+  logout,
+  clearError,
+  selectAuth,
+} from '@/lib/store/slices/authSlice';
 import type { LoginCredentials } from '@/lib/types/auth';
 
 export function useAuth() {
-  const dispatch = useDispatch<AppDispatch>();
-  const { user, tokens, isLoading, error } = useSelector(
-    (state: RootState) => state.auth
+  const dispatch = useAppDispatch();
+  const { user, tokens, isLoading, error } = useAppSelector(selectAuth);
+
+  const handleLogin = useCallback(
+    async (credentials: LoginCredentials) => {
+      return dispatch(login(credentials)).unwrap();
+    },
+    [dispatch]
   );
 
-  const handleLogin = async (credentials: LoginCredentials) => {
-    return dispatch(login(credentials)).unwrap();
-  };
-
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     dispatch(logout());
-  };
+  }, [dispatch]);
 
-  const handleClearError = () => {
+  const handleClearError = useCallback(() => {
     dispatch(clearError());
-  };
+  }, [dispatch]);
 
   return {
     user,
