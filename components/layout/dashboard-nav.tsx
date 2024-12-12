@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { useTheme } from 'next-themes';
 import {
   BarChart3,
   Box,
@@ -20,8 +21,8 @@ import {
   Menu,
   FolderTree,
   Users,
-  Loader2,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -29,12 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useTheme } from 'next-themes';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useToast } from '@/components/ui/use-toast';
-import axios from '@/lib/api/axios';
-import { useAuth } from '@/lib/hooks/use-auth';
+import { LogoutButton } from '@/components/auth/logout-button';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Target },
@@ -54,44 +50,6 @@ export function DashboardNav() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const router = useRouter();
-  const { toast } = useToast();
-  const { tokens, logout: authLogout } = useAuth();
-
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-
-      // Make API request to logout
-      await axios.post('https://api.proarchery.id/auth/logout', null, {
-        headers: {
-          Authorization: `Bearer ${tokens?.access_token}`,
-        },
-      });
-
-      // Clear auth state
-      authLogout();
-
-      // Show success message
-      toast({
-        title: 'Success',
-        description: 'Logged out successfully',
-      });
-
-      // Redirect to login page
-      router.push('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to logout. Please try again.',
-      });
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
 
   return (
     <div className={cn(
@@ -168,18 +126,7 @@ export function DashboardNav() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem 
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="text-destructive focus:text-destructive"
-                >
-                  {isLoggingOut ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <LogOut className="mr-2 h-4 w-4" />
-                  )}
-                  {isLoggingOut ? 'Logging out...' : 'Logout'}
-                </DropdownMenuItem>
+                <LogoutButton />
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
