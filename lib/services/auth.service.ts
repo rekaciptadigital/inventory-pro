@@ -1,6 +1,8 @@
-import { api } from './api';
-import { STORAGE_KEYS, API_ENDPOINTS } from '@/lib/config/constants';
+import { API_ENDPOINTS } from '@/lib/config/constants';
 import type { AuthResponse, LoginCredentials } from '@/lib/types/auth';
+import { api } from './api';
+import { logoutUser } from './auth/logout.service';
+import { getCurrentUser, getTokens, clearAuthData } from './auth/storage.service';
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
@@ -8,26 +10,17 @@ class AuthService {
     return response.data;
   }
 
-  logout(): void {
-    localStorage.removeItem(STORAGE_KEYS.USER);
-    localStorage.removeItem(STORAGE_KEYS.TOKENS);
+  async logout(token?: string): Promise<void> {
+    try {
+      await logoutUser(token);
+    } finally {
+      clearAuthData();
+    }
   }
 
-  getCurrentUser() {
-    const userStr = localStorage.getItem(STORAGE_KEYS.USER);
-    if (userStr) {
-      return JSON.parse(userStr);
-    }
-    return null;
-  }
-
-  getTokens() {
-    const tokensStr = localStorage.getItem(STORAGE_KEYS.TOKENS);
-    if (tokensStr) {
-      return JSON.parse(tokensStr);
-    }
-    return null;
-  }
+  getCurrentUser = getCurrentUser;
+  getTokens = getTokens;
+  clearAuth = clearAuthData;
 }
 
 export const authService = new AuthService();

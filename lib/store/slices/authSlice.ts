@@ -3,7 +3,6 @@ import { authService } from '@/lib/services/auth.service';
 import type { AuthUser, AuthTokens, LoginCredentials } from '@/lib/types/auth';
 import type { RootState } from '../store';
 
-// Define a type for the slice state
 interface AuthState {
   user: AuthUser | null;
   tokens: AuthTokens | null;
@@ -11,7 +10,6 @@ interface AuthState {
   error: string | null;
 }
 
-// Define the initial state
 const initialState: AuthState = {
   user: authService.getCurrentUser(),
   tokens: authService.getTokens(),
@@ -19,14 +17,12 @@ const initialState: AuthState = {
   error: null,
 };
 
-// Create async thunks
 export const login = createAsyncThunk(
   'auth/login',
   async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(credentials);
       
-      // Store user and tokens in localStorage
       localStorage.setItem('user', JSON.stringify(response.data[0]));
       localStorage.setItem('tokens', JSON.stringify(response.tokens));
       
@@ -44,12 +40,13 @@ export const login = createAsyncThunk(
 
 export const logout = createAsyncThunk(
   'auth/logout',
-  async (_, { dispatch }) => {
-    authService.logout();
+  async (_, { getState }) => {
+    const state = getState() as RootState;
+    const token = state.auth.tokens?.access_token;
+    await authService.logout(token);
   }
 );
 
-// Create the slice
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -88,7 +85,6 @@ const authSlice = createSlice({
   },
 });
 
-// Export actions and selectors
 export const { clearError, setUser, setTokens } = authSlice.actions;
 
 export const selectAuth = (state: RootState) => state.auth;
