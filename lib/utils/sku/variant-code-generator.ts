@@ -5,17 +5,28 @@ export interface VariantCode {
   uniqueCode: string;
 }
 
+export function generateSequentialCode(index: number): string {
+  return (index + 1).toString().padStart(4, '0');
+}
+
 export function generateVariantCode(
   mainSku: string, 
   existingCodes: string[] = [],
-  defaultCode?: string
+  index?: number,
+  customCode?: string
 ): VariantCode {
   let uniqueCode: string;
 
-  // Use default code if provided and not already taken
-  if (defaultCode && !existingCodes.includes(defaultCode)) {
-    uniqueCode = defaultCode;
-  } else {
+  // Use custom code if provided and valid
+  if (customCode && validateVariantCode(customCode) && !existingCodes.includes(customCode)) {
+    uniqueCode = customCode;
+  }
+  // Use sequential code if index is provided
+  else if (typeof index === 'number') {
+    uniqueCode = generateSequentialCode(index);
+  }
+  // Generate random code as fallback
+  else {
     let attempts = 0;
     const maxAttempts = 1000;
 

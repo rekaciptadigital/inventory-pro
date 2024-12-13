@@ -13,7 +13,8 @@ import { VariantSkuInput } from './variant-sku-input';
 import { 
   generateVariantCode, 
   formatVariantSku,
-  isUniqueVariantCode 
+  isUniqueVariantCode,
+  generateSequentialCode
 } from '@/lib/utils/sku/variant-code-generator';
 import { 
   generateVariantCombinations,
@@ -59,13 +60,13 @@ export function GeneratedSkusTable({
     // Generate all possible combinations
     const combinations = generateVariantCombinations(selectedVariants, variantTypes);
 
-    // Generate variants with unique codes
+    // Generate variants with sequential codes
     const existingCodes = variants.map(v => v.uniqueCode);
     const newVariants = combinations.map((combination, index) => {
       const { mainSku, uniqueCode } = generateVariantCode(
         baseSku, 
         existingCodes,
-        (index + 1).toString().padStart(4, '0')
+        index // Pass index for sequential numbering
       );
       existingCodes.push(uniqueCode);
       
