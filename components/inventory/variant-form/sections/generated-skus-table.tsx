@@ -11,18 +11,13 @@ import {
 } from '@/components/ui/table';
 import { VariantSkuField } from './variant-sku-field';
 import { 
-  generateVariantCode, 
-  formatVariantSku,
-  isUniqueVariantCode,
-  generateSequentialCode
-} from '@/lib/utils/sku/variant-code-generator';
-import { 
   generateVariantCombinations,
   formatVariantName,
   type VariantCombination 
 } from '@/lib/utils/variant/combinations';
 import { formatCurrency } from '@/lib/utils/format';
 import { useVariantTypes } from '@/lib/hooks/use-variant-types';
+import { generateSequentialCode } from '@/lib/utils/sku/variant-code-generator';
 
 interface GeneratedSkusTableProps {
   baseSku: string;
@@ -39,6 +34,7 @@ interface GeneratedSkusTableProps {
 interface VariantRow {
   mainSku: string;
   uniqueCode: string;
+  defaultUniqueCode: string;
   combination: VariantCombination;
   price: number;
 }
@@ -61,18 +57,12 @@ export function GeneratedSkusTable({
     const combinations = generateVariantCombinations(selectedVariants, variantTypes);
 
     // Generate variants with sequential codes
-    const existingCodes = variants.map(v => v.uniqueCode);
     const newVariants = combinations.map((combination, index) => {
-      const { mainSku, uniqueCode } = generateVariantCode(
-        baseSku, 
-        existingCodes,
-        index
-      );
-      existingCodes.push(uniqueCode);
-      
+      const defaultCode = generateSequentialCode(index);
       return {
-        mainSku,
-        uniqueCode,
+        mainSku: baseSku,
+        uniqueCode: defaultCode,
+        defaultUniqueCode: defaultCode,
         combination,
         price: basePrice,
       };
@@ -82,29 +72,6 @@ export function GeneratedSkusTable({
   }, [baseSku, selectedVariants, variantTypes]);
 
   const handleUniqueCodeChange = (index: number, newCode: string) => {
-    if (!newCode) {
-      setErrors(prev => ({ ...prev, [index]: 'Code is required' }));
-      return;
-    }
-
-    // Check uniqueness within current variants
-    const isUnique = isUniqueVariantCode(
-      newCode,
-      baseSku,
-      variants.map(v => ({ sku: formatVariantSku({ mainSku: v.mainSku, uniqueCode: v.uniqueCode }) }))
-    );
-
-    if (!isUnique) {
-      setErrors(prev => ({ ...prev, [index]: 'Code must be unique' }));
-      return;
-    }
-
-    setErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors[index];
-      return newErrors;
-    });
-
     setVariants(prev => {
       const newVariants = [...prev];
       newVariants[index] = {
@@ -120,14 +87,9 @@ export function GeneratedSkusTable({
       const newVariants = [...prev];
       newVariants[index] = {
         ...newVariants[index],
-        uniqueCode: generateSequentialCode(index),
+        uniqueCode: newVariants[index].defaultUniqueCode,
       };
       return newVariants;
-    });
-    setErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors[index];
-      return newErrors;
     });
   };
 
@@ -159,6 +121,8 @@ export function GeneratedSkusTable({
                   index={index}
                   mainSku={variant.mainSku}
                   uniqueCode={variant.uniqueCode}
+                  defaultUniqueCode={variant.defaultUniqueCode}
+                  existingCodes={variants.map(v => v.uniqueCode)}
                   error={errors[index]}
                   onUniqueCodeChange={(code) => handleUniqueCodeChange(index, code)}
                   onReset={() => handleReset(index)}
