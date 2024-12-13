@@ -6,6 +6,7 @@ export interface VariantCombination {
     valueId: string;
     typeName: string;
     valueName: string;
+    order: number;
   }>;
 }
 
@@ -35,6 +36,7 @@ export function generateVariantCombinations(
               valueId,
               typeName: variantType.name,
               valueName: value.name,
+              order: variantType.order || 999, // Default to high number if no order
             },
           ],
         });
@@ -51,7 +53,10 @@ export function formatVariantName(
   productName: string,
   combination: VariantCombination
 ): string {
-  const variantParts = combination.values
+  // Sort values by order
+  const sortedValues = [...combination.values].sort((a, b) => a.order - b.order);
+  
+  const variantParts = sortedValues
     .map(value => value.valueName)
     .join(' ');
 

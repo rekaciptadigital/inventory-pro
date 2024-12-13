@@ -30,6 +30,7 @@ const formSchema = z.object({
   name: z.string().min(1, 'Variant type name is required'),
   status: z.enum(['active', 'inactive']),
   valuesString: z.string().min(1, 'At least one value is required'),
+  order: z.number().min(1, 'Order must be at least 1'),
 });
 
 interface VariantTypeFormProps {
@@ -48,6 +49,7 @@ export function VariantTypeForm({ onSuccess, initialData }: VariantTypeFormProps
       name: initialData?.name || '',
       status: initialData?.status || 'active',
       valuesString: initialData?.values.map(v => v.name).join(', ') || '',
+      order: initialData?.order || 1,
     },
   });
 
@@ -84,7 +86,8 @@ export function VariantTypeForm({ onSuccess, initialData }: VariantTypeFormProps
           initialData.id,
           formData.name,
           formData.status,
-          values
+          values,
+          formData.order
         );
         toast({
           title: 'Success',
@@ -94,7 +97,8 @@ export function VariantTypeForm({ onSuccess, initialData }: VariantTypeFormProps
         await addVariantType(
           formData.name,
           formData.status,
-          values
+          values,
+          formData.order
         );
         toast({
           title: 'Success',
@@ -126,6 +130,29 @@ export function VariantTypeForm({ onSuccess, initialData }: VariantTypeFormProps
               <FormControl>
                 <Input placeholder="Enter variant type name" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="order"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Display Order</FormLabel>
+              <FormControl>
+                <Input 
+                  type="number" 
+                  min="1"
+                  placeholder="Enter display order" 
+                  {...field}
+                  onChange={(e) => field.onChange(parseInt(e.target.value))}
+                />
+              </FormControl>
+              <FormDescription>
+                This determines the order of variants in the product name (e.g., 1 for first, 2 for second)
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

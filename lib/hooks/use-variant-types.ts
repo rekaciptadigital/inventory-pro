@@ -16,7 +16,8 @@ export function useVariantTypes() {
   const addVariantType = (
     name: string, 
     status: 'active' | 'inactive',
-    values: Omit<VariantValue, 'id' | 'variantTypeId'>[]
+    values: Omit<VariantValue, 'id' | 'variantTypeId'>[],
+    order: number
   ): Promise<VariantType> => {
     return new Promise((resolve, reject) => {
       if (variantTypes.some(type => type.name.toLowerCase() === name.toLowerCase())) {
@@ -28,6 +29,7 @@ export function useVariantTypes() {
         id: Date.now().toString(),
         name,
         status,
+        order,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         values: values.map((value, index) => ({
@@ -48,7 +50,8 @@ export function useVariantTypes() {
     id: string,
     name: string,
     status: 'active' | 'inactive',
-    values: Omit<VariantValue, 'id' | 'variantTypeId'>[]
+    values: Omit<VariantValue, 'id' | 'variantTypeId'>[],
+    order: number
   ): Promise<VariantType> => {
     return new Promise((resolve, reject) => {
       if (variantTypes.some(type => 
@@ -64,6 +67,7 @@ export function useVariantTypes() {
             ...type,
             name,
             status,
+            order,
             updatedAt: new Date().toISOString(),
             values: values.map((value, index) => ({
               ...value,

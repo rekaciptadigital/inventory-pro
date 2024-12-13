@@ -2,6 +2,7 @@ export interface VariantType {
   id: string;
   name: string;
   status: 'active' | 'inactive';
+  order: number;
   createdAt: string;
   updatedAt: string;
   values: VariantValue[];
@@ -18,5 +19,6 @@ export interface VariantValue {
 export interface VariantTypeFormData {
   name: string;
   status: 'active' | 'inactive';
+  order: number;
   values: Omit<VariantValue, 'id' | 'variantTypeId'>[];
 }
