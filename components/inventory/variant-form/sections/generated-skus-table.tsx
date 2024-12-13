@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { VariantSkuInput } from './variant-sku-input';
+import { VariantSkuField } from './variant-sku-field';
 import { 
   generateVariantCode, 
   formatVariantSku,
@@ -66,7 +66,7 @@ export function GeneratedSkusTable({
       const { mainSku, uniqueCode } = generateVariantCode(
         baseSku, 
         existingCodes,
-        index // Pass index for sequential numbering
+        index
       );
       existingCodes.push(uniqueCode);
       
@@ -81,7 +81,7 @@ export function GeneratedSkusTable({
     setVariants(newVariants);
   }, [baseSku, selectedVariants, variantTypes]);
 
-  const handleCodeChange = (index: number, newCode: string) => {
+  const handleUniqueCodeChange = (index: number, newCode: string) => {
     if (!newCode) {
       setErrors(prev => ({ ...prev, [index]: 'Code is required' }));
       return;
@@ -115,16 +115,31 @@ export function GeneratedSkusTable({
     });
   };
 
+  const handleReset = (index: number) => {
+    setVariants(prev => {
+      const newVariants = [...prev];
+      newVariants[index] = {
+        ...newVariants[index],
+        uniqueCode: generateSequentialCode(index),
+      };
+      return newVariants;
+    });
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[index];
+      return newErrors;
+    });
+  };
+
   if (!baseSku || variants.length === 0) return null;
 
   return (
-    <div className="border rounded-lg">
+    <div className="space-y-4">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead className="w-[40%]">Full Product Name</TableHead>
-            <TableHead>SKU Variant</TableHead>
-            <TableHead>Unique Code</TableHead>
+            <TableHead>SKU & Unique Code</TableHead>
             <TableHead className="w-[200px]">Base Value (HB)</TableHead>
           </TableRow>
         </TableHeader>
@@ -139,14 +154,14 @@ export function GeneratedSkusTable({
                   variant.combination
                 )}
               </TableCell>
-              <TableCell className="font-mono">
-                {formatVariantSku({ mainSku: variant.mainSku, uniqueCode: variant.uniqueCode })}
-              </TableCell>
               <TableCell>
-                <VariantSkuInput
-                  value={variant.uniqueCode}
-                  onChange={(value) => handleCodeChange(index, value)}
+                <VariantSkuField
+                  index={index}
+                  mainSku={variant.mainSku}
+                  uniqueCode={variant.uniqueCode}
                   error={errors[index]}
+                  onUniqueCodeChange={(code) => handleUniqueCodeChange(index, code)}
+                  onReset={() => handleReset(index)}
                 />
               </TableCell>
               <TableCell>
