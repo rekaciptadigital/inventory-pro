@@ -1,7 +1,7 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { authService } from '@/lib/services/auth.service';
-import type { AuthUser, AuthTokens, LoginCredentials } from '@/lib/types/auth';
-import type { RootState } from '../store';
+import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import { authService } from "@/lib/services/auth.service";
+import type { AuthUser, AuthTokens, LoginCredentials } from "@/lib/types/auth";
+import type { RootState } from "../store";
 
 interface AuthState {
   user: AuthUser | null;
@@ -18,28 +18,27 @@ const initialState: AuthState = {
 };
 
 export const login = createAsyncThunk(
-  'auth/login',
+  "auth/login",
   async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(credentials);
-      
-      localStorage.setItem('user', JSON.stringify(response.data[0]));
-      localStorage.setItem('tokens', JSON.stringify(response.tokens));
-      
+      localStorage.setItem("user", JSON.stringify(response.data));
+      localStorage.setItem("tokens", JSON.stringify(response.tokens));
+
       return {
-        user: response.data[0],
+        user: response.data,
         tokens: response.tokens,
       };
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || 'Failed to login'
+        error.response?.data?.message || "Failed to login"
       );
     }
   }
 );
 
 export const logout = createAsyncThunk(
-  'auth/logout',
+  "auth/logout",
   async (_, { getState }) => {
     const state = getState() as RootState;
     const token = state.auth.tokens?.access_token;
@@ -48,7 +47,7 @@ export const logout = createAsyncThunk(
 );
 
 const authSlice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState,
   reducers: {
     clearError: (state) => {

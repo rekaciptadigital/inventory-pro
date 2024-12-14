@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Target } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -14,14 +14,14 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/components/ui/use-toast';
-import { useAuth } from '@/lib/hooks/use-auth';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/lib/hooks/use-auth";
 
 const formSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 export default function LoginPage() {
@@ -32,16 +32,16 @@ export default function LoginPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: '',
-      password: '',
+      email: "",
+      password: "",
     },
   });
 
   useEffect(() => {
     if (error) {
       toast({
-        variant: 'destructive',
-        title: 'Error',
+        variant: "destructive",
+        title: "Error",
         description: error,
       });
       clearError();
@@ -52,11 +52,15 @@ export default function LoginPage() {
     try {
       await login(values);
       toast({
-        title: 'Success',
-        description: 'Logged in successfully',
+        title: "Success",
+        description: "Logged in successfully",
       });
-      router.push('/dashboard');
-    } catch (error) {
+      router.push("/dashboard");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.status?.messsage,
+      });
       // Error is handled by the auth slice
     }
   };
@@ -119,7 +123,7 @@ export default function LoginPage() {
                   <span>Signing in...</span>
                 </div>
               ) : (
-                'Sign in'
+                "Sign in"
               )}
             </Button>
           </form>

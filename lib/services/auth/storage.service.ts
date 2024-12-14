@@ -1,5 +1,5 @@
-import { STORAGE_KEYS } from '@/lib/config/constants';
-import type { AuthUser, AuthTokens } from '@/lib/types/auth';
+import { STORAGE_KEYS } from "@/lib/config/constants";
+import type { AuthUser, AuthTokens } from "@/lib/types/auth";
 
 export function getCurrentUser(): AuthUser | null {
   try {

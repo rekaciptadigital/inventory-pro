@@ -3,25 +3,25 @@ export interface AuthResponse {
     code: number;
     message: string;
   };
-  data: AuthUser[];
+  data: AuthUser;
   tokens: AuthTokens;
 }
 
 export interface AuthUser {
-  id: string;
-  nip: string | null;
-  nik: string | null;
-  first_name: string;
-  last_name: string;
-  photo_profile: string | null;
-  email: string;
-  phone_number: string | null;
-  address: string | null;
-  status: boolean;
-  role: UserRole;
-  role_feature_permissions: RoleFeaturePermission[];
-  created_at: string;
-  updated_at: string;
+  id?: string;
+  nip?: string | null;
+  nik?: string | null;
+  first_name?: string;
+  last_name?: string;
+  photo_profile?: string | null;
+  email?: string;
+  phone_number?: string | null;
+  address?: string | null;
+  status?: boolean;
+  role?: UserRole;
+  role_feature_permissions?: RoleFeaturePermission[] | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface UserRole {

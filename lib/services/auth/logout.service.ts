@@ -1,10 +1,10 @@
-import { api } from '../api';
-import { API_ENDPOINTS } from '@/lib/config/constants';
-import { clearAuthData } from './storage.service';
+import { api } from "../api";
+import { API_ENDPOINTS } from "@/lib/config/constants";
+import { clearAuthData } from "./storage.service";
 
 export async function logoutUser(token?: string): Promise<void> {
   if (!token) {
-    throw new Error('No authentication token found');
+    throw new Error("No authentication token found");
   }
 
   try {
@@ -15,13 +15,13 @@ export async function logoutUser(token?: string): Promise<void> {
     });
 
     if (response.status !== 200) {
-      throw new Error('Logout failed');
+      throw new Error("Logout failed");
     }
 
     // Clear local storage after successful API call
     clearAuthData();
   } catch (error) {
-    console.error('Logout API error:', error);
+    console.error("Logout API error:", error);
     throw error;
   }
 }
