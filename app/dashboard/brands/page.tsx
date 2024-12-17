@@ -1,43 +1,52 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { BrandForm } from '@/components/brands/brand-form';
 import { BrandList } from '@/components/brands/brand-list';
+import { useBrands } from '@/lib/hooks/use-brands';
 import type { Brand } from '@/types/brand';
+import type { BrandFormData } from '@/lib/api/brands';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function BrandsPage() {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedBrand, setSelectedBrand] = useState<Brand | undefined>();
 
-  // Load brands from localStorage on component mount
-  useEffect(() => {
-    const savedBrands = localStorage.getItem('brands');
-    if (savedBrands) {
-      setBrands(JSON.parse(savedBrands));
-    }
-  }, []);
+  const {
+    brands,
+    pagination,
+    isLoading,
+    createBrand,
+    updateBrand,
+    deleteBrand,
+    updateBrandStatus,
+  } = useBrands({
+    search,
+    page,
+    limit: ITEMS_PER_PAGE,
+  });
 
-  const handleSuccess = (brand: Brand) => {
-    if (selectedBrand) {
-      // Update existing brand in the list
-      setBrands(brands.map(b => b.id === brand.id ? brand : b));
-    } else {
-      // Add new brand to the list
-      setBrands([...brands, brand]);
-    }
+  const handleCreate = async (data: BrandFormData) => {
+    await createBrand(data);
+    setIsDialogOpen(false);
+  };
+
+  const handleUpdate = async (data: BrandFormData) => {
+    if (!selectedBrand) return;
+    await updateBrand({ id: selectedBrand.id, data });
     setIsDialogOpen(false);
     setSelectedBrand(undefined);
   };
@@ -47,9 +56,10 @@ export default function BrandsPage() {
     setIsDialogOpen(true);
   };
 
-  const filteredBrands = brands.filter(brand =>
-    brand.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleCancel = () => {
+    setIsDialogOpen(false);
+    setSelectedBrand(undefined);
+  };
 
   return (
     <div className="space-y-6">
@@ -60,48 +70,55 @@ export default function BrandsPage() {
             Manage your product brands
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) setSelectedBrand(undefined);
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add New Brand
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{selectedBrand ? 'Edit Brand' : 'Add New Brand'}</DialogTitle>
-              <DialogDescription>
-                {selectedBrand 
-                  ? 'Edit the brand details below.'
-                  : 'Add a new brand to your product catalog.'
-                }
-              </DialogDescription>
-            </DialogHeader>
-            <BrandForm 
-              onSuccess={handleSuccess}
-              initialData={selectedBrand}
-            />
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setIsDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add New Brand
+        </Button>
       </div>
 
       <div className="flex gap-4">
         <div className="relative flex-1">
           <Input
             placeholder="Search brands..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1); // Reset page when search changes
+            }}
           />
         </div>
       </div>
 
-      <BrandList 
-        brands={filteredBrands}
+      <BrandList
+        brands={brands}
         onEdit={handleEdit}
+        onDelete={deleteBrand}
+        onStatusChange={updateBrandStatus}
       />
+
+      <Dialog 
+        open={isDialogOpen} 
+        onOpenChange={setIsDialogOpen}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedBrand ? 'Edit Brand' : 'Add New Brand'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedBrand 
+                ? 'Edit the brand details below.'
+                : 'Add a new brand to your product catalog.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <BrandForm
+            initialData={selectedBrand}
+            onSubmit={selectedBrand ? handleUpdate : handleCreate}
+            onCancel={handleCancel}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
