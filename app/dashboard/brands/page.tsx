@@ -1,26 +1,26 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { BrandForm } from '@/components/brands/brand-form';
-import { BrandList } from '@/components/brands/brand-list';
-import { useBrands } from '@/lib/hooks/use-brands';
-import type { Brand } from '@/types/brand';
-import type { BrandFormData } from '@/lib/api/brands';
+} from "@/components/ui/dialog";
+import { BrandForm } from "@/components/brands/brand-form";
+import { BrandList } from "@/components/brands/brand-list";
+import { useBrands } from "@/lib/hooks/use-brands";
+import type { Brand } from "@/types/brand";
+import type { BrandFormData } from "@/lib/api/brands";
 
 const ITEMS_PER_PAGE = 10;
 
 export default function BrandsPage() {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | undefined>();
@@ -66,9 +66,7 @@ export default function BrandsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Brands</h1>
-          <p className="text-muted-foreground">
-            Manage your product brands
-          </p>
+          <p className="text-muted-foreground">Manage your product brands</p>
         </div>
         <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -96,20 +94,16 @@ export default function BrandsPage() {
         onStatusChange={updateBrandStatus}
       />
 
-      <Dialog 
-        open={isDialogOpen} 
-        onOpenChange={setIsDialogOpen}
-      >
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {selectedBrand ? 'Edit Brand' : 'Add New Brand'}
+              {selectedBrand ? "Edit Brand" : "Add New Brand"}
             </DialogTitle>
             <DialogDescription>
-              {selectedBrand 
-                ? 'Edit the brand details below.'
-                : 'Add a new brand to your product catalog.'
-              }
+              {selectedBrand
+                ? "Edit the brand details below."
+                : "Add a new brand to your product catalog."}
             </DialogDescription>
           </DialogHeader>
           <BrandForm
