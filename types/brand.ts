@@ -3,7 +3,6 @@ export interface Brand {
   name: string;
   code: string;
   description?: string;
-  created_at: string;
-  updated_at: string;
-  status: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

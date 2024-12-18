@@ -24,8 +24,10 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { UserTable } from '@/components/users/user-table';
 import { UserForm } from '@/components/users/user-form';
-import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/lib/hooks/use-users';
+import { useUsers } from '@/lib/hooks/users/use-users';
 import type { User } from '@/types/user';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function UsersPage() {
   const { toast } = useToast();
@@ -35,18 +37,23 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | undefined>();
   const [userToDelete, setUserToDelete] = useState<User | undefined>();
 
-  const { data, isLoading, error } = useUsers(page, search);
-  const createUserMutation = useCreateUser();
-  const updateUserMutation = useUpdateUser();
-  const deleteUserMutation = useDeleteUser();
+  const {
+    users,
+    pagination,
+    isLoading,
+    error,
+    createUser,
+    updateUser,
+    deleteUser,
+  } = useUsers({
+    page,
+    search,
+    limit: ITEMS_PER_PAGE,
+  });
 
   const handleCreate = async (formData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
-      await createUserMutation.mutateAsync(formData);
-      toast({
-        title: 'Success',
-        description: 'User has been created successfully',
-      });
+      await createUser(formData);
       setIsDialogOpen(false);
     } catch (error) {
       toast({
@@ -61,13 +68,9 @@ export default function UsersPage() {
     if (!selectedUser) return;
 
     try {
-      await updateUserMutation.mutateAsync({
+      await updateUser({
         id: selectedUser.id,
         data: formData,
-      });
-      toast({
-        title: 'Success',
-        description: 'User has been updated successfully',
       });
       setIsDialogOpen(false);
       setSelectedUser(undefined);
@@ -84,11 +87,7 @@ export default function UsersPage() {
     if (!userToDelete) return;
 
     try {
-      await deleteUserMutation.mutateAsync(userToDelete.id);
-      toast({
-        title: 'Success',
-        description: 'User has been deleted successfully',
-      });
+      await deleteUser(userToDelete.id);
       setUserToDelete(undefined);
     } catch (error) {
       toast({
@@ -116,40 +115,10 @@ export default function UsersPage() {
             Manage system users and their access
           </p>
         </div>
-        <Dialog 
-          open={isDialogOpen} 
-          onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) setSelectedUser(undefined);
-          }}
-        >
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add New User
-          </Button>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {selectedUser ? 'Edit User' : 'Add New User'}
-              </DialogTitle>
-              <DialogDescription>
-                {selectedUser 
-                  ? 'Edit user details below'
-                  : 'Add a new user to the system'
-                }
-              </DialogDescription>
-            </DialogHeader>
-            <UserForm
-              onSubmit={selectedUser ? handleUpdate : handleCreate}
-              initialData={selectedUser}
-              isSubmitting={
-                selectedUser 
-                  ? updateUserMutation.isPending 
-                  : createUserMutation.isPending
-              }
-            />
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setIsDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add New User
+        </Button>
       </div>
 
       <div className="flex gap-4">
@@ -157,7 +126,10 @@ export default function UsersPage() {
           <Input
             placeholder="Search users..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
         </div>
       </div>
@@ -170,7 +142,7 @@ export default function UsersPage() {
         </div>
       ) : (
         <UserTable
-          users={data?.data || []}
+          users={users}
           onEdit={(user) => {
             setSelectedUser(user);
             setIsDialogOpen(true);
@@ -178,6 +150,33 @@ export default function UsersPage() {
           onDelete={setUserToDelete}
         />
       )}
+
+      <Dialog 
+        open={isDialogOpen} 
+        onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) setSelectedUser(undefined);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedUser ? 'Edit User' : 'Add New User'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedUser 
+                ? 'Edit user details below'
+                : 'Add a new user to the system'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <UserForm
+            onSubmit={selectedUser ? handleUpdate : handleCreate}
+            initialData={selectedUser}
+            isSubmitting={isLoading}
+          />
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog 
         open={Boolean(userToDelete)}
@@ -189,7 +188,7 @@ export default function UsersPage() {
             <AlertDialogDescription>
               Are you sure you want to delete this user? This action cannot be undone.
               <div className="mt-4 p-4 bg-muted rounded-lg">
-                <div><strong>Name:</strong> {userToDelete?.firstName} {userToDelete?.lastName}</div>
+                <div><strong>Name:</strong> {userToDelete?.first_name} {userToDelete?.last_name}</div>
                 <div><strong>Email:</strong> {userToDelete?.email}</div>
               </div>
             </AlertDialogDescription>
@@ -199,9 +198,9 @@ export default function UsersPage() {
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleteUserMutation.isPending}
+              disabled={isLoading}
             >
-              {deleteUserMutation.isPending ? 'Deleting...' : 'Delete'}
+              {isLoading ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
