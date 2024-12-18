@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -8,7 +8,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,13 +19,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Edit, Trash2 } from 'lucide-react';
-import { formatDate } from '@/lib/utils/format';
-import type { Brand } from '@/types/brand';
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Edit, Trash2 } from "lucide-react";
+import { formatDate } from "@/lib/utils/format";
+import type { Brand } from "@/types/brand";
 
 interface BrandListProps {
   brands: Brand[];
@@ -64,7 +64,8 @@ export function BrandList({
   if (brands.length === 0) {
     return (
       <div className="border rounded-lg p-8 text-center text-muted-foreground">
-        No brands found. Add your first brand by clicking the "Add New Brand" button.
+        No brands found. Add your first brand by clicking the "Add New Brand"
+        button.
       </div>
     );
   }
@@ -91,11 +92,13 @@ export function BrandList({
                 <Switch
                   checked={brand.status}
                   disabled={isUpdatingStatus === brand.id}
-                  onCheckedChange={(checked) => handleStatusChange(brand.id, checked)}
+                  onCheckedChange={(checked) =>
+                    handleStatusChange(brand.id, checked)
+                  }
                 />
               </TableCell>
-              <TableCell>{formatDate(brand.createdAt)}</TableCell>
-              <TableCell>{formatDate(brand.updatedAt)}</TableCell>
+              <TableCell>{formatDate(brand.created_at)}</TableCell>
+              <TableCell>{formatDate(brand.updated_at)}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Button
@@ -115,7 +118,8 @@ export function BrandList({
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete Brand</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to delete this brand? This action cannot be undone.
+                          Are you sure you want to delete this brand? This
+                          action cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -125,7 +129,7 @@ export function BrandList({
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           disabled={isDeleting === brand.id}
                         >
-                          {isDeleting === brand.id ? 'Deleting...' : 'Delete'}
+                          {isDeleting === brand.id ? "Deleting..." : "Delete"}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
