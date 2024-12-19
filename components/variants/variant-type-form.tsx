@@ -1,9 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -22,16 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
-import { useVariantTypes } from '@/lib/hooks/use-variant-types';
-import type { VariantType } from '@/types/variant';
-
-const formSchema = z.object({
-  name: z.string().min(1, 'Variant type name is required'),
-  status: z.enum(['active', 'inactive']),
-  valuesString: z.string().min(1, 'At least one value is required'),
-  order: z.number().min(1, 'Order must be at least 1'),
-});
+import { VariantValueField } from './variant-value-field';
+import { useVariantForm } from '@/lib/hooks/variants/use-variant-form';
+import type { VariantType, VariantTypeFormData } from '@/types/variant';
 
 interface VariantTypeFormProps {
   onSuccess: () => void;
@@ -39,88 +28,14 @@ interface VariantTypeFormProps {
 }
 
 export function VariantTypeForm({ onSuccess, initialData }: VariantTypeFormProps) {
-  const { toast } = useToast();
-  const { variantTypes, addVariantType, updateVariantType } = useVariantTypes();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: initialData?.name || '',
-      status: initialData?.status || 'active',
-      valuesString: initialData?.values.map(v => v.name).join(', ') || '',
-      order: initialData?.order || 1,
-    },
+  const { form, isSubmitting, handleSubmit } = useVariantForm(initialData, async (data) => {
+    // Submit logic is handled in the parent component
+    onSuccess();
   });
-
-  const onSubmit = async (formData: z.infer<typeof formSchema>) => {
-    try {
-      setIsSubmitting(true);
-
-      // Check for duplicate names
-      if (variantTypes.some(type => 
-        type.name.toLowerCase() === formData.name.toLowerCase() &&
-        type.id !== initialData?.id
-      )) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'A variant type with this name already exists',
-        });
-        return;
-      }
-
-      // Create variant values array
-      const values = formData.valuesString
-        .split(',')
-        .map(v => v.trim())
-        .filter(Boolean)
-        .map((name, index) => ({
-          name,
-          details: '',
-          order: index,
-        }));
-
-      if (initialData) {
-        await updateVariantType(
-          initialData.id,
-          formData.name,
-          formData.status,
-          values,
-          formData.order
-        );
-        toast({
-          title: 'Success',
-          description: 'Variant type has been updated successfully',
-        });
-      } else {
-        await addVariantType(
-          formData.name,
-          formData.status,
-          values,
-          formData.order
-        );
-        toast({
-          title: 'Success',
-          description: 'Variant type has been added successfully',
-        });
-      }
-      
-      onSuccess();
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'An error occurred',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <FormField
           control={form.control}
           name="name"
@@ -147,11 +62,12 @@ export function VariantTypeForm({ onSuccess, initialData }: VariantTypeFormProps
                   min="1"
                   placeholder="Enter display order" 
                   {...field}
-                  onChange={(e) => field.onChange(parseInt(e.target.value))}
+                  onChange={(e) => field.onChange(Number(e.target.value) || 1)}
+                  value={field.value || ''}
                 />
               </FormControl>
               <FormDescription>
-                This determines the order of variants in the product name (e.g., 1 for first, 2 for second)
+                This determines the order of variants in the product name
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -164,7 +80,7 @@ export function VariantTypeForm({ onSuccess, initialData }: VariantTypeFormProps
           render={({ field }) => (
             <FormItem>
               <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
@@ -180,25 +96,7 @@ export function VariantTypeForm({ onSuccess, initialData }: VariantTypeFormProps
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="valuesString"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Variant Values</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Enter values separated by commas (e.g., Red, Blue, Black)"
-                  {...field}
-                />
-              </FormControl>
-              <FormDescription>
-                Enter each value separated by a comma. Maximum 50 characters per value.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <VariantValueField />
 
         <div className="flex justify-end space-x-4">
           <Button type="submit" disabled={isSubmitting}>
