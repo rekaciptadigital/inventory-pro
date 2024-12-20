@@ -4,62 +4,43 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { BrandForm } from '@/components/brands/brand-form';
+import { PaginationControls } from '@/components/ui/pagination/pagination-controls';
+import { PaginationInfo } from '@/components/ui/pagination/pagination-info';
 import { BrandList } from '@/components/brands/brand-list';
+import { usePagination } from '@/lib/hooks/use-pagination';
 import { useBrands } from '@/lib/hooks/use-brands';
-import type { Brand } from '@/types/brand';
-import type { BrandFormData } from '@/lib/api/brands';
-
-const ITEMS_PER_PAGE = 10;
 
 export default function BrandsPage() {
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedBrand, setSelectedBrand] = useState<Brand | undefined>();
+  const {
+    currentPage,
+    pageSize,
+    handlePageChange,
+    handlePageSizeChange,
+  } = usePagination();
 
   const {
     brands,
     pagination,
     isLoading,
+    error,
     createBrand,
     updateBrand,
     deleteBrand,
     updateBrandStatus,
   } = useBrands({
     search,
-    page,
-    limit: ITEMS_PER_PAGE,
+    page: currentPage,
+    limit: pageSize,
   });
 
-  const handleCreate = async (data: BrandFormData) => {
-    await createBrand(data);
-    setIsDialogOpen(false);
-  };
-
-  const handleUpdate = async (data: BrandFormData) => {
-    if (!selectedBrand) return;
-    await updateBrand({ id: selectedBrand.id, data });
-    setIsDialogOpen(false);
-    setSelectedBrand(undefined);
-  };
-
-  const handleEdit = (brand: Brand) => {
-    setSelectedBrand(brand);
-    setIsDialogOpen(true);
-  };
-
-  const handleCancel = () => {
-    setIsDialogOpen(false);
-    setSelectedBrand(undefined);
-  };
+  if (error) {
+    return (
+      <div className="p-8 text-center text-destructive">
+        Error loading brands. Please try again later.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -70,7 +51,7 @@ export default function BrandsPage() {
             Manage your product brands
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
+        <Button>
           <Plus className="mr-2 h-4 w-4" />
           Add New Brand
         </Button>
@@ -83,7 +64,7 @@ export default function BrandsPage() {
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
-              setPage(1); // Reset page when search changes
+              handlePageChange(1); // Reset to first page on search
             }}
           />
         </div>
@@ -91,34 +72,26 @@ export default function BrandsPage() {
 
       <BrandList
         brands={brands}
-        onEdit={handleEdit}
+        onEdit={() => {}}
         onDelete={deleteBrand}
         onStatusChange={updateBrandStatus}
       />
 
-      <Dialog 
-        open={isDialogOpen} 
-        onOpenChange={setIsDialogOpen}
-      >
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedBrand ? 'Edit Brand' : 'Add New Brand'}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedBrand 
-                ? 'Edit the brand details below.'
-                : 'Add a new brand to your product catalog.'
-              }
-            </DialogDescription>
-          </DialogHeader>
-          <BrandForm
-            initialData={selectedBrand}
-            onSubmit={selectedBrand ? handleUpdate : handleCreate}
-            onCancel={handleCancel}
-          />
-        </DialogContent>
-      </Dialog>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <PaginationInfo
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={pagination?.totalItems || 0}
+        />
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={pagination?.totalPages || 1}
+          pageSize={pageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          isLoading={isLoading}
+        />
+      </div>
     </div>
   );
 }
