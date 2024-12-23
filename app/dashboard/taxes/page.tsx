@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -13,15 +14,29 @@ import {
 } from '@/components/ui/dialog';
 import { TaxForm } from '@/components/taxes/tax-form';
 import { TaxList } from '@/components/taxes/tax-list';
-import { useToast } from '@/components/ui/use-toast';
-import { useTaxes } from '@/lib/hooks/use-taxes';
+import { usePagination } from '@/lib/hooks/use-pagination';
+import { useTaxList } from '@/lib/hooks/taxes/use-tax-list';
+import { useTaxMutations } from '@/lib/hooks/taxes/use-tax-mutations';
 import type { Tax } from '@/types/tax';
 
 export default function TaxesPage() {
-  const { toast } = useToast();
-  const { taxes, deleteTax } = useTaxes();
+  const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedTax, setSelectedTax] = useState<Tax | undefined>();
+  const {
+    currentPage,
+    pageSize,
+    handlePageChange,
+    handlePageSizeChange,
+  } = usePagination();
+
+  const { data, isLoading, error } = useTaxList({
+    search,
+    page: currentPage,
+    limit: pageSize,
+  });
+
+  const mutations = useTaxMutations();
 
   const handleSuccess = () => {
     setIsDialogOpen(false);
@@ -33,21 +48,13 @@ export default function TaxesPage() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteTax(id);
-      toast({
-        title: 'Success',
-        description: 'Tax has been deleted successfully',
-      });
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to delete tax',
-      });
-    }
-  };
+  if (error) {
+    return (
+      <div className="p-8 text-center text-destructive">
+        Error loading taxes. Please try again later.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -88,10 +95,25 @@ export default function TaxesPage() {
         </Dialog>
       </div>
 
+      <div className="flex gap-4">
+        <div className="relative flex-1">
+          <Input
+            placeholder="Search taxes..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              handlePageChange(1); // Reset to first page on search
+            }}
+          />
+        </div>
+      </div>
+
       <TaxList 
-        taxes={taxes}
+        taxes={data?.data || []}
         onEdit={handleEdit}
-        onDelete={handleDelete}
+        onDelete={mutations.deleteTax}
+        onStatusChange={(id, status) => mutations.updateTaxStatus({ id, status })}
+        isLoading={isLoading || mutations.isLoading}
       />
     </div>
   );

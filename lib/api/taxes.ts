@@ -1,5 +1,5 @@
 import axiosInstance from './axios';
-import type { Tax, TaxFormData } from '@/types/tax';
+import type { Tax } from '@/types/tax';
 import type { ApiResponse } from '@/types/api';
 
 export interface TaxFilters {
@@ -7,6 +7,13 @@ export interface TaxFilters {
   search?: string;
   page?: number;
   limit?: number;
+}
+
+export interface TaxFormData {
+  name: string;
+  description?: string;
+  percentage: number;
+  status: 'active' | 'inactive';
 }
 
 export async function getTaxes(filters: TaxFilters = {}): Promise<ApiResponse<Tax[]>> {
