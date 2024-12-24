@@ -22,7 +22,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
   
   const brandOptions = brands.map(brand => ({
     label: brand.name,
-    value: brand.id,
+    value: brand.id.toString(), // Convert value to string
   }));
 
   const selectedBrand = form.watch('brand');
@@ -32,7 +32,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
 
   useEffect(() => {
     if (selectedBrand && selectedProductType) {
-      const brand = brands.find(b => b.id === selectedBrand);
+      const brand = brands.find(b => b.id.toString() === selectedBrand); // Ensure comparison is correct
       const productType = productTypes.find(pt => pt.id === selectedProductType);
       
       if (brand && productType) {

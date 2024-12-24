@@ -3,16 +3,18 @@
 import type { Brand } from '@/types/brand';
 import type { ProductType } from '@/types/product-type';
 import type { VariantType } from '@/types/variant';
+import { generateRandomDigits } from './sku/random-generator'; // Perbaiki path impor
 
 export function generateSKU(
   brand: Brand,
   productType: ProductType,
   uniqueCode?: string
 ): string {
-  const brandCode = brand.code || brand.name.slice(0, 3).toUpperCase();
-  const typeCode = productType.code || productType.name.slice(0, 3).toUpperCase();
-  const uniqueIdentifier = uniqueCode || generateUniqueIdentifier();
-  return `${brandCode}${typeCode}${uniqueIdentifier}`;
+  const brandCode = brand.code;
+  const productTypeCode = productType.code;
+  const code = uniqueCode || generateRandomDigits(4); // Use uniqueCode if provided, otherwise generate random digits
+  const sku = `${brandCode}${productTypeCode}${code}`; // Remove dashes
+  return sku;
 }
 
 export function generateVariantSKU(
