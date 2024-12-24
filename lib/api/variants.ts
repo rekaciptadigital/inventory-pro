@@ -1,6 +1,6 @@
 import axiosInstance from './axios';
 import type { ApiResponse } from '@/types/api';
-import type { Variant } from '@/types/variant';
+import type { Variant, VariantFormData, VariantApiPayload } from '@/types/variant';
 
 export interface VariantFilters {
   status?: boolean;
@@ -11,16 +11,16 @@ export interface VariantFilters {
   order?: 'ASC' | 'DESC';
 }
 
-export interface VariantFormData {
-  name: string;
-  display_order: number;
-  status: boolean;
-  values: string[];
-}
-
 export async function createVariant(data: VariantFormData): Promise<ApiResponse<Variant>> {
   try {
-    const response = await axiosInstance.post('/variants', data);
+    const payload: VariantApiPayload = {
+      name: data.name,
+      display_order: data.displayOrder,
+      status: data.status,
+      values: data.values
+    };
+
+    const response = await axiosInstance.post('/variants', payload);
     return response.data;
   } catch (error: any) {
     // Handle validation errors

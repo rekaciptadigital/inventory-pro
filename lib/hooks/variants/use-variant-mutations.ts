@@ -4,29 +4,29 @@ import {
   createVariant, 
   updateVariant, 
   deleteVariant,
-  type VariantFormData,
 } from '@/lib/api/variants';
+import type { VariantFormData } from '@/types/variant';
 
 export function useVariantMutations() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const createMutation = useMutation({
-    mutationFn: (data: VariantFormData) => createVariant(data),
+    mutationFn: createVariant,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['variants'] });
+      queryClient.invalidateQueries(['variants']);
       toast({
-        title: 'Success',
-        description: 'Variant has been created successfully',
+        title: "Success",
+        description: "Variant created successfully"
       });
     },
     onError: (error: any) => {
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.response?.data?.message || 'Failed to create variant',
+        variant: "destructive",
+        title: "Error",
+        description: error.message
       });
-    },
+    }
   });
 
   const updateMutation = useMutation({
@@ -71,7 +71,7 @@ export function useVariantMutations() {
     updateVariant: updateMutation.mutateAsync,
     deleteVariant: deleteMutation.mutateAsync,
     isLoading: 
-      createMutation.isPending || 
+      createMutation.isLoading || 
       updateMutation.isPending || 
       deleteMutation.isPending,
   };
