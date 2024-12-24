@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -13,17 +13,17 @@ import {
   FormLabel,
   FormMessage,
   FormDescription,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/components/ui/use-toast';
-import type { Brand } from '@/types/brand';
-import type { BrandFormData } from '@/lib/api/brands';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/components/ui/use-toast";
+import type { Brand } from "@/types/brand";
+import type { BrandFormData } from "@/lib/api/brands";
 
 const formSchema = z.object({
-  name: z.string().min(1, 'Brand name is required'),
-  code: z.string().min(1, 'Brand code is required'),
+  name: z.string().min(1, "Brand name is required"),
+  code: z.string().min(1, "Brand code is required"),
   description: z.string().optional(),
   status: z.boolean(),
 });
@@ -41,9 +41,9 @@ export function BrandForm({ onSubmit, initialData, onCancel }: BrandFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: initialData?.name || '',
-      code: initialData?.code || '',
-      description: initialData?.description || '',
+      name: initialData?.name || "",
+      code: initialData?.code || "",
+      description: initialData?.description || "",
       status: initialData?.status ?? true,
     },
   });
@@ -55,9 +55,9 @@ export function BrandForm({ onSubmit, initialData, onCancel }: BrandFormProps) {
       form.reset();
     } catch (error: any) {
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'An error occurred',
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "An error occurred",
       });
     } finally {
       setIsSubmitting(false);
@@ -88,9 +88,9 @@ export function BrandForm({ onSubmit, initialData, onCancel }: BrandFormProps) {
             <FormItem>
               <FormLabel>Brand Code</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="Enter brand code" 
-                  {...field} 
+                <Input
+                  placeholder="Enter brand code"
+                  {...field}
                   className="uppercase"
                 />
               </FormControl>
@@ -109,7 +109,7 @@ export function BrandForm({ onSubmit, initialData, onCancel }: BrandFormProps) {
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea 
+                <Textarea
                   placeholder="Enter brand description (optional)"
                   className="resize-none"
                   {...field}
@@ -128,7 +128,8 @@ export function BrandForm({ onSubmit, initialData, onCancel }: BrandFormProps) {
               <div className="space-y-0.5">
                 <FormLabel>Active Status</FormLabel>
                 <FormDescription>
-                  Brand will {field.value ? 'be visible' : 'not be visible'} in the system
+                  Brand will {field.value ? "be visible" : "not be visible"} in
+                  the system
                 </FormDescription>
               </div>
               <FormControl>
@@ -151,10 +152,13 @@ export function BrandForm({ onSubmit, initialData, onCancel }: BrandFormProps) {
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting 
-              ? (initialData ? 'Updating...' : 'Creating...')
-              : (initialData ? 'Update Brand' : 'Create Brand')
-            }
+            {isSubmitting
+              ? initialData
+                ? "Updating..."
+                : "Creating..."
+              : initialData
+              ? "Update Brand"
+              : "Create Brand"}
           </Button>
         </div>
       </form>

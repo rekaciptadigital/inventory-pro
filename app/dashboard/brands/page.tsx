@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { PaginationControls } from '@/components/ui/pagination/pagination-controls';
-import { PaginationInfo } from '@/components/ui/pagination/pagination-info';
-import { BrandList } from '@/components/brands/brand-list';
-import { usePagination } from '@/lib/hooks/use-pagination';
-import { useBrands } from '@/lib/hooks/use-brands';
+import { useState } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PaginationControls } from "@/components/ui/pagination/pagination-controls";
+import { PaginationInfo } from "@/components/ui/pagination/pagination-info";
+import { BrandList } from "@/components/brands/brand-list";
+import { usePagination } from "@/lib/hooks/use-pagination";
+import { useBrands } from "@/lib/hooks/use-brands";
+import { BrandFormDialog } from "@/components/brands/brand-form-dialog";
+import type { Brand } from "@/types/brand";
 
 export default function BrandsPage() {
-  const [search, setSearch] = useState('');
-  const {
-    currentPage,
-    pageSize,
-    handlePageChange,
-    handlePageSizeChange,
-  } = usePagination();
+  const [search, setSearch] = useState("");
+  const [openFormDialog, setOpenFormDialog] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState<Brand | undefined>();
+  const { currentPage, pageSize, handlePageChange, handlePageSizeChange } =
+    usePagination();
 
   const {
     brands,
@@ -34,6 +34,16 @@ export default function BrandsPage() {
     limit: pageSize,
   });
 
+  const handleEdit = (brand: Brand) => {
+    setSelectedBrand(brand);
+    setOpenFormDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setSelectedBrand(undefined);
+    setOpenFormDialog(false);
+  };
+
   if (error) {
     return (
       <div className="p-8 text-center text-destructive">
@@ -47,11 +57,9 @@ export default function BrandsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Brands</h1>
-          <p className="text-muted-foreground">
-            Manage your product brands
-          </p>
+          <p className="text-muted-foreground">Manage your product brands</p>
         </div>
-        <Button>
+        <Button onClick={() => setOpenFormDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add New Brand
         </Button>
@@ -72,9 +80,21 @@ export default function BrandsPage() {
 
       <BrandList
         brands={brands}
-        onEdit={() => {}}
+        onEdit={handleEdit}
         onDelete={deleteBrand}
         onStatusChange={updateBrandStatus}
+      />
+
+      <BrandFormDialog
+        open={openFormDialog}
+        onOpenChange={handleCloseDialog}
+        onSubmit={
+          selectedBrand
+            ? (data) => updateBrand({ id: selectedBrand.id, data })
+            : createBrand
+        }
+        initialData={selectedBrand}
+        mode={selectedBrand ? "edit" : "create"}
       />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

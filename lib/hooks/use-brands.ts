@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/components/ui/use-toast';
+import { useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/components/ui/use-toast";
 import {
   getBrands,
   getBrand,
@@ -10,8 +10,8 @@ import {
   updateBrandStatus,
   type BrandFilters,
   type BrandFormData,
-} from '@/lib/api/brands';
-import type { Brand } from '@/types/brand';
+} from "@/lib/api/brands";
+import type { Brand } from "@/types/brand";
 
 export function useBrands(filters: BrandFilters = {}) {
   const { toast } = useToast();
@@ -24,7 +24,7 @@ export function useBrands(filters: BrandFilters = {}) {
     isLoading: isLoadingBrands,
     error,
   } = useQuery({
-    queryKey: ['brands', filters],
+    queryKey: ["brands", filters],
     queryFn: () => getBrands(filters),
   });
 
@@ -32,17 +32,17 @@ export function useBrands(filters: BrandFilters = {}) {
   const createMutation = useMutation({
     mutationFn: (brandData: BrandFormData) => createBrand(brandData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['brands'] });
+      queryClient.invalidateQueries({ queryKey: ["brands"] });
       toast({
-        title: 'Success',
-        description: 'Brand has been created successfully',
+        title: "Success",
+        description: "Brand has been created successfully",
       });
     },
     onError: (error: any) => {
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.response?.data?.message || 'Failed to create brand',
+        variant: "destructive",
+        title: "Error",
+        description: error.response?.data?.message || "Failed to create brand",
       });
     },
   });
@@ -52,17 +52,17 @@ export function useBrands(filters: BrandFilters = {}) {
     mutationFn: ({ id, data }: { id: string; data: BrandFormData }) =>
       updateBrand(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['brands'] });
+      queryClient.invalidateQueries({ queryKey: ["brands"] });
       toast({
-        title: 'Success',
-        description: 'Brand has been updated successfully',
+        title: "Success",
+        description: "Brand has been updated successfully",
       });
     },
     onError: (error: any) => {
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.response?.data?.message || 'Failed to update brand',
+        variant: "destructive",
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update brand",
       });
     },
   });
@@ -71,17 +71,17 @@ export function useBrands(filters: BrandFilters = {}) {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteBrand(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['brands'] });
+      queryClient.invalidateQueries({ queryKey: ["brands"] });
       toast({
-        title: 'Success',
-        description: 'Brand has been deleted successfully',
+        title: "Success",
+        description: "Brand has been deleted successfully",
       });
     },
     onError: (error: any) => {
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.response?.data?.message || 'Failed to delete brand',
+        variant: "destructive",
+        title: "Error",
+        description: error.response?.data?.message || "Failed to delete brand",
       });
     },
   });
@@ -91,17 +91,18 @@ export function useBrands(filters: BrandFilters = {}) {
     mutationFn: ({ id, status }: { id: string; status: boolean }) =>
       updateBrandStatus(id, status),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['brands'] });
+      queryClient.invalidateQueries({ queryKey: ["brands"] });
       toast({
-        title: 'Success',
-        description: 'Brand status has been updated successfully',
+        title: "Success",
+        description: "Brand status has been updated successfully",
       });
     },
     onError: (error: any) => {
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.response?.data?.message || 'Failed to update brand status',
+        variant: "destructive",
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to update brand status",
       });
     },
   });
@@ -114,6 +115,8 @@ export function useBrands(filters: BrandFilters = {}) {
     createBrand: createMutation.mutateAsync,
     updateBrand: updateMutation.mutateAsync,
     deleteBrand: deleteMutation.mutateAsync,
-    updateBrandStatus: updateStatusMutation.mutateAsync,
+    updateBrandStatus: async (id: string, status: boolean) => {
+      return updateStatusMutation.mutateAsync({ id, status });
+    },
   };
 }
