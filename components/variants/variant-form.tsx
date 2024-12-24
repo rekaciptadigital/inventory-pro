@@ -1,9 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -17,24 +15,18 @@ import {
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { variantFormSchema, type VariantFormData } from '@/lib/validations/variant';
 import type { Variant } from '@/types/variant';
 
-const formSchema = z.object({
-  name: z.string().min(1, 'Variant name is required'),
-  display_order: z.number().min(1, 'Display order must be at least 1'),
-  status: z.boolean(),
-  values: z.string().min(1, 'Values are required'),
-});
-
 interface VariantFormProps {
-  onSubmit: (data: z.infer<typeof formSchema>) => Promise<void>;
+  onSubmit: (data: VariantFormData) => Promise<void>;
   initialData?: Variant;
   isSubmitting?: boolean;
 }
 
 export function VariantForm({ onSubmit, initialData, isSubmitting }: VariantFormProps) {
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<VariantFormData>({
+    resolver: zodResolver(variantFormSchema),
     defaultValues: {
       name: initialData?.name || '',
       display_order: initialData?.display_order || 1,
@@ -43,17 +35,9 @@ export function VariantForm({ onSubmit, initialData, isSubmitting }: VariantForm
     },
   });
 
-  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
-    const formattedValues = {
-      ...values,
-      values: values.values.split(',').map(v => v.trim()).filter(Boolean),
-    };
-    await onSubmit(formattedValues);
-  };
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="name"

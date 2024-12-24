@@ -1,14 +1,14 @@
 import * as z from 'zod';
 
-export const variantValueSchema = z.object({
-  name: z.string().min(1, 'Value name is required'),
-  details: z.string().optional(),
-  order: z.number().int().min(0),
+export const variantFormSchema = z.object({
+  name: z.string().min(1, 'Variant name is required'),
+  display_order: z.number().min(1, 'Display order must be at least 1'),
+  status: z.boolean(),
+  values: z.string().min(1, 'Values are required').transform(str => 
+    str.split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+  ),
 });
 
-export const variantFormSchema = z.object({
-  name: z.string().min(1, 'Variant type name is required'),
-  status: z.enum(['active', 'inactive']),
-  order: z.number().int().min(1, 'Order must be at least 1'),
-  values: z.array(variantValueSchema),
-});
+export type VariantFormData = z.infer<typeof variantFormSchema>;

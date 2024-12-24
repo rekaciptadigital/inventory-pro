@@ -18,6 +18,19 @@ export interface VariantFormData {
   values: string[];
 }
 
+export async function createVariant(data: VariantFormData): Promise<ApiResponse<Variant>> {
+  try {
+    const response = await axiosInstance.post('/variants', data);
+    return response.data;
+  } catch (error: any) {
+    // Handle validation errors
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error.join(', '));
+    }
+    throw error;
+  }
+}
+
 export async function getVariants(filters: VariantFilters = {}): Promise<ApiResponse<Variant[]>> {
   const params = new URLSearchParams();
   if (typeof filters.status === 'boolean') {
@@ -45,11 +58,6 @@ export async function getVariants(filters: VariantFilters = {}): Promise<ApiResp
 
 export async function getVariant(id: string): Promise<ApiResponse<Variant>> {
   const response = await axiosInstance.get(`/variants/${id}`);
-  return response.data;
-}
-
-export async function createVariant(data: VariantFormData): Promise<ApiResponse<Variant>> {
-  const response = await axiosInstance.post('/variants', data);
   return response.data;
 }
 
