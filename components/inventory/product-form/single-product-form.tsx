@@ -8,8 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { useToast } from '@/components/ui/use-toast';
 import { BasicInfo } from './basic-info';
-import { PricingInfo } from './pricing-info';
-import { CustomerPrices } from './customer-prices';
 import { productFormSchema, type ProductFormValues } from './form-schema';
 import { generateSKU } from '@/lib/utils/sku-generator';
 import { useBrands } from '@/lib/hooks/use-brands';
@@ -31,14 +29,6 @@ const defaultValues: ProductFormValues = {
   description: '',
   vendorSku: '',
   unit: 'PC',
-  hbReal: 0,
-  adjustmentPercentage: 0,
-  hbNaik: 0,
-  usdPrice: 0,
-  exchangeRate: 0,
-  customerPrices: {},
-  percentages: {},
-  variants: [],
 };
 
 export function SingleProductForm({ onSuccess, onClose, initialData }: SingleProductFormProps) {
@@ -123,10 +113,7 @@ export function SingleProductForm({ onSuccess, onClose, initialData }: SinglePro
   };
 
   const handleCancel = () => {
-    // Reset form state
     form.reset(defaultValues);
-    
-    // Handle closing based on context
     if (onClose) {
       onClose();
     } else {
@@ -140,8 +127,6 @@ export function SingleProductForm({ onSuccess, onClose, initialData }: SinglePro
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <BasicInfo form={form} />
-        <PricingInfo form={form} />
-        <CustomerPrices form={form} />
 
         <div className="flex justify-end space-x-4">
           <Button 

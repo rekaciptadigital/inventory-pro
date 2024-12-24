@@ -36,6 +36,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Target },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { name: 'Inventory', href: '/dashboard/inventory', icon: Box },
+  { name: 'Price Management', href: '/dashboard/price-management', icon: DollarSign },
   { name: 'Brands', href: '/dashboard/brands', icon: BookOpen },
   { name: 'Product Types', href: '/dashboard/product-types', icon: ListTree },
   { name: 'Product Categories', href: '/dashboard/product-categories', icon: FolderTree },
