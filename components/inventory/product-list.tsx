@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Table,
   TableBody,
@@ -21,9 +23,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/format';
-import { useBrands } from '@/lib/hooks/use-brands';
-import { useProductTypes } from '@/lib/hooks/use-product-types';
-import { useToast } from '@/components/ui/use-toast';
 import type { Product } from '@/types/inventory';
 
 interface ProductListProps {
@@ -33,26 +32,6 @@ interface ProductListProps {
 }
 
 export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
-  const { getBrandName } = useBrands();
-  const { getProductTypeName } = useProductTypes();
-  const { toast } = useToast();
-
-  const handleDelete = async (id: string) => {
-    try {
-      await onDelete(id);
-      toast({
-        title: 'Success',
-        description: 'Product has been deleted successfully',
-      });
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to delete product',
-      });
-    }
-  };
-
   if (products.length === 0) {
     return (
       <div className="border rounded-lg p-8 text-center text-muted-foreground">
@@ -66,11 +45,9 @@ export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Brand</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>SKU</TableHead>
             <TableHead>Product Name</TableHead>
-            <TableHead>Classification</TableHead>
+            <TableHead>SKU</TableHead>
+            <TableHead>Base Price</TableHead>
             <TableHead>
               <div className="space-y-1">
                 <div>Retail Price</div>
@@ -87,21 +64,11 @@ export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
               taxInclusivePrice: 0
             };
 
-            const classification = product.variants && product.variants.length > 0 
-              ? 'Variant'
-              : 'Base Product';
-
             return (
               <TableRow key={product.id}>
-                <TableCell>{getBrandName(product.brand)}</TableCell>
-                <TableCell>{getProductTypeName(product.productTypeId)}</TableCell>
-                <TableCell>{product.sku}</TableCell>
                 <TableCell>{product.fullProductName || product.productName}</TableCell>
-                <TableCell>
-                  <Badge variant={classification === 'Variant' ? 'secondary' : 'default'}>
-                    {classification}
-                  </Badge>
-                </TableCell>
+                <TableCell>{product.sku}</TableCell>
+                <TableCell>{formatCurrency(product.usdPrice)}</TableCell>
                 <TableCell>
                   <div className="space-y-1">
                     <div>{formatCurrency(retailPrices.basePrice)}</div>
@@ -133,7 +100,7 @@ export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => handleDelete(product.id)}
+                            onClick={() => onDelete(product.id)}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
                             Delete
