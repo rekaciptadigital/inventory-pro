@@ -1,24 +1,17 @@
-export interface VariantType {
-  id: string;
+export interface Variant {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
   name: string;
-  status: 'active' | 'inactive';
-  order: number;
-  createdAt: string;
-  updatedAt: string;
-  values: VariantValue[];
+  display_order: number;
+  status: boolean;
+  values: string[];
 }
 
-export interface VariantValue {
-  id: string;
+export interface VariantFormData {
   name: string;
-  details?: string;
-  order: number;
-  variantTypeId: string;
-}
-
-export interface VariantTypeFormData {
-  name: string;
-  status: 'active' | 'inactive';
-  order: number;
-  values: Omit<VariantValue, 'id' | 'variantTypeId'>[];
+  display_order: number;
+  status: boolean;
+  values: string[];
 }

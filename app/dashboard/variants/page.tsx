@@ -3,31 +3,56 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import { VariantTypeForm } from '@/components/variants/variant-type-form';
-import { VariantTypeList } from '@/components/variants/variant-type-list';
-import type { VariantType } from '@/types/variant';
+import { VariantList } from '@/components/variants/variant-list';
+import { VariantForm } from '@/components/variants/variant-form';
+import { useVariants } from '@/lib/hooks/variants/use-variants';
+import { usePagination } from '@/lib/hooks/use-pagination';
+import { PaginationControls } from '@/components/ui/pagination/pagination-controls';
+import { PaginationInfo } from '@/components/ui/pagination/pagination-info';
+import type { Variant } from '@/types/variant';
 
 export default function VariantsPage() {
+  const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedVariantType, setSelectedVariantType] = useState<VariantType | undefined>();
+  const [selectedVariant, setSelectedVariant] = useState<Variant | undefined>();
+  const { currentPage, pageSize, handlePageChange, handlePageSizeChange } = usePagination();
 
-  const handleSuccess = () => {
-    setIsDialogOpen(false);
-    setSelectedVariantType(undefined);
-  };
+  const {
+    variants,
+    pagination,
+    isLoading,
+    error,
+    createVariant,
+    updateVariant,
+    deleteVariant,
+  } = useVariants({
+    search,
+    page: currentPage,
+    limit: pageSize,
+    sort: 'id',
+    order: 'ASC',
+  });
 
-  const handleEdit = (variantType: VariantType) => {
-    setSelectedVariantType(variantType);
+  const handleEdit = (variant: Variant) => {
+    setSelectedVariant(variant);
     setIsDialogOpen(true);
   };
+
+  if (error) {
+    return (
+      <div className="p-8 text-center text-destructive">
+        Error loading variants. Please try again later.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -35,40 +60,87 @@ export default function VariantsPage() {
         <div>
           <h1 className="text-3xl font-bold">Product Variants</h1>
           <p className="text-muted-foreground">
-            Manage your product variant types
+            Manage your product variant types and their values
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) setSelectedVariantType(undefined);
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add New Variant Type
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {selectedVariantType ? 'Edit Variant Type' : 'Add New Variant Type'}
-              </DialogTitle>
-              <DialogDescription>
-                {selectedVariantType 
-                  ? 'Edit the variant type details below.'
-                  : 'Add a new variant type to your catalog.'
-                }
-              </DialogDescription>
-            </DialogHeader>
-            <VariantTypeForm 
-              onSuccess={handleSuccess}
-              initialData={selectedVariantType}
-            />
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setIsDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add New Variant
+        </Button>
       </div>
 
-      <VariantTypeList onEdit={handleEdit} />
+      <div className="flex gap-4">
+        <div className="relative flex-1">
+          <Input
+            placeholder="Search variants..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              handlePageChange(1);
+            }}
+          />
+        </div>
+      </div>
+
+      <VariantList
+        variants={variants}
+        onEdit={handleEdit}
+        onDelete={deleteVariant}
+        isLoading={isLoading}
+      />
+
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) setSelectedVariant(undefined);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedVariant ? 'Edit Variant' : 'Add New Variant'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedVariant
+                ? 'Edit variant details below'
+                : 'Add a new variant type to your system'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <VariantForm
+            onSubmit={async (data) => {
+              if (selectedVariant) {
+                await updateVariant({
+                  id: selectedVariant.id.toString(),
+                  data,
+                });
+              } else {
+                await createVariant(data);
+              }
+              setIsDialogOpen(false);
+            }}
+            initialData={selectedVariant}
+            isSubmitting={isLoading}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <PaginationInfo
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={pagination?.totalItems || 0}
+        />
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={pagination?.totalPages || 1}
+          pageSize={pageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          isLoading={isLoading}
+        />
+      </div>
     </div>
   );
 }

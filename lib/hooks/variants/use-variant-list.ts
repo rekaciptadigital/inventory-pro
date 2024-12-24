@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { getVariantTypes } from '@/lib/api/variants';
+import { getVariants, type VariantFilters } from '@/lib/api/variants';
 
-export function useVariantList() {
+export function useVariantList(filters: VariantFilters = {}) {
   return useQuery({
-    queryKey: ['variants'],
-    queryFn: () => getVariantTypes(),
+    queryKey: ['variants', filters],
+    queryFn: () => getVariants(filters),
+    keepPreviousData: true,
   });
 }
