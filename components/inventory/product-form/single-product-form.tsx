@@ -49,11 +49,16 @@ export function SingleProductForm({ onSuccess, onClose, initialData }: SinglePro
       setIsSubmitting(true);
 
       // Get brand and product type details
-      const brand = brands.find(b => b.id === values.brand);
-      const productType = productTypes.find(pt => pt.id === values.productTypeId);
+      const brand = brands.find(b => b.id.toString() === values.brand); // Ensure comparison is correct
+      const productType = productTypes.find(pt => pt.id.toString() === values.productTypeId); // Ensure comparison is correct
 
       if (!brand || !productType) {
-        throw new Error('Invalid brand or product type selected');
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Invalid brand or product type selected',
+        });
+        return;
       }
 
       // Generate SKU if not provided
@@ -63,50 +68,20 @@ export function SingleProductForm({ onSuccess, onClose, initialData }: SinglePro
 
       // Get existing products from localStorage
       const existingProducts = JSON.parse(localStorage.getItem('products') || '[]');
-      
-      // Check for duplicate SKU
-      if (existingProducts.some((p: ProductFormValues) => 
-        p.sku === values.sku && (!initialData || p.sku !== initialData.sku)
-      )) {
-        form.setError('sku', {
-          type: 'manual',
-          message: 'This SKU is already in use'
-        });
-        return;
-      }
 
-      const product = {
-        id: initialData?.id || Date.now().toString(),
-        ...values,
-        createdAt: initialData?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      // Add new product to existing products
+      existingProducts.push(values);
 
-      // Update or add product
-      const updatedProducts = initialData
-        ? existingProducts.map((p: ProductFormValues) => p.id === product.id ? product : p)
-        : [...existingProducts, product];
-
-      // Save to localStorage
-      localStorage.setItem('products', JSON.stringify(updatedProducts));
+      // Save updated products to localStorage
+      localStorage.setItem('products', JSON.stringify(existingProducts));
 
       toast({
+        variant: 'success',
         title: 'Success',
-        description: `Product has been ${initialData ? 'updated' : 'added'} successfully`,
+        description: 'Product added successfully',
       });
-
-      if (onSuccess) {
-        onSuccess(product);
-      } else {
-        router.push('/dashboard/inventory');
-      }
     } catch (error) {
-      console.error('Error saving product:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to save product. Please try again.',
-      });
+      console.error('Error submitting form:', error);
     } finally {
       setIsSubmitting(false);
     }
