@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
+import { BrandSearchSelect } from '@/components/brands/brand-search-select';
 import { UseFormReturn } from 'react-hook-form';
 import { ProductFormValues } from './form-schema';
 import { useProductTypes } from '@/lib/hooks/use-product-types';
@@ -19,8 +20,8 @@ interface BasicInfoProps {
 export function BasicInfo({ form }: BasicInfoProps) {
   const { productTypes } = useProductTypes();
   const { brands } = useBrands();
-  
-  const brandOptions = brands.map(brand => ({
+
+  const brandOptions = brands.map((brand) => ({
     label: brand.name,
     value: brand.id.toString(), // Convert value to string
   }));
@@ -32,9 +33,9 @@ export function BasicInfo({ form }: BasicInfoProps) {
 
   useEffect(() => {
     if (selectedBrand && selectedProductType) {
-      const brand = brands.find(b => b.id.toString() === selectedBrand); // Ensure comparison is correct
-      const productType = productTypes.find(pt => pt.id === selectedProductType);
-      
+      const brand = brands.find((b) => b.id.toString() === selectedBrand); // Ensure comparison is correct
+      const productType = productTypes.find((pt) => pt.id === selectedProductType);
+
       if (brand && productType) {
         // Generate SKU
         const sku = generateSKU(brand, productType, uniqueCode);
@@ -52,7 +53,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Basic Information</h3>
-      
+
       <div className="grid grid-cols-2 gap-4">
         <FormField
           control={form.control}
@@ -61,12 +62,9 @@ export function BasicInfo({ form }: BasicInfoProps) {
             <FormItem>
               <FormLabel>Brand</FormLabel>
               <FormControl>
-                <Combobox
-                  options={brandOptions}
+                <BrandSearchSelect
                   value={field.value}
                   onValueChange={field.onChange}
-                  placeholder="Search and select brand"
-                  emptyText="No brands found. Please add a brand first."
                 />
               </FormControl>
               <FormMessage />
@@ -108,7 +106,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
             <FormItem>
               <FormLabel>Unique Code</FormLabel>
               <FormControl>
-                <Input 
+                <Input
                   placeholder="Enter unique code (optional)"
                   {...field}
                 />
@@ -194,7 +192,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
           <FormItem>
             <FormLabel>Description</FormLabel>
             <FormControl>
-              <Textarea 
+              <Textarea
                 placeholder="Enter product description (optional)"
                 className="min-h-[100px] resize-none"
                 {...field}
