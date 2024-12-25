@@ -19,7 +19,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/format';
@@ -35,7 +34,7 @@ export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
   if (products.length === 0) {
     return (
       <div className="border rounded-lg p-8 text-center text-muted-foreground">
-        No products added yet. Click the "Add New Product" button to add your first product.
+        No products found. Click the "Add New Product" button to add your first product.
       </div>
     );
   }
