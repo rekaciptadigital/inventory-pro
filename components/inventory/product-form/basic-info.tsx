@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,6 +31,9 @@ export function BasicInfo({ form }: BasicInfoProps) {
   const productName = form.watch('productName');
   const uniqueCode = form.watch('uniqueCode');
 
+  const [sku, setSku] = useState(form.getValues('sku') || '');
+  const [fullName, setFullName] = useState(form.getValues('fullProductName') || '');
+
   useEffect(() => {
     if (selectedBrand && selectedProductType) {
       const brand = brands.find((b) => b.id.toString() === selectedBrand); // Ensure comparison is correct
@@ -38,13 +41,15 @@ export function BasicInfo({ form }: BasicInfoProps) {
 
       if (brand && productType) {
         // Generate SKU
-        const sku = generateSKU(brand, productType, uniqueCode);
-        form.setValue('sku', sku);
+        const generatedSku = generateSKU(brand, productType, uniqueCode);
+        setSku(generatedSku);
+        form.setValue('sku', generatedSku);
 
         // Generate full product name
         if (productName) {
-          const fullName = `${brand.name} ${productType.name} ${productName}`;
-          form.setValue('fullProductName', fullName);
+          const generatedFullName = `${brand.name} ${productType.name} ${productName}`;
+          setFullName(generatedFullName);
+          form.setValue('fullProductName', generatedFullName);
         }
       }
     }
@@ -126,7 +131,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
             <FormItem>
               <FormLabel>SKU</FormLabel>
               <FormControl>
-                <Input {...field} readOnly className="bg-muted" />
+                <Input {...field} readOnly className="bg-muted" value={sku} />
               </FormControl>
               <FormDescription>
                 Auto-generated based on brand, type, and unique code
@@ -158,7 +163,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
           <FormItem>
             <FormLabel>Full Product Name</FormLabel>
             <FormControl>
-              <Input {...field} readOnly className="bg-muted" />
+              <Input {...field} readOnly className="bg-muted" value={fullName} />
             </FormControl>
             <FormDescription>
               Auto-generated based on brand, product type, and product name
