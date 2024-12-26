@@ -7,7 +7,6 @@ import { useTheme } from 'next-themes';
 import {
   BarChart3,
   Box,
-  LogOut,
   Moon,
   Settings,
   Sun,
@@ -27,16 +26,27 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LogoutButton } from '@/components/auth/logout-button';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Target },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Inventory', href: '/dashboard/inventory', icon: Box },
-  { name: 'Price Management', href: '/dashboard/price-management', icon: DollarSign },
+  {
+    name: 'Products',
+    icon: Box,
+    children: [
+      { name: 'Inventory', href: '/dashboard/inventory', icon: Box },
+      { name: 'Price Management', href: '/dashboard/price-management', icon: DollarSign },
+    ]
+  },
   { name: 'Brands', href: '/dashboard/brands', icon: BookOpen },
   { name: 'Product Types', href: '/dashboard/product-types', icon: ListTree },
   { name: 'Product Categories', href: '/dashboard/product-categories', icon: FolderTree },
@@ -51,6 +61,60 @@ export function DashboardNav() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+
+  const renderNavItem = (item: any, depth = 0) => {
+    const Icon = item.icon;
+    
+    if (item.children) {
+      return (
+        <Accordion type="single" collapsible key={item.name}>
+          <AccordionItem value={item.name} className="border-none">
+            <AccordionTrigger className={cn(
+              'flex items-center space-x-2 px-4 py-2 text-sm rounded-lg text-muted-foreground',
+              'hover:bg-accent hover:text-accent-foreground transition-colors',
+              'hover:no-underline'
+            )}>
+              <div className="flex items-center space-x-2">
+                <Icon className="h-5 w-5 flex-shrink-0" />
+                <span className={cn(
+                  'transition-opacity duration-200',
+                  isOpen ? 'opacity-100' : 'opacity-0 hidden',
+                  'lg:opacity-100 lg:inline'
+                )}>
+                  {item.name}
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pb-0 pt-1">
+              <div className="pl-4">
+                {item.children.map((child: any) => renderNavItem(child, depth + 1))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      );
+    }
+
+    return (
+      <Link
+        key={item.name}
+        href={item.href}
+        className={cn(
+          'flex items-center space-x-2 px-4 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors',
+          pathname === item.href ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
+        )}
+      >
+        <Icon className="h-5 w-5 flex-shrink-0" />
+        <span className={cn(
+          'transition-opacity duration-200',
+          isOpen ? 'opacity-100' : 'opacity-0 hidden',
+          'lg:opacity-100 lg:inline'
+        )}>
+          {item.name}
+        </span>
+      </Link>
+    );
+  };
 
   return (
     <div className={cn(
@@ -82,28 +146,7 @@ export function DashboardNav() {
 
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-2">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center space-x-2 px-4 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors',
-                    pathname === item.href ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
-                  )}
-                >
-                  <Icon className="h-5 w-5 flex-shrink-0" />
-                  <span className={cn(
-                    'transition-opacity duration-200',
-                    isOpen ? 'opacity-100' : 'opacity-0 hidden',
-                    'lg:opacity-100 lg:inline'
-                  )}>
-                    {item.name}
-                  </span>
-                </Link>
-              );
-            })}
+            {navigation.map(item => renderNavItem(item))}
           </nav>
         </div>
 
