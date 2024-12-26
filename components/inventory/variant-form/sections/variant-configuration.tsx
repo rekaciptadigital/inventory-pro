@@ -20,37 +20,46 @@ import { cn } from '@/lib/utils';
 import { useVariantTypes } from '@/lib/hooks/use-variant-types';
 import { ProductFormValues } from '../../product-form/form-schema';
 
+// Interface untuk struktur data varian
 interface Variant {
   typeId: string;
   values: string[];
 }
 
+// Interface untuk struktur nilai varian
 interface VariantValue {
   id: string;
   name: string;
 }
 
+// Interface props untuk komponen VariantConfiguration
 interface VariantConfigurationProps {
   selectedVariants: Variant[];
   onVariantsChange: (variants: Variant[]) => void;
   form: UseFormReturn<ProductFormValues>;
 }
 
+// Komponen utama untuk menangani konfigurasi varian produk
 export function VariantConfiguration({
   selectedVariants,
   onVariantsChange,
   form,
 }: Readonly<VariantConfigurationProps>) {
+  // Hook kustom untuk mengambil data tipe varian
   const { variantTypes = [] } = useVariantTypes() || {}; // Fallback to empty array
+  
+  // Pengelolaan state untuk pemilihan varian
   const [selectedTypeId, setSelectedTypeId] = useState<string>('');
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
 
+  // Filter tipe varian yang tersedia dengan mengecualikan yang sudah dipilih
   const availableTypes = variantTypes.filter(type => 
     type.status === 'active' && 
     !selectedVariants.some((v: Variant) => v.typeId === type.id)
   );
 
+  // Fungsi untuk menambahkan kombinasi varian baru
   const handleAddVariant = () => {
     if (selectedTypeId && selectedValues.length > 0) {
       const newVariants = [
@@ -63,11 +72,13 @@ export function VariantConfiguration({
     }
   };
 
+  // Fungsi untuk menghapus varian yang sudah ada
   const handleRemoveVariant = (index: number) => {
     const newVariants = selectedVariants.filter((_, i) => i !== index);
     onVariantsChange(newVariants);
   };
 
+  // Fungsi untuk mengubah status pemilihan nilai varian
   const toggleValue = (valueId: string) => {
     setSelectedValues(current =>
       current.includes(valueId)
@@ -76,11 +87,24 @@ export function VariantConfiguration({
     );
   };
 
+  // Fungsi pembantu untuk mendapatkan nama tipe varian berdasarkan ID
   const getVariantTypeName = (typeId: string) => {
     const type = variantTypes.find(t => t.id === typeId);
     return type?.name || 'Unknown Type'; // Fallback to 'Unknown Type'
   };
 
+  // Fungsi pembantu untuk mendapatkan teks tombol pemilihan tipe varian
+  const getVariantTypeButtonText = () => {
+    if (availableTypes.length === 0) {
+      return "No available variant type";
+    }
+    if (selectedTypeId) {
+      return getVariantTypeName(selectedTypeId);
+    }
+    return "Select variant type";
+  };
+
+  // Fungsi pembantu untuk mendapatkan daftar nama nilai varian yang dipisahkan koma
   const getValueNames = (typeId: string, valueIds: string[]) => {
     const type = variantTypes.find(t => t.id === typeId);
     if (!type) return '';
@@ -93,6 +117,7 @@ export function VariantConfiguration({
 
   return (
     <div className="space-y-4">
+      {/* Menampilkan varian yang sudah dipilih dengan opsi hapus */}
       {selectedVariants.map((variant, index) => (
         <div 
           key={`${variant.typeId}-${variant.values.join('-')}`} 
@@ -116,6 +141,7 @@ export function VariantConfiguration({
 
       <div className="flex gap-4 items-end">
         <div className="flex-1 space-y-4">
+          {/* Bagian Pemilihan Tipe Varian */}
           <div>
             <label htmlFor="variant-type" className="text-sm font-medium">
               Variant Type
@@ -128,9 +154,7 @@ export function VariantConfiguration({
                   className="w-full justify-between"
                   disabled={availableTypes.length === 0} // Disabled if no available types
                 >
-                  {selectedTypeId
-                    ? getVariantTypeName(selectedTypeId)
-                    : "Select variant type"}
+                  {getVariantTypeButtonText()}
                   <Plus className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -165,6 +189,7 @@ export function VariantConfiguration({
             </Popover>
           </div>
 
+          {/* Bagian Pemilihan Nilai Varian - Hanya ditampilkan ketika tipe sudah dipilih */}
           {selectedTypeId && (
             <div>
               <label htmlFor="variant-values" className="text-sm font-medium">
@@ -215,6 +240,7 @@ export function VariantConfiguration({
           )}
         </div>
 
+        {/* Tombol Tambah Varian */}
         <Button
           type="button"
           onClick={handleAddVariant}
