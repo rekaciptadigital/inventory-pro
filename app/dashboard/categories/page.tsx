@@ -31,6 +31,11 @@ export default function CategoriesPage() {
     setIsDialogOpen(true);
   };
 
+  const handleAddSubcategory = (parentCategory: Category) => {
+    setSelectedCategory(undefined);
+    setIsDialogOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -73,6 +78,7 @@ export default function CategoriesPage() {
       <CategoryTree 
         categories={categoryTree}
         onEdit={handleEdit}
+        onAddSubcategory={handleAddSubcategory}
       />
     </div>
   );

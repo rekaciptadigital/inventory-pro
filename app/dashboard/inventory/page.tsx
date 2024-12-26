@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -23,6 +22,7 @@ import { ProductList } from '@/components/inventory/product-list';
 import { SingleProductForm } from '@/components/inventory/product-form/single-product-form';
 import { useToast } from '@/components/ui/use-toast';
 import type { Product } from '@/types/inventory';
+import type { ProductFormValues } from '@/components/inventory/product-form/form-schema';
 
 export default function InventoryPage() {
   const { toast } = useToast();
@@ -45,9 +45,17 @@ export default function InventoryPage() {
     setIsEditDialogOpen(true);
   };
 
-  const handleEditSuccess = (updatedProduct: Product) => {
-    const updatedProducts = products.map(product => 
-      product.id === updatedProduct.id ? updatedProduct : product
+  const handleEditSuccess = (product: ProductFormValues) => {
+    const updatedProduct = {
+      ...selectedProduct!,  // Keep existing product properties
+      ...product,          // Override with new form values
+      id: selectedProduct!.id,
+      unit: product.unit,
+      updatedAt: new Date().toISOString(),
+    } as Product;  // Cast the entire object to Product type
+
+    const updatedProducts = products.map(p => 
+      p.id === updatedProduct.id ? updatedProduct : p
     );
     setProducts(updatedProducts);
     localStorage.setItem('products', JSON.stringify(updatedProducts));
@@ -148,7 +156,11 @@ export default function InventoryPage() {
           </DialogHeader>
           {selectedProduct && (
             <SingleProductForm
-              initialData={selectedProduct}
+              initialData={{
+                ...selectedProduct,
+                unit: selectedProduct.unit ?? "PC",
+                fullProductName: selectedProduct.fullProductName ?? selectedProduct.productName,
+              }}
               onSuccess={handleEditSuccess}
               onClose={() => setIsEditDialogOpen(false)}
             />
