@@ -21,17 +21,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Edit, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils/format";
 import type { Brand } from "@/types/brand";
 
 interface BrandListProps {
-  brands: Brand[];
-  onEdit: (brand: Brand) => void;
-  onDelete: (id: string) => Promise<void>;
-  onStatusChange: (id: string, status: boolean) => Promise<void>;
+  readonly brands: Brand[];
+  readonly onEdit: (brand: Brand) => void;
+  readonly onDelete: (id: string) => Promise<void>;
+  readonly onStatusChange: (id: string, status: boolean) => Promise<void>;
 }
 
 export function BrandList({

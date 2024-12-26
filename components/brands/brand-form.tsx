@@ -29,21 +29,32 @@ const formSchema = z.object({
 });
 
 interface BrandFormProps {
-  onSubmit: (data: BrandFormData) => Promise<void>;
-  initialData?: Brand;
-  onCancel: () => void;
+  readonly onSubmit: (data: BrandFormData) => Promise<void>;
+  readonly initialData?: Brand;
+  readonly onCancel: () => void;
 }
 
-export function BrandForm({ onSubmit, initialData, onCancel }: BrandFormProps) {
+export const BrandForm: React.FC<Readonly<BrandFormProps>> = ({
+  onSubmit,
+  initialData,
+  onCancel,
+}) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const getSubmitButtonText = () => {
+    if (isSubmitting) {
+      return initialData ? "Updating..." : "Creating...";
+    }
+    return initialData ? "Update Brand" : "Create Brand";
+  };
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: initialData?.name || "",
-      code: initialData?.code || "",
-      description: initialData?.description || "",
+      name: initialData?.name ?? "",
+      code: initialData?.code ?? "",
+      description: initialData?.description ?? "",
       status: initialData?.status ?? true,
     },
   });
@@ -152,13 +163,7 @@ export function BrandForm({ onSubmit, initialData, onCancel }: BrandFormProps) {
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting
-              ? initialData
-                ? "Updating..."
-                : "Creating..."
-              : initialData
-              ? "Update Brand"
-              : "Create Brand"}
+            {getSubmitButtonText()}
           </Button>
         </div>
       </form>

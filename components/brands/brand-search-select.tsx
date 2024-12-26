@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import {
   Command,
   CommandEmpty,
@@ -25,7 +24,7 @@ export function BrandSearchSelect({
   value,
   onValueChange,
   disabled = false,
-}: BrandSearchSelectProps) {
+}: Readonly<BrandSearchSelectProps>) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const { brands } = useBrands({ search: searchTerm });
@@ -33,29 +32,23 @@ export function BrandSearchSelect({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between"
+        <input
+          type="text"
+          list="brands"
+          value={value ? brands.find((brand) => brand.id.toString() === value)?.name : ''}
+          placeholder="Select brand..."
+          className="w-full justify-between border border-gray-300 rounded p-2"
           disabled={disabled}
-        >
-          {value ? (
-            <span className="flex items-center gap-2">
-              <span className="font-medium">
-                {brands.find((brand) => brand.id.toString() === value)?.name || 'Select brand...'}
-              </span>
-              {value && (
-                <span className="text-muted-foreground text-sm">
-                  ({brands.find((brand) => brand.id.toString() === value)?.code})
-                </span>
-              )}
-            </span>
-          ) : (
-            'Select brand...'
-          )}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+          onClick={() => setOpen(!open)}
+          readOnly
+        />
+        <datalist id="brands">
+          {brands.map((brand) => (
+            <option key={brand.id} value={brand.name}>
+              {brand.name} ({brand.code})
+            </option>
+          ))}
+        </datalist>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
         <Command shouldFilter={false}>
