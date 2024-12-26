@@ -10,6 +10,10 @@ export const productFormSchema = z.object({
   productName: z.string().min(1, 'Product name is required'),
   description: z.string().optional(),
   unit: z.enum(['PC', 'PACK', 'SET']),
+  variants: z.array(z.any()).optional(),
+  variantPrices: z.record(z.number()).optional(),
 });
 
-export type ProductFormValues = z.infer<typeof productFormSchema>;
+export type ProductFormValues = z.infer<typeof productFormSchema> & {
+  usdPrice?: number;
+};

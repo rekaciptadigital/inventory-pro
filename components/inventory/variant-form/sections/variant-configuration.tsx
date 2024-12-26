@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Command,
@@ -16,22 +16,31 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useVariantTypes } from '@/lib/hooks/use-variant-types';
-import { VariantFormValues } from '../variant-form-schema';
+import { ProductFormValues } from '../../product-form/form-schema';
+
+interface Variant {
+  typeId: string;
+  values: string[];
+}
+
+interface VariantValue {
+  id: string;
+  name: string;
+}
 
 interface VariantConfigurationProps {
-  selectedVariants: Array<{ typeId: string; values: string[] }>;
-  onVariantsChange: (variants: Array<{ typeId: string; values: string[] }>) => void;
-  form: UseFormReturn<VariantFormValues>;
+  selectedVariants: Variant[];
+  onVariantsChange: (variants: Variant[]) => void;
+  form: UseFormReturn<ProductFormValues>;
 }
 
 export function VariantConfiguration({
   selectedVariants,
   onVariantsChange,
   form,
-}: VariantConfigurationProps) {
+}: Readonly<VariantConfigurationProps>) {
   const { variantTypes } = useVariantTypes();
   const [selectedTypeId, setSelectedTypeId] = useState<string>('');
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
@@ -39,7 +48,7 @@ export function VariantConfiguration({
 
   const availableTypes = variantTypes.filter(type => 
     type.status === 'active' && 
-    !selectedVariants.some(v => v.typeId === type.id)
+    !selectedVariants.some((v: Variant) => v.typeId === type.id)
   );
 
   const handleAddVariant = () => {
@@ -77,7 +86,7 @@ export function VariantConfiguration({
     if (!type) return '';
     
     return valueIds
-      .map(id => type.values.find(v => v.id === id)?.name)
+      .map(id => type.values.find((v: VariantValue) => v.id === id)?.name)
       .filter(Boolean)
       .join(', ');
   };
@@ -85,7 +94,10 @@ export function VariantConfiguration({
   return (
     <div className="space-y-4">
       {selectedVariants.map((variant, index) => (
-        <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
+        <div 
+          key={`${variant.typeId}-${variant.values.join('-')}`} 
+          className="flex items-center gap-4 p-4 border rounded-lg"
+        >
           <div className="flex-1">
             <p className="font-medium">{getVariantTypeName(variant.typeId)}</p>
             <p className="text-sm text-muted-foreground">
@@ -106,12 +118,14 @@ export function VariantConfiguration({
         <div className="flex gap-4 items-end">
           <div className="flex-1 space-y-4">
             <div>
-              <label className="text-sm font-medium">Variant Type</label>
+              <label htmlFor="variant-type" className="text-sm font-medium">
+                Variant Type
+              </label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
+                    id="variant-type"
                     variant="outline"
-                    role="combobox"
                     className="w-full justify-between"
                   >
                     {selectedTypeId
@@ -151,14 +165,16 @@ export function VariantConfiguration({
 
             {selectedTypeId && (
               <div>
-                <label className="text-sm font-medium">Values</label>
+                <label htmlFor="variant-values" className="text-sm font-medium">
+                  Values
+                </label>
                 <Popover open={open} onOpenChange={setOpen}>
                   <PopoverTrigger asChild>
                     <Button
+                      id="variant-values"
                       variant="outline"
-                      role="combobox"
-                      aria-expanded={open}
                       className="w-full justify-between"
+                      aria-expanded={open}
                     >
                       {selectedValues.length > 0
                         ? `${selectedValues.length} selected`
@@ -173,7 +189,7 @@ export function VariantConfiguration({
                       <CommandGroup>
                         {variantTypes
                           .find(t => t.id === selectedTypeId)
-                          ?.values.map((value) => (
+                          ?.values.map((value: VariantValue) => (
                             <CommandItem
                               key={value.id}
                               value={value.id}
