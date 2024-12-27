@@ -42,7 +42,7 @@ export function SingleProductForm({ onSuccess, onClose, initialData }: Readonly<
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: initialData ?? defaultValues,
-    mode: 'onChange'
+    mode: 'onChange',
   });
 
   const onSubmit = async (values: ProductFormValues) => {
@@ -50,8 +50,8 @@ export function SingleProductForm({ onSuccess, onClose, initialData }: Readonly<
       setIsSubmitting(true);
 
       // Get brand and product type details
-      const brand = brands.find(b => b.id.toString() === values.brand); // Ensure comparison is correct
-      const productType = productTypes.find(pt => pt.id.toString() === values.productTypeId); // Ensure comparison is correct
+      const brand = brands.find((b) => b.id.toString() === values.brand);
+      const productType = productTypes.find((pt) => pt.id.toString() === values.productTypeId);
 
       if (!brand || !productType) {
         toast({
@@ -81,6 +81,8 @@ export function SingleProductForm({ onSuccess, onClose, initialData }: Readonly<
         title: 'Success',
         description: 'Product added successfully',
       });
+
+      if (onSuccess) onSuccess(values);
     } catch (error) {
       console.error('Error submitting form:', error);
     } finally {
@@ -101,44 +103,56 @@ export function SingleProductForm({ onSuccess, onClose, initialData }: Readonly<
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {/* Basic Information Section */}
-        <section className="p-4 border rounded-md shadow-sm">
-          <h2 className="text-lg font-semibold">Basic Information</h2>
-          <p className="text-sm text-gray-600">Provide the basic details about the product, including name, description, and other essential information.</p>
-          <div className="mt-4">
-            <BasicInfo form={form} />
-          </div>
-        </section>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="h-full flex flex-col">
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <section className="space-y-8">
+            {/* Basic Information Section */}
+            <div className="border rounded-md shadow-sm p-4">
+              <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Provide the basic details about the product, including name, description, and other essential information.
+              </p>
+              <div className="space-y-4">
+                <BasicInfo form={form} />
+              </div>
+            </div>
 
-        {/* Variant Configuration Section */}
-        <section className="p-4 border rounded-md shadow-sm">
-          <h2 className="text-lg font-semibold">Variant Configuration</h2>
-          <p className="text-sm text-gray-600">Configure product variants, including combinations, prices, and SKUs.</p>
-          <div className="mt-4">
-            <VariantCombinations />
-          </div>
-        </section>
+            {/* Variant Configuration Section */}
+            <div className="border rounded-md shadow-sm p-4">
+              <h2 className="text-lg font-semibold mb-4">Variant Configuration</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Configure product variants, including combinations, prices, and SKUs.
+              </p>
+              <div className="space-y-4">
+                <VariantCombinations />
+              </div>
+            </div>
+          </section>
+        </div>
 
-        <div className="flex justify-end space-x-4">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={handleCancel}
-            data-testid="cancel-button"
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            disabled={isSubmitting || !isFormValid}
-            data-testid="submit-button"
-          >
-            {(() => {
-              const buttonText = initialData ? 'Update Product' : 'Add Product';
-              return isSubmitting ? `${buttonText}...` : buttonText;
-            })()}
-          </Button>
+        {/* Fixed Footer */}
+        <div className="flex-none border-t backdrop-blur-sm p-4">
+          <div className="flex justify-end space-x-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancel}
+              data-testid="cancel-button"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting || !isFormValid}
+              data-testid="submit-button"
+            >
+              {(() => {
+                const buttonText = initialData ? 'Update Product' : 'Add Product';
+                return isSubmitting ? `${buttonText}...` : buttonText;
+              })()}
+            </Button>
+          </div>
         </div>
       </form>
     </Form>
