@@ -2,13 +2,14 @@ import axios from 'axios';
 import { STORAGE_KEYS } from '@/lib/config/constants';
 import type { AuthTokens } from '@/types/auth';
 
-// Queue to store pending requests during token refresh
+// Antrian untuk menyimpan permintaan yang tertunda selama penyegaran token
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (token: string) => void;
   reject: (error: any) => void;
 }> = [];
 
+// Fungsi untuk mendapatkan access token dari localStorage
 export function getAccessToken(): string | null {
   try {
     const tokensStr = localStorage.getItem(STORAGE_KEYS.TOKENS);
@@ -20,6 +21,7 @@ export function getAccessToken(): string | null {
   }
 }
 
+// Fungsi untuk mendapatkan refresh token dari localStorage
 export function getRefreshToken(): string | null {
   try {
     const tokensStr = localStorage.getItem(STORAGE_KEYS.TOKENS);
@@ -31,6 +33,7 @@ export function getRefreshToken(): string | null {
   }
 }
 
+// Fungsi untuk menyegarkan access token menggunakan refresh token
 export async function refreshAccessToken(): Promise<string> {
   try {
     const refresh_token = getRefreshToken();
@@ -46,14 +49,14 @@ export async function refreshAccessToken(): Promise<string> {
     localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(tokens));
     return tokens.access_token;
   } catch (error) {
-    // Clear auth data on refresh token failure
+    // Menghapus data auth jika penyegaran token gagal
     localStorage.removeItem(STORAGE_KEYS.TOKENS);
     localStorage.removeItem(STORAGE_KEYS.USER);
     throw error;
   }
 }
 
-// Process failed queue after token refresh
+// Memproses antrian yang gagal setelah penyegaran token
 function processQueue(error: any, token: string | null = null): void {
   failedQueue.forEach(promise => {
     if (error) {
@@ -66,6 +69,7 @@ function processQueue(error: any, token: string | null = null): void {
   failedQueue = [];
 }
 
+// Fungsi untuk menambahkan header otorisasi ke konfigurasi permintaan
 export function addAuthorizationHeader(config: any): any {
   const token = getAccessToken();
   if (token) {
@@ -74,7 +78,7 @@ export function addAuthorizationHeader(config: any): any {
   return config;
 }
 
-// Handle token refresh for failed requests
+// Menangani penyegaran token untuk permintaan yang gagal
 export async function handleTokenRefresh(failedRequest: any): Promise<string> {
   if (isRefreshing) {
     return new Promise((resolve, reject) => {
