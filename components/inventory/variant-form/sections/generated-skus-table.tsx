@@ -31,6 +31,10 @@ interface GeneratedSkusTableProps {
   };
 }
 
+/**
+ * Interface untuk data baris varian dalam tabel
+ * Menyimpan informasi SKU, kode unik, dan harga untuk setiap kombinasi
+ */
 interface VariantRow {
   mainSku: string;
   uniqueCode: string;
@@ -39,6 +43,11 @@ interface VariantRow {
   price: number;
 }
 
+/**
+ * Komponen untuk menampilkan tabel SKU yang digenerate
+ * Menampilkan kombinasi varian dengan SKU dan harga masing-masing
+ * Memungkinkan pengguna untuk mengubah kode unik dan mereset ke default
+ */
 export function GeneratedSkusTable({
   baseSku,
   basePrice,
@@ -46,10 +55,16 @@ export function GeneratedSkusTable({
   onPriceChange,
   productDetails,
 }: GeneratedSkusTableProps) {
-  const { variantTypes } = useVariantTypes();
+  const { data: variantTypesResponse, isLoading, error } = useVariantTypes();
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const variantTypes = variantTypesResponse?.data || [];
+
+  /**
+   * Effect untuk generate kombinasi varian dan kode unik
+   * Dijalankan setiap kali baseSku atau selectedVariants berubah
+   */
   useEffect(() => {
     if (!baseSku || selectedVariants.length === 0) return;
 
@@ -71,6 +86,10 @@ export function GeneratedSkusTable({
     setVariants(newVariants);
   }, [baseSku, selectedVariants, variantTypes]);
 
+  /**
+   * Handler untuk perubahan kode unik
+   * Memperbarui state variants dengan kode unik baru
+   */
   const handleUniqueCodeChange = (index: number, newCode: string) => {
     setVariants(prev => {
       const newVariants = [...prev];
@@ -82,6 +101,9 @@ export function GeneratedSkusTable({
     });
   };
 
+  /**
+   * Handler untuk mereset kode unik ke nilai default
+   */
   const handleReset = (index: number) => {
     setVariants(prev => {
       const newVariants = [...prev];
@@ -92,6 +114,14 @@ export function GeneratedSkusTable({
       return newVariants;
     });
   };
+
+  if (isLoading) {
+    return <div>Loading variant types...</div>;
+  }
+
+  if (error) {
+    return <div>Error loading variant types</div>;
+  }
 
   if (!baseSku || variants.length === 0) return null;
 

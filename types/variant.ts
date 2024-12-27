@@ -1,36 +1,35 @@
-export interface VariantFormData {
-  name: string;
-  displayOrder: number;
-  status: boolean;
-  values: string[];
-}
-
-export interface VariantApiPayload {
-  name: string;
-  display_order: number;
-  status: boolean;
-  values: string[];
-}
-
-export interface Variant {
+/**
+ * Interface untuk nilai varian
+ * Mendefinisikan struktur data untuk setiap nilai dalam tipe varian
+ */
+export interface VariantValue {
   id: number;
   name: string;
-  display_order: number;
-  status: boolean;
-  values: string[];
+}
+
+/**
+ * Interface untuk tipe varian
+ * Mendefinisikan struktur data utama untuk tipe varian dan propertinya
+ * Termasuk informasi status, urutan tampilan, dan nilai-nilai yang terkait
+ */
+export interface VariantType {
+  id: number;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  name: string;
+  display_order: number;
+  status: boolean;
+  values: VariantValue[];  // Change this line
 }
 
-export async function createVariant(data: VariantFormData): Promise<ApiResponse<Variant>> {
-  try {
-    const response = await axiosInstance.post('/variants', data);
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.data?.error) {
-      throw new Error(error.response.data.error.join(', '));
-    }
-    throw error;
-  }
+/**
+ * Interface untuk data form varian
+ * Digunakan saat membuat atau mengubah data varian
+ */
+export interface VariantFormData {
+  name: string;
+  display_order: number;
+  status: boolean;
+  values: string[];
 }
