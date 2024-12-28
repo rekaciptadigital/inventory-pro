@@ -49,9 +49,8 @@ export function ProductTypeSearchSelect({
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          aria-label="Select product type"
+          role="combobox"
           aria-expanded={open}
-          aria-controls="product-type-list"
           className="w-full justify-between"
           disabled={disabled}
         >
@@ -68,7 +67,7 @@ export function ProductTypeSearchSelect({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start" id="product-type-list">
+      <PopoverContent className="w-full p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search product types..."

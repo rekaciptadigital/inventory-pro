@@ -1,78 +1,64 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  FormDescription,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { BrandSearchSelect } from "@/components/brands/brand-search-select";
-import { UseFormReturn } from "react-hook-form";
-import { ProductFormValues } from "./form-schema";
-import { useProductTypes } from "@/lib/hooks/use-product-types";
-import { useBrands } from "@/lib/hooks/use-brands";
-import { generateSKU } from "@/lib/utils/sku-generator";
+import React, { useState, useEffect } from 'react';
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
+import { BrandSearchSelect } from '@/components/brands/brand-search-select';
+import { ProductTypeSearchSelect } from '@/components/product-types/product-type-search-select';
+import { UseFormReturn } from 'react-hook-form';
+import { ProductFormValues } from './form-schema';
+import { useBrands } from '@/lib/hooks/use-brands';
+import { useProductTypeList } from '@/lib/hooks/product-types/use-product-type-list';
+import { generateSKU } from '@/lib/utils/sku-generator';
 
 interface BasicInfoProps {
   form: UseFormReturn<ProductFormValues>;
 }
 
 export function BasicInfo({ form }: BasicInfoProps) {
-  const { productTypes } = useProductTypes();
   const { brands } = useBrands();
+  const { data: productTypeResponse } = useProductTypeList();
+  
+  const productTypes = React.useMemo(() => {
+    return productTypeResponse?.data || [];
+  }, [productTypeResponse?.data]);
 
-  const selectedBrand = form.watch("brand");
-  const selectedProductType = form.watch("productTypeId");
-  const productName = form.watch("productName");
-  const uniqueCode = form.watch("uniqueCode");
+  const brandOptions = brands.map((brand) => ({
+    label: brand.name,
+    value: brand.id.toString(), // Convert value to string
+  }));
 
-  const [sku, setSku] = useState(form.getValues("sku") || "");
-  const [fullName, setFullName] = useState(
-    form.getValues("fullProductName") || ""
-  );
+  const selectedBrand = form.watch('brand');
+  const selectedProductType = form.watch('productTypeId');
+  const productName = form.watch('productName');
+  const uniqueCode = form.watch('uniqueCode');
+
+  const [sku, setSku] = useState(form.getValues('sku') || '');
+  const [fullName, setFullName] = useState(form.getValues('fullProductName') || '');
 
   useEffect(() => {
     if (selectedBrand && selectedProductType) {
       const brand = brands.find((b) => b.id.toString() === selectedBrand); // Ensure comparison is correct
-      const productType = productTypes.find(
-        (pt) => pt.id === selectedProductType
-      );
+      const productType = productTypes.find((pt) => pt.id.toString() === selectedProductType); // Updated to match string comparison
 
       if (brand && productType) {
         // Generate SKU
         const generatedSku = generateSKU(brand, productType, uniqueCode);
         setSku(generatedSku);
-        form.setValue("sku", generatedSku);
+        form.setValue('sku', generatedSku);
 
         // Generate full product name
         if (productName) {
           const generatedFullName = `${brand.name} ${productType.name} ${productName}`;
           setFullName(generatedFullName);
-          form.setValue("fullProductName", generatedFullName);
+          form.setValue('fullProductName', generatedFullName);
         }
       }
     }
-  }, [
-    selectedBrand,
-    selectedProductType,
-    productName,
-    uniqueCode,
-    form,
-    brands,
-    productTypes,
-  ]);
+  }, [selectedBrand, selectedProductType, productName, uniqueCode, form, brands, productTypes]);
 
   return (
     <div className="space-y-4">
@@ -102,20 +88,12 @@ export function BasicInfo({ form }: BasicInfoProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Product Type</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select product type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {productTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <ProductTypeSearchSelect
+                  value={field.value}
+                  onValueChange={field.onChange}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -130,7 +108,10 @@ export function BasicInfo({ form }: BasicInfoProps) {
             <FormItem>
               <FormLabel>Unique Code</FormLabel>
               <FormControl>
-                <Input placeholder="Enter unique code (optional)" {...field} />
+                <Input
+                  placeholder="Enter unique code (optional)"
+                  {...field}
+                />
               </FormControl>
               <FormDescription>
                 Leave empty for auto-generated code
@@ -179,12 +160,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
           <FormItem>
             <FormLabel>Full Product Name</FormLabel>
             <FormControl>
-              <Input
-                {...field}
-                readOnly
-                className="bg-muted"
-                value={fullName}
-              />
+              <Input {...field} readOnly className="bg-muted" value={fullName} />
             </FormControl>
             <FormDescription>
               Auto-generated based on brand, product type, and product name
