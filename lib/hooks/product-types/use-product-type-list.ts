@@ -5,6 +5,6 @@ export function useProductTypeList(filters: ProductTypeFilters = {}) {
   return useQuery({
     queryKey: ['productTypes', filters],
     queryFn: () => getProductTypes(filters),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   });
 }

@@ -48,10 +48,9 @@ export function GeneratedSkusTable({
   baseSku,
   selectedVariants,
   productDetails,
-}: GeneratedSkusTableProps) {
+}: Readonly<GeneratedSkusTableProps>) {
   const { data: variantTypesResponse, isLoading, error } = useVariantTypes();
   const [variantCodes, setVariantCodes] = useState<Record<number, string>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const variantTypes = variantTypesResponse?.data ?? [];
 
@@ -111,30 +110,36 @@ export function GeneratedSkusTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {variants.map((variant, index) => (
-            <TableRow key={index}>
-              <TableCell>
-                {formatVariantName(
-                  productDetails.brand,
-                  productDetails.productType,
-                  productDetails.productName,
-                  variant.combination
-                )}
-              </TableCell>
-              <TableCell>
-                <VariantSkuField
-                  index={index}
-                  mainSku={variant.mainSku}
-                  uniqueCode={variant.uniqueCode}
-                  defaultUniqueCode={variant.defaultUniqueCode}
-                  existingCodes={variants.map(v => v.uniqueCode)}
-                  error={errors[index]}
-                  onUniqueCodeChange={(code) => handleUniqueCodeChange(index, code)}
-                  onReset={() => handleReset(index)}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
+          {variants.map((variant, index) => {
+            // Create unique key using combination values details
+            const variantKey = `${variant.mainSku}-${variant.combination.values
+              .map(v => `${v.typeId}-${v.valueName}`)
+              .join('-')}`;
+            
+            return (
+              <TableRow key={variantKey}>
+                <TableCell>
+                  {formatVariantName(
+                    productDetails.brand,
+                    productDetails.productType,
+                    productDetails.productName,
+                    variant.combination
+                  )}
+                </TableCell>
+                <TableCell>
+                  <VariantSkuField
+                    index={index}
+                    mainSku={variant.mainSku}
+                    uniqueCode={variant.uniqueCode}
+                    defaultUniqueCode={variant.defaultUniqueCode}
+                    existingCodes={variants.map(v => v.uniqueCode)}
+                    onUniqueCodeChange={(code) => handleUniqueCodeChange(index, code)}
+                    onReset={() => handleReset(index)}
+                  />
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

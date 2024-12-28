@@ -49,7 +49,7 @@ export function generateVariantCombinations(
               valueId: variant.typeId, // Using typeId as valueId temporarily
               typeName: variantType.name,
               valueName: valueName,
-              order: variantType.display_order || 999,
+              order: variantType.display_order ?? 999, // Changed from || to ??
             },
           ],
         });

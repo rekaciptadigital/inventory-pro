@@ -5,7 +5,6 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescripti
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Combobox } from '@/components/ui/combobox';
 import { BrandSearchSelect } from '@/components/brands/brand-search-select';
 import { ProductTypeSearchSelect } from '@/components/product-types/product-type-search-select';
 import { UseFormReturn } from 'react-hook-form';
@@ -18,18 +17,13 @@ interface BasicInfoProps {
   form: UseFormReturn<ProductFormValues>;
 }
 
-export function BasicInfo({ form }: BasicInfoProps) {
+export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
   const { brands } = useBrands();
   const { data: productTypeResponse } = useProductTypeList();
   
   const productTypes = React.useMemo(() => {
     return productTypeResponse?.data || [];
   }, [productTypeResponse?.data]);
-
-  const brandOptions = brands.map((brand) => ({
-    label: brand.name,
-    value: brand.id.toString(), // Convert value to string
-  }));
 
   const selectedBrand = form.watch('brand');
   const selectedProductType = form.watch('productTypeId');
