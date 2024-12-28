@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -50,7 +50,7 @@ export function GeneratedSkusTable({
   productDetails,
 }: GeneratedSkusTableProps) {
   const { data: variantTypesResponse, isLoading, error } = useVariantTypes();
-  const [variants, setVariants] = useState<VariantRow[]>([]);
+  const [variantCodes, setVariantCodes] = useState<Record<number, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const variantTypes = variantTypesResponse?.data ?? [];
@@ -62,51 +62,32 @@ export function GeneratedSkusTable({
   }, [baseSku, selectedVariants, variantTypes]);
 
   // Memoize variants generation
-  const newVariants = useMemo(() => {
+  const variants = useMemo(() => {
     if (combinations.length === 0) return [];
     
     return combinations.map((combination, index) => {
       const defaultCode = generateSequentialCode(index);
       return {
         mainSku: baseSku,
-        uniqueCode: defaultCode,
+        uniqueCode: variantCodes[index] || defaultCode,
         defaultUniqueCode: defaultCode,
         combination,
       };
     });
-  }, [combinations, baseSku]);
+  }, [combinations, baseSku, variantCodes]);
 
-  // Update variants state when new variants are generated
-  useEffect(() => {
-    setVariants(newVariants);
-  }, [newVariants]);
-
-  /**
-   * Handler untuk perubahan kode unik
-   * Memperbarui state variants dengan kode unik baru
-   */
   const handleUniqueCodeChange = (index: number, newCode: string) => {
-    setVariants(prev => {
-      const newVariants = [...prev];
-      newVariants[index] = {
-        ...newVariants[index],
-        uniqueCode: newCode,
-      };
-      return newVariants;
-    });
+    setVariantCodes(prev => ({
+      ...prev,
+      [index]: newCode
+    }));
   };
 
-  /**
-   * Handler untuk mereset kode unik ke nilai default
-   */
   const handleReset = (index: number) => {
-    setVariants(prev => {
-      const newVariants = [...prev];
-      newVariants[index] = {
-        ...newVariants[index],
-        uniqueCode: newVariants[index].defaultUniqueCode,
-      };
-      return newVariants;
+    setVariantCodes(prev => {
+      const newCodes = { ...prev };
+      delete newCodes[index];
+      return newCodes;
     });
   };
 

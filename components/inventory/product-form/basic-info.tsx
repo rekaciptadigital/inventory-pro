@@ -7,10 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { BrandSearchSelect } from '@/components/brands/brand-search-select';
+import { ProductTypeSearchSelect } from '@/components/product-types/product-type-search-select';
 import { UseFormReturn } from 'react-hook-form';
 import { ProductFormValues } from './form-schema';
-import { useProductTypes } from '@/lib/hooks/use-product-types';
 import { useBrands } from '@/lib/hooks/use-brands';
+import { useProductTypeList } from '@/lib/hooks/product-types/use-product-type-list';
 import { generateSKU } from '@/lib/utils/sku-generator';
 
 interface BasicInfoProps {
@@ -18,8 +19,12 @@ interface BasicInfoProps {
 }
 
 export function BasicInfo({ form }: BasicInfoProps) {
-  const { productTypes } = useProductTypes();
   const { brands } = useBrands();
+  const { data: productTypeResponse } = useProductTypeList();
+  
+  const productTypes = React.useMemo(() => {
+    return productTypeResponse?.data || [];
+  }, [productTypeResponse?.data]);
 
   const brandOptions = brands.map((brand) => ({
     label: brand.name,
@@ -37,7 +42,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
   useEffect(() => {
     if (selectedBrand && selectedProductType) {
       const brand = brands.find((b) => b.id.toString() === selectedBrand); // Ensure comparison is correct
-      const productType = productTypes.find((pt) => pt.id === selectedProductType);
+      const productType = productTypes.find((pt) => pt.id.toString() === selectedProductType); // Updated to match string comparison
 
       if (brand && productType) {
         // Generate SKU
@@ -83,20 +88,12 @@ export function BasicInfo({ form }: BasicInfoProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Product Type</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select product type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {productTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <ProductTypeSearchSelect
+                  value={field.value}
+                  onValueChange={field.onChange}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
