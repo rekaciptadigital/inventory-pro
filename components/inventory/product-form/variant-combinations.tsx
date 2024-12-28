@@ -52,7 +52,6 @@ export function VariantCombinations() {
   const brand = form.watch('brand');
   const productTypeId = form.watch('productTypeId');
   const sku = form.watch('sku');
-  const basePrice = form.watch('usdPrice') || 0;
   const productName = form.watch('productName');
 
   // Get brand and product type names
@@ -103,18 +102,6 @@ export function VariantCombinations() {
       i === index ? { ...v, values } : v
     ));
     form.setValue(`variants.${index}.values`, values);
-  };
-
-  /**
-   * Fungsi untuk memperbarui harga varian individual
-   * Menyimpan harga dalam objek variantPrices dengan SKU sebagai key
-   */
-  const handlePriceChange = (sku: string, price: number) => {
-    const variantPrices = form.getValues('variantPrices') || {};
-    form.setValue('variantPrices', {
-      ...variantPrices,
-      [sku]: price,
-    });
   };
 
   /**
@@ -174,9 +161,7 @@ export function VariantCombinations() {
                 <FormLabel>Generated SKUs</FormLabel>
                 <GeneratedSkusTable
                   baseSku={sku}
-                  basePrice={basePrice}
                   selectedVariants={selectedVariants}
-                  onPriceChange={handlePriceChange}
                   productDetails={productDetails}
                 />
               </FormItem>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -15,15 +15,12 @@ import {
   formatVariantName,
   type VariantCombination 
 } from '@/lib/utils/variant/combinations';
-import { formatCurrency } from '@/lib/utils/format';
 import { useVariantTypes } from '@/lib/hooks/use-variant-types';
 import { generateSequentialCode } from '@/lib/utils/sku/variant-code-generator';
 
 interface GeneratedSkusTableProps {
   baseSku: string;
-  basePrice: number;
   selectedVariants: Array<{ typeId: string; values: string[] }>;
-  onPriceChange: (sku: string, price: number) => void;
   productDetails: {
     brand: string;
     productType: string;
@@ -40,7 +37,6 @@ interface VariantRow {
   uniqueCode: string;
   defaultUniqueCode: string;
   combination: VariantCombination;
-  price: number;
 }
 
 /**
@@ -50,41 +46,40 @@ interface VariantRow {
  */
 export function GeneratedSkusTable({
   baseSku,
-  basePrice,
   selectedVariants,
-  onPriceChange,
   productDetails,
 }: GeneratedSkusTableProps) {
   const { data: variantTypesResponse, isLoading, error } = useVariantTypes();
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const variantTypes = variantTypesResponse?.data || [];
+  const variantTypes = variantTypesResponse?.data ?? [];
 
-  /**
-   * Effect untuk generate kombinasi varian dan kode unik
-   * Dijalankan setiap kali baseSku atau selectedVariants berubah
-   */
-  useEffect(() => {
-    if (!baseSku || selectedVariants.length === 0) return;
+  // Memoize combinations to prevent unnecessary recalculations
+  const combinations = useMemo(() => {
+    if (!baseSku || selectedVariants.length === 0) return [];
+    return generateVariantCombinations(selectedVariants, variantTypes);
+  }, [baseSku, selectedVariants, variantTypes]);
 
-    // Generate all possible combinations
-    const combinations = generateVariantCombinations(selectedVariants, variantTypes);
-
-    // Generate variants with sequential codes
-    const newVariants = combinations.map((combination, index) => {
+  // Memoize variants generation
+  const newVariants = useMemo(() => {
+    if (combinations.length === 0) return [];
+    
+    return combinations.map((combination, index) => {
       const defaultCode = generateSequentialCode(index);
       return {
         mainSku: baseSku,
         uniqueCode: defaultCode,
         defaultUniqueCode: defaultCode,
         combination,
-        price: basePrice,
       };
     });
+  }, [combinations, baseSku]);
 
+  // Update variants state when new variants are generated
+  useEffect(() => {
     setVariants(newVariants);
-  }, [baseSku, selectedVariants, variantTypes]);
+  }, [newVariants]);
 
   /**
    * Handler untuk perubahan kode unik
@@ -132,7 +127,6 @@ export function GeneratedSkusTable({
           <TableRow>
             <TableHead className="w-[40%]">Full Product Name</TableHead>
             <TableHead>SKU & Unique Code</TableHead>
-            <TableHead className="w-[200px]">Base Value (HB)</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -157,9 +151,6 @@ export function GeneratedSkusTable({
                   onUniqueCodeChange={(code) => handleUniqueCodeChange(index, code)}
                   onReset={() => handleReset(index)}
                 />
-              </TableCell>
-              <TableCell>
-                {formatCurrency(variant.price)}
               </TableCell>
             </TableRow>
           ))}
