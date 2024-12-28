@@ -232,50 +232,51 @@ export default function CategoriesPage() {
    * 4. Tombol simpan di bagian bawah
    */
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Price Categories</h1>
-        <p className="text-muted-foreground">
-          Manage your customer price categories and their multipliers
-        </p>
+    <div className="container mx-auto py-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold tracking-tight">Price Categories</h2>
+          <p className="text-sm text-muted-foreground">
+            Manage your customer price categories and their multipliers
+          </p>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="border shadow-sm">
+        <CardHeader className="space-y-1">
           <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Customer Categories</CardTitle>
+            <div className="space-y-1">
+              <CardTitle className="text-xl">Customer Categories</CardTitle>
               <CardDescription>
                 Define your pricing tiers and their respective multipliers.
               </CardDescription>
             </div>
-            <Button onClick={addCategory} variant="outline" size="sm">
+            <Button onClick={addCategory} variant="outline" size="default">
               <Plus className="h-4 w-4 mr-2" />
               Add Category
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
+          <div className="grid gap-3">
             {categories.map((category, index) => (
               <div
                 key={category.id}
-                className="flex flex-col gap-2 p-3 border rounded-lg bg-card"
+                className="flex flex-col gap-2 p-4 border rounded-md bg-background"
               >
-                <div className="flex-1 grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1">
+                <div className="flex-1 grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <Input
                       value={category.name || ''} // Ensure value is never undefined
                       onChange={(e) => updateCategory(category.id, 'name', e.target.value)}
                       placeholder="e.g., Basic, Elite"
-                      className="h-9"
                     />
-                    <div className="text-xs text-muted-foreground pl-2">
+                    <div className="text-xs text-muted-foreground">
                       Formula: HB Naik + {category.percentage}% markup
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 flex flex-col gap-1">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 space-y-2">
                       <Input
                         type="text"
                         inputMode="decimal"
@@ -286,16 +287,14 @@ export default function CategoriesPage() {
                           updateCategory(category.id, 'percentage', value ? parseInt(value) : 0);
                         }}
                         placeholder="Enter percentage"
-                        className="h-9"
                       />
-                      <span className="text-xs text-muted-foreground pl-2">
+                      <span className="text-xs text-muted-foreground block">
                         Percentage (%): e.g., 10 for 10%
                       </span>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9"
                       onClick={() => removeCategory(category.id)}
                     >
                       <X className="h-4 w-4" />
@@ -308,42 +307,41 @@ export default function CategoriesPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="border shadow-sm">
+        <CardHeader className="space-y-1">
           <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Marketplace Categories</CardTitle>
+            <div className="space-y-1">
+              <CardTitle className="text-xl">Marketplace Categories</CardTitle>
               <CardDescription>
                 Define your marketplace pricing tiers and their respective multipliers.
               </CardDescription>
             </div>
-            <Button onClick={addMarketplaceCategory} variant="outline" size="sm">
+            <Button onClick={addMarketplaceCategory} variant="outline" size="default">
               <Plus className="h-4 w-4 mr-2" />
               Add Category
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
+          <div className="grid gap-3">
             {marketplaceCategories.map((category, index) => (
               <div
                 key={category.id}
-                className="flex flex-col gap-2 p-3 border rounded-lg bg-card"
+                className="flex flex-col gap-2 p-4 border rounded-md bg-background"
               >
-                <div className="flex-1 grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1">
+                <div className="flex-1 grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <Input
                       value={category.name || ''}
                       onChange={(e) => updateMarketplaceCategory(category.id, 'name', e.target.value)}
                       placeholder="e.g., Shopee, Tokopedia"
-                      className="h-9"
                     />
-                    <div className="text-xs text-muted-foreground pl-2">
+                    <div className="text-xs text-muted-foreground">
                       Formula: HB Naik + {category.percentage}% markup
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 flex flex-col gap-1">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 space-y-2">
                       <Input
                         type="text"
                         inputMode="decimal"
@@ -354,16 +352,14 @@ export default function CategoriesPage() {
                           updateMarketplaceCategory(category.id, 'percentage', value ? parseInt(value) : 0);
                         }}
                         placeholder="Enter percentage"
-                        className="h-9"
                       />
-                      <span className="text-xs text-muted-foreground pl-2">
+                      <span className="text-xs text-muted-foreground block">
                         Percentage (%): e.g., 10 for 10%
                       </span>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9"
                       onClick={() => removeMarketplaceCategory(category.id)}
                     >
                       <X className="h-4 w-4" />
@@ -377,7 +373,7 @@ export default function CategoriesPage() {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={saveAllCategories} size="lg">
+        <Button onClick={saveAllCategories} size="default">
           Save Changes
         </Button>
       </div>
