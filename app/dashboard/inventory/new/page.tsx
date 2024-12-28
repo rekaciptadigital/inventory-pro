@@ -1,8 +1,15 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { SingleProductForm } from '@/components/inventory/product-form/single-product-form';
 
 export default function NewProductPage() {
+  const router = useRouter();
+
+  const handleSuccess = () => {
+    router.push('/dashboard/inventory');
+  };
+
   return (
     <div className="min-h-full flex flex-col">
       <div className="flex-none mb-6">
@@ -13,7 +20,7 @@ export default function NewProductPage() {
       </div>
 
       <div className="flex-1 border rounded-lg">
-        <SingleProductForm />
+        <SingleProductForm onSuccess={handleSuccess} />
       </div>
     </div>
   );
