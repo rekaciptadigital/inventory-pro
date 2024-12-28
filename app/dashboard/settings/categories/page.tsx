@@ -1,10 +1,15 @@
 'use client';
 
+/**
+ * Modul Pengaturan Kategori Harga
+ * ---------------------------
+ * Modul ini menangani manajemen kategori harga untuk produk.
+ * Setiap kategori memiliki nama dan persentase markup harga.
+ */
+
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Plus, GripVertical, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -17,15 +22,31 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import type { PriceCategory } from '@/types/settings';
 
+/**
+ * Schema Validasi Kategori
+ * Memastikan nama kategori tidak kosong dan multiplier lebih dari 0
+ */
 const categorySchema = z.object({
   name: z.string().min(1, 'Category name is required'),
   multiplier: z.number().min(0.01, 'Multiplier must be greater than 0'),
 });
 
+/**
+ * Komponen Utama Halaman Kategori
+ * -------------------------------
+ * Menampilkan dan mengelola daftar kategori harga
+ * dengan kemampuan CRUD (Create, Read, Update, Delete)
+ */
 export default function CategoriesPage() {
   const { toast } = useToast();
   const [categories, setCategories] = useState<PriceCategory[]>([]);
 
+  /**
+   * Effect Hook untuk Inisialisasi Data
+   * ----------------------------------
+   * Mengambil data kategori dari localStorage saat komponen dimuat
+   * Jika tidak ada data, akan membuat kategori default
+   */
   useEffect(() => {
     const savedCategories = localStorage.getItem('priceCategories');
     if (savedCategories) {
@@ -42,16 +63,26 @@ export default function CategoriesPage() {
     }
   }, []);
 
+  /**
+   * Fungsi Pengelolaan Kategori
+   * ---------------------------
+   */
+
+  /** Menambah kategori baru dengan nilai default */
   const addCategory = () => {
     const newCategory: PriceCategory = {
       id: Date.now().toString(),
-      name: '',
-      percentage: 0,
+      name: '', // Initialize with empty string
+      percentage: 0, // Initialize with 0
       order: categories.length,
     };
     setCategories([...categories, newCategory]);
   };
 
+  /** 
+   * Menghapus kategori berdasarkan ID
+   * Mencegah penghapusan jika hanya tersisa 1 kategori
+   */
   const removeCategory = (id: string) => {
     if (categories.length <= 1) {
       toast({
@@ -67,10 +98,19 @@ export default function CategoriesPage() {
     ));
   };
 
+  /** 
+   * Memperbarui data kategori
+   * @param id - ID kategori yang akan diupdate
+   * @param field - Field yang akan diubah (name/percentage)
+   * @param value - Nilai baru
+   */
   const updateCategory = (id: string, field: keyof PriceCategory, value: string | number) => {
     const updatedCategories = categories.map(cat => {
       if (cat.id === id) {
-        return { ...cat, [field]: value };
+        return {
+          ...cat,
+          [field]: field === 'percentage' ? Number(value) || 0 : value || '',
+        };
       }
       return cat;
     });
@@ -78,16 +118,11 @@ export default function CategoriesPage() {
     localStorage.setItem('priceCategories', JSON.stringify(updatedCategories));
   };
 
-  const moveCategory = (fromIndex: number, toIndex: number) => {
-    const newCategories = [...categories];
-    const [movedItem] = newCategories.splice(fromIndex, 1);
-    newCategories.splice(toIndex, 0, movedItem);
-    newCategories.forEach((cat, index) => {
-      cat.order = index;
-    });
-    setCategories(newCategories);
-  };
-
+  /** 
+   * Menyimpan perubahan kategori
+   * Saat ini hanya menyimpan ke localStorage
+   * TODO: Implementasi penyimpanan ke backend
+   */
   const saveCategories = () => {
     // Here you would typically save to your backend
     localStorage.setItem('priceCategories', JSON.stringify(categories));
@@ -97,6 +132,19 @@ export default function CategoriesPage() {
     });
   };
 
+  /**
+   * Render Komponen
+   * --------------
+   * Struktur tampilan:
+   * 1. Header halaman
+   * 2. Card container
+   *    - Header card dengan tombol tambah
+   *    - Daftar kategori
+   *      - Input nama kategori
+   *      - Input persentase
+   *      - Tombol hapus
+   * 3. Tombol simpan
+   */
   return (
     <div className="space-y-6">
       <div>
@@ -108,74 +156,68 @@ export default function CategoriesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Customer Categories</CardTitle>
-          <CardDescription>
-            Define your pricing tiers and their respective multipliers. Categories will be applied in the order shown below.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {categories.map((category, index) => (
-              <div
-                key={category.id}
-                className="flex items-center space-x-4 p-4 border rounded-lg bg-card"
-              >
-                <div className="cursor-move">
-                  <GripVertical className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="flex-1 grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Category Name</label>
-                    <Input
-                      value={category.name}
-                      onChange={(e) => {
-                        updateCategory(category.id, 'name', e.target.value);
-                      }}
-                      placeholder="Enter category name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Percentage (%)</label>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      pattern="[0-9]*"
-                      value={category.percentage}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9]/g, '');
-                        updateCategory(category.id, 'percentage', parseInt(value) || 0);
-                      }}
-                      placeholder="Enter percentage"
-                    />
-                    <p className="text-xs text-muted-foreground">Enter percentage value (e.g. 10 for 10%)</p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeCategory(category.id)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-
-            <Button onClick={addCategory} variant="outline" className="w-full">
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Customer Categories</CardTitle>
+              <CardDescription>
+                Define your pricing tiers and their respective multipliers.
+              </CardDescription>
+            </div>
+            <Button onClick={addCategory} variant="outline" size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Add Category
             </Button>
           </div>
-
-          <div className="mt-6 bg-muted/50 p-4 rounded-lg">
-            <h4 className="font-medium mb-2">Price Calculation Formula</h4>
-            <ul className="space-y-1 text-sm text-muted-foreground">
-              {categories.map((category) => (
-                <li key={category.id} className="flex items-center space-x-2">
-                  <span>•</span>
-                  <span>{category.name}: HB Naik + {category.percentage}% markup</span>
-                </li>
-              ))}
-            </ul>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {categories.map((category, index) => (
+              <div
+                key={category.id}
+                className="flex flex-col gap-2 p-3 border rounded-lg bg-card"
+              >
+                <div className="flex-1 grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <Input
+                      value={category.name || ''} // Ensure value is never undefined
+                      onChange={(e) => updateCategory(category.id, 'name', e.target.value)}
+                      placeholder="e.g., Basic, Elite"
+                      className="h-9"
+                    />
+                    <div className="text-xs text-muted-foreground pl-2">
+                      Formula: HB Naik + {category.percentage}% markup
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex flex-col gap-1">
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9]*"
+                        value={category.percentage || 0} // Ensure value is never undefined
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          updateCategory(category.id, 'percentage', value ? parseInt(value) : 0);
+                        }}
+                        placeholder="Enter percentage"
+                        className="h-9"
+                      />
+                      <span className="text-xs text-muted-foreground pl-2">
+                        Percentage (%): e.g., 10 for 10%
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={() => removeCategory(category.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="mt-6 flex justify-end">
