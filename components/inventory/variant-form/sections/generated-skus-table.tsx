@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -8,15 +8,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { VariantSkuField } from './variant-sku-field';
-import { 
+} from "@/components/ui/table";
+import { VariantSkuField } from "./variant-sku-field";
+import {
   generateVariantCombinations,
   formatVariantName,
-  type VariantCombination 
-} from '@/lib/utils/variant/combinations';
-import { useVariantTypes } from '@/lib/hooks/use-variant-types';
-import { generateSequentialCode } from '@/lib/utils/sku/variant-code-generator';
+  type VariantCombination,
+} from "@/lib/utils/variant/combinations";
+import { useVariantTypes } from "@/lib/hooks/use-variant-types";
+import { generateSequentialCode } from "@/lib/utils/sku/variant-code-generator";
 
 interface GeneratedSkusTableProps {
   baseSku: string;
@@ -50,7 +50,8 @@ export function GeneratedSkusTable({
   productDetails,
 }: Readonly<GeneratedSkusTableProps>) {
   const { data: variantTypesResponse, isLoading, error } = useVariantTypes();
-  const [variantCodes, setVariantCodes] = useState<Record<number, string>>({});
+  const [variants, setVariants] = useState<VariantRow[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const variantTypes = variantTypesResponse?.data ?? [];
 
@@ -61,32 +62,51 @@ export function GeneratedSkusTable({
   }, [baseSku, selectedVariants, variantTypes]);
 
   // Memoize variants generation
-  const variants = useMemo(() => {
+  const newVariants = useMemo(() => {
     if (combinations.length === 0) return [];
-    
+
     return combinations.map((combination, index) => {
       const defaultCode = generateSequentialCode(index);
       return {
         mainSku: baseSku,
-        uniqueCode: variantCodes[index] || defaultCode,
+        uniqueCode: defaultCode,
         defaultUniqueCode: defaultCode,
         combination,
       };
     });
-  }, [combinations, baseSku, variantCodes]);
+  }, [combinations, baseSku]);
 
+  // Update variants state when new variants are generated
+  useEffect(() => {
+    setVariants(newVariants);
+  }, [newVariants]);
+
+  /**
+   * Handler untuk perubahan kode unik
+   * Memperbarui state variants dengan kode unik baru
+   */
   const handleUniqueCodeChange = (index: number, newCode: string) => {
-    setVariantCodes(prev => ({
-      ...prev,
-      [index]: newCode
-    }));
+    setVariants((prev) => {
+      const newVariants = [...prev];
+      newVariants[index] = {
+        ...newVariants[index],
+        uniqueCode: newCode,
+      };
+      return newVariants;
+    });
   };
 
+  /**
+   * Handler untuk mereset kode unik ke nilai default
+   */
   const handleReset = (index: number) => {
-    setVariantCodes(prev => {
-      const newCodes = { ...prev };
-      delete newCodes[index];
-      return newCodes;
+    setVariants((prev) => {
+      const newVariants = [...prev];
+      newVariants[index] = {
+        ...newVariants[index],
+        uniqueCode: newVariants[index].defaultUniqueCode,
+      };
+      return newVariants;
     });
   };
 
@@ -113,9 +133,9 @@ export function GeneratedSkusTable({
           {variants.map((variant, index) => {
             // Create unique key using combination values details
             const variantKey = `${variant.mainSku}-${variant.combination.values
-              .map(v => `${v.typeId}-${v.valueName}`)
-              .join('-')}`;
-            
+              .map((v) => `${v.typeId}-${v.valueName}`)
+              .join("-")}`;
+
             return (
               <TableRow key={variantKey}>
                 <TableCell>
@@ -132,8 +152,10 @@ export function GeneratedSkusTable({
                     mainSku={variant.mainSku}
                     uniqueCode={variant.uniqueCode}
                     defaultUniqueCode={variant.defaultUniqueCode}
-                    existingCodes={variants.map(v => v.uniqueCode)}
-                    onUniqueCodeChange={(code) => handleUniqueCodeChange(index, code)}
+                    existingCodes={variants.map((v) => v.uniqueCode)}
+                    onUniqueCodeChange={(code) =>
+                      handleUniqueCodeChange(index, code)
+                    }
                     onReset={() => handleReset(index)}
                   />
                 </TableCell>
