@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Table,
   TableBody,
@@ -18,40 +20,39 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Edit, Trash2 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import { useProductTypes } from '@/lib/hooks/use-product-types';
 import { formatDate } from '@/lib/utils/format';
 import type { ProductType } from '@/types/product-type';
 
 interface ProductTypeListProps {
+  productTypes: ProductType[];
   onEdit: (productType: ProductType) => void;
+  onDelete: (id: string) => Promise<void>;
+  onStatusChange: (id: string, status: boolean) => Promise<void>;
+  isLoading?: boolean;
 }
 
-export function ProductTypeList({ onEdit }: ProductTypeListProps) {
-  const { toast } = useToast();
-  const { productTypes, deleteProductType } = useProductTypes();
-
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteProductType(id);
-      toast({
-        title: 'Success',
-        description: 'Product type has been deleted successfully',
-      });
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to delete product type',
-      });
-    }
-  };
+export function ProductTypeList({
+  productTypes,
+  onEdit,
+  onDelete,
+  onStatusChange,
+  isLoading,
+}: ProductTypeListProps) {
+  if (isLoading) {
+    return (
+      <div className="border rounded-lg p-8 text-center">
+        Loading product types...
+      </div>
+    );
+  }
 
   if (productTypes.length === 0) {
     return (
       <div className="border rounded-lg p-8 text-center text-muted-foreground">
-        No product types added yet. Click the "Add New Type" button to add your first product type.
+        No product types found. Add your first product type by clicking the "Add New Type" button.
       </div>
     );
   }
@@ -62,7 +63,9 @@ export function ProductTypeList({ onEdit }: ProductTypeListProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Type Name</TableHead>
-            <TableHead>Type Code</TableHead>
+            <TableHead>Code</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Created At</TableHead>
             <TableHead>Updated At</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
@@ -73,8 +76,15 @@ export function ProductTypeList({ onEdit }: ProductTypeListProps) {
             <TableRow key={type.id}>
               <TableCell className="font-medium">{type.name}</TableCell>
               <TableCell>{type.code}</TableCell>
-              <TableCell>{formatDate(type.createdAt)}</TableCell>
-              <TableCell>{formatDate(type.updatedAt)}</TableCell>
+              <TableCell>{type.description || '-'}</TableCell>
+              <TableCell>
+                <Switch
+                  checked={type.status}
+                  onCheckedChange={(checked) => onStatusChange(type.id, checked)}
+                />
+              </TableCell>
+              <TableCell>{formatDate(type.created_at)}</TableCell>
+              <TableCell>{formatDate(type.updated_at)}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Button
@@ -100,7 +110,7 @@ export function ProductTypeList({ onEdit }: ProductTypeListProps) {
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={() => handleDelete(type.id)}
+                          onClick={() => onDelete(type.id)}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
                           Delete
