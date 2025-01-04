@@ -1,17 +1,6 @@
 'use client';
 
-/**
- * Modul Pengaturan Kategori Harga
- * ------------------------------
- * Modul ini bertanggung jawab untuk:
- * 1. Mengelola kategori harga pelanggan dan marketplace
- * 2. Menyimpan dan memuat data dari localStorage
- * 3. Memvalidasi input pengguna
- * 4. Menghitung markup harga berdasarkan persentase
- */
-
-import { useState, useEffect } from 'react';
-import * as z from 'zod';
+import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,215 +11,53 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
-import type { PriceCategory } from '@/types/settings';
+import { usePriceCategories } from '@/lib/hooks/price-categories/use-price-categories';
+import type { PriceCategoryFormData } from '@/lib/api/price-categories';
 
-/**
- * Schema Validasi Kategori
- * -----------------------
- * Menggunakan Zod untuk memvalidasi:
- * - Nama kategori: harus diisi
- * - Multiplier: harus lebih besar dari 0
- */
-const categorySchema = z.object({
-  name: z.string().min(1, 'Category name is required'),
-  multiplier: z.number().min(0.01, 'Multiplier must be greater than 0'),
-});
-
-/**
- * Komponen Halaman Kategori Harga
- * ------------------------------
- * Fitur utama:
- * 1. Manajemen kategori harga pelanggan
- * 2. Manajemen kategori harga marketplace
- * 3. Penyimpanan otomatis ke localStorage
- * 4. Validasi input
- */
 export default function CategoriesPage() {
   const { toast } = useToast();
-  const [categories, setCategories] = useState<PriceCategory[]>([]);
-  const [marketplaceCategories, setMarketplaceCategories] = useState<PriceCategory[]>([]);
+  const { 
+    customerCategories, 
+    ecommerceCategories, 
+    createPriceCategory,
+    updatePriceCategory,
+    deletePriceCategory,
+    isLoading 
+  } = usePriceCategories();
 
-  /**
-   * Hook useEffect - Inisialisasi Data
-   * --------------------------------
-   * Proses:
-   * 1. Memeriksa data di localStorage
-   * 2. Jika ada, muat data tersebut
-   * 3. Jika tidak ada, buat data default
-   * 4. Lakukan untuk kedua jenis kategori
-   */
-  useEffect(() => {
-    const savedCategories = localStorage.getItem('priceCategories');
-    if (savedCategories) {
-      setCategories(JSON.parse(savedCategories));
-    } else {
-      // Set default categories if none exist
-      const defaultCategories = [
-        { id: '1', name: 'Elite', percentage: 10, order: 0 },
-        { id: '2', name: 'Super', percentage: 20, order: 1 },
-        { id: '3', name: 'Basic', percentage: 30, order: 2 },
-      ];
-      setCategories(defaultCategories);
-      localStorage.setItem('priceCategories', JSON.stringify(defaultCategories));
+  const handleAddCategory = async (type: 'Customer' | 'Ecommerce') => {
+    try {
+      const newCategory: PriceCategoryFormData = {
+        type,
+        name: '',
+        formula: `Formula: HB Naik + 0% markup`,
+        percentage: 0,
+        status: true,
+      };
+      await createPriceCategory(newCategory);
+    } catch (error) {
+      console.error('Error adding category:', error);
     }
+  };
 
-    // Load marketplace categories
-    const savedMarketplaceCategories = localStorage.getItem('marketplaceCategories');
-    if (savedMarketplaceCategories) {
-      setMarketplaceCategories(JSON.parse(savedMarketplaceCategories));
-    } else {
-      const defaultMarketplaceCategories = [
-        { id: '1', name: 'Shopee', percentage: 5, order: 0 },
-        { id: '2', name: 'Tokopedia', percentage: 8, order: 1 },
-        { id: '3', name: 'Lazada', percentage: 10, order: 2 },
-      ];
-      setMarketplaceCategories(defaultMarketplaceCategories);
-      localStorage.setItem('marketplaceCategories', JSON.stringify(defaultMarketplaceCategories));
+  const handleUpdateCategory = async (id: string, data: PriceCategoryFormData) => {
+    try {
+      await updatePriceCategory(id, data);
+    } catch (error) {
+      console.error('Error updating category:', error);
     }
-  }, []);
-
-  /**
-   * Fungsi Manajemen Kategori Pelanggan
-   * ---------------------------------
-   */
-
-  /**
-   * addCategory
-   * ----------
-   * Menambah kategori baru dengan:
-   * - ID: timestamp saat ini
-   * - Nama: kosong (untuk diisi user)
-   * - Persentase: 0 (untuk diisi user)
-   * - Urutan: sesuai jumlah kategori
-   */
-  const addCategory = () => {
-    const newCategory: PriceCategory = {
-      id: Date.now().toString(),
-      name: '', // Initialize with empty string
-      percentage: 0, // Initialize with 0
-      order: categories.length,
-    };
-    setCategories([...categories, newCategory]);
   };
 
-  /**
-   * removeCategory
-   * -------------
-   * Menghapus kategori dengan validasi:
-   * - Mencegah penghapusan jika hanya 1 kategori
-   * - Memperbarui localStorage setelah penghapusan
-   */
-  const removeCategory = (id: string) => {
-    if (categories.length <= 1) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'You must have at least one category',
-      });
-      return;
+  const handleDeleteCategory = async (id: string) => {
+    try {
+      await deletePriceCategory(id);
+    } catch (error) {
+      console.error('Error deleting category:', error);
     }
-    setCategories(categories.filter(cat => cat.id !== id));
-    localStorage.setItem('priceCategories', JSON.stringify(
-      categories.filter(cat => cat.id !== id)
-    ));
   };
 
-  /**
-   * updateCategory
-   * -------------
-   * Memperbarui data kategori:
-   * - Dapat mengubah nama atau persentase
-   * - Memvalidasi input persentase hanya angka
-   * - Menyimpan perubahan ke localStorage
-   */
-  const updateCategory = (id: string, field: keyof PriceCategory, value: string | number) => {
-    const updatedCategories = categories.map(cat => {
-      if (cat.id === id) {
-        return {
-          ...cat,
-          [field]: field === 'percentage' ? Number(value) || 0 : value || '',
-        };
-      }
-      return cat;
-    });
-    setCategories(updatedCategories);
-    localStorage.setItem('priceCategories', JSON.stringify(updatedCategories));
-  };
-
-  /**
-   * Fungsi Manajemen Kategori Marketplace
-   * ----------------------------------
-   * Memiliki logika yang mirip dengan kategori pelanggan
-   * tetapi dikhususkan untuk marketplace
-   */
-  const addMarketplaceCategory = () => {
-    const newCategory: PriceCategory = {
-      id: Date.now().toString(),
-      name: '',
-      percentage: 0,
-      order: marketplaceCategories.length,
-    };
-    setMarketplaceCategories([...marketplaceCategories, newCategory]);
-  };
-
-  const removeMarketplaceCategory = (id: string) => {
-    if (marketplaceCategories.length <= 1) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'You must have at least one marketplace category',
-      });
-      return;
-    }
-    setMarketplaceCategories(marketplaceCategories.filter(cat => cat.id !== id));
-    localStorage.setItem('marketplaceCategories', JSON.stringify(
-      marketplaceCategories.filter(cat => cat.id !== id)
-    ));
-  };
-
-  const updateMarketplaceCategory = (id: string, field: keyof PriceCategory, value: string | number) => {
-    const updatedCategories = marketplaceCategories.map(cat => {
-      if (cat.id === id) {
-        return {
-          ...cat,
-          [field]: field === 'percentage' ? Number(value) || 0 : value || '',
-        };
-      }
-      return cat;
-    });
-    setMarketplaceCategories(updatedCategories);
-    localStorage.setItem('marketplaceCategories', JSON.stringify(updatedCategories));
-  };
-
-  /**
-   * saveAllCategories
-   * ----------------
-   * Menyimpan semua perubahan:
-   * 1. Kategori pelanggan
-   * 2. Kategori marketplace
-   * 3. Menampilkan notifikasi sukses
-   */
-  const saveAllCategories = () => {
-    localStorage.setItem('priceCategories', JSON.stringify(categories));
-    localStorage.setItem('marketplaceCategories', JSON.stringify(marketplaceCategories));
-    toast({
-      title: 'Success',
-      description: 'All categories have been saved successfully',
-    });
-  };
-
-  /**
-   * Render Komponen
-   * -------------
-   * Struktur UI:
-   * 1. Header dengan judul dan deskripsi
-   * 2. Card kategori pelanggan
-   *    - Daftar kategori yang dapat diedit
-   * 3. Card kategori marketplace
-   *    - Daftar marketplace yang dapat diedit
-   * 4. Tombol simpan di bagian bawah
-   */
   return (
     <div className="container mx-auto py-4 space-y-4">
       <div className="flex items-center justify-between">
@@ -251,7 +78,12 @@ export default function CategoriesPage() {
                 Define your pricing tiers and their respective multipliers.
               </CardDescription>
             </div>
-            <Button onClick={addCategory} variant="outline" size="default">
+            <Button 
+              onClick={() => handleAddCategory('Customer')} 
+              variant="outline" 
+              size="default"
+              disabled={isLoading}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Category
             </Button>
@@ -259,7 +91,7 @@ export default function CategoriesPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-3">
-            {categories.map((category, index) => (
+            {customerCategories.map((category) => (
               <div
                 key={category.id}
                 className="flex flex-col gap-2 p-4 border rounded-md bg-background"
@@ -267,26 +99,30 @@ export default function CategoriesPage() {
                 <div className="flex-1 grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Input
-                      value={category.name || ''} // Ensure value is never undefined
-                      onChange={(e) => updateCategory(category.id, 'name', e.target.value)}
+                      value={category.name}
+                      onChange={(e) => handleUpdateCategory(category.id, {
+                        ...category,
+                        name: e.target.value,
+                      })}
                       placeholder="e.g., Basic, Elite"
+                      disabled={isLoading}
                     />
                     <div className="text-xs text-muted-foreground">
-                      Formula: HB Naik + {category.percentage}% markup
+                      {category.formula}
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <div className="flex-1 space-y-2">
                       <Input
-                        type="text"
-                        inputMode="decimal"
-                        pattern="[0-9]*"
-                        value={category.percentage || 0} // Ensure value is never undefined
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, '');
-                          updateCategory(category.id, 'percentage', value ? parseInt(value) : 0);
-                        }}
+                        type="number"
+                        value={category.percentage}
+                        onChange={(e) => handleUpdateCategory(category.id, {
+                          ...category,
+                          percentage: Number(e.target.value),
+                          formula: `Formula: HB Naik + ${e.target.value}% markup`,
+                        })}
                         placeholder="Enter percentage"
+                        disabled={isLoading}
                       />
                       <span className="text-xs text-muted-foreground block">
                         Percentage (%): e.g., 10 for 10%
@@ -295,7 +131,8 @@ export default function CategoriesPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => removeCategory(category.id)}
+                      onClick={() => handleDeleteCategory(category.id)}
+                      disabled={isLoading}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -316,7 +153,12 @@ export default function CategoriesPage() {
                 Define your marketplace pricing tiers and their respective multipliers.
               </CardDescription>
             </div>
-            <Button onClick={addMarketplaceCategory} variant="outline" size="default">
+            <Button 
+              onClick={() => handleAddCategory('Ecommerce')} 
+              variant="outline" 
+              size="default"
+              disabled={isLoading}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Category
             </Button>
@@ -324,7 +166,7 @@ export default function CategoriesPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-3">
-            {marketplaceCategories.map((category, index) => (
+            {ecommerceCategories.map((category) => (
               <div
                 key={category.id}
                 className="flex flex-col gap-2 p-4 border rounded-md bg-background"
@@ -332,26 +174,30 @@ export default function CategoriesPage() {
                 <div className="flex-1 grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Input
-                      value={category.name || ''}
-                      onChange={(e) => updateMarketplaceCategory(category.id, 'name', e.target.value)}
+                      value={category.name}
+                      onChange={(e) => handleUpdateCategory(category.id, {
+                        ...category,
+                        name: e.target.value,
+                      })}
                       placeholder="e.g., Shopee, Tokopedia"
+                      disabled={isLoading}
                     />
                     <div className="text-xs text-muted-foreground">
-                      Formula: HB Naik + {category.percentage}% markup
+                      {category.formula}
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <div className="flex-1 space-y-2">
                       <Input
-                        type="text"
-                        inputMode="decimal"
-                        pattern="[0-9]*"
-                        value={category.percentage || 0}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, '');
-                          updateMarketplaceCategory(category.id, 'percentage', value ? parseInt(value) : 0);
-                        }}
+                        type="number"
+                        value={category.percentage}
+                        onChange={(e) => handleUpdateCategory(category.id, {
+                          ...category,
+                          percentage: Number(e.target.value),
+                          formula: `Formula: HB Naik + ${e.target.value}% markup`,
+                        })}
                         placeholder="Enter percentage"
+                        disabled={isLoading}
                       />
                       <span className="text-xs text-muted-foreground block">
                         Percentage (%): e.g., 10 for 10%
@@ -360,7 +206,8 @@ export default function CategoriesPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => removeMarketplaceCategory(category.id)}
+                      onClick={() => handleDeleteCategory(category.id)}
+                      disabled={isLoading}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -371,12 +218,6 @@ export default function CategoriesPage() {
           </div>
         </CardContent>
       </Card>
-
-      <div className="flex justify-end">
-        <Button onClick={saveAllCategories} size="default">
-          Save Changes
-        </Button>
-      </div>
     </div>
   );
 }
