@@ -9,14 +9,14 @@ import type { RootState } from "../store";
 
 interface PriceCategoriesState {
   customerCategories: PriceCategory[];
-  ecommerceCategories: PriceCategory[];
+  marketplaceCategories: PriceCategory[]; // Rename dari ecommerceCategories
   isLoading: boolean;
   error: string | null;
 }
 
 const initialState: PriceCategoriesState = {
   customerCategories: [],
-  ecommerceCategories: [],
+  marketplaceCategories: [], // Rename dari ecommerceCategories
   isLoading: false,
   error: null,
 };
@@ -49,53 +49,52 @@ const priceCategoriesSlice = createSlice({
     addCategory: (
       state,
       action: PayloadAction<{
-        type: "Customer" | "Ecommerce";
+        type: "Customer" | "Marketplace";
         category: PriceCategory;
       }>
     ) => {
       const { type, category } = action.payload;
+      // Remove toast notification from here, it should be handled in the component
       if (type === "Customer") {
         state.customerCategories.push({
           ...category,
           type: "customer",
-          temp_key: `temp_${Date.now()}_${Math.random()}`,
         });
       } else {
-        state.ecommerceCategories.push({
+        state.marketplaceCategories.push({
           ...category,
-          type: "ecommerce",
-          temp_key: `temp_${Date.now()}_${Math.random()}`,
+          type: "marketplace",
         });
       }
     },
     updateCategory: (
       state,
       action: PayloadAction<{
-        type: "Customer" | "Ecommerce";
+        type: "Customer" | "Marketplace";
         category: PriceCategory;
       }>
     ) => {
       const { type, category } = action.payload;
       if (type === "Customer") {
         const index = state.customerCategories.findIndex(
-          (cat) => cat.id === category.id
+          (cat) => String(cat.id) === String(category.id) // Convert to string for comparison
         );
         if (index !== -1) {
           state.customerCategories[index] = category;
         }
       } else {
-        const index = state.ecommerceCategories.findIndex(
-          (cat) => cat.id === category.id
+        const index = state.marketplaceCategories.findIndex(
+          (cat) => String(cat.id) === String(category.id) // Convert to string for comparison
         );
         if (index !== -1) {
-          state.ecommerceCategories[index] = category;
+          state.marketplaceCategories[index] = category;
         }
       }
     },
     deleteCategory: (
       state,
       action: PayloadAction<{
-        type: "Customer" | "Ecommerce";
+        type: "Customer" | "Marketplace"; // Update type to match new naming
         id: number | null;
         temp_key?: string;
       }>
@@ -104,7 +103,7 @@ const priceCategoriesSlice = createSlice({
 
       // Function untuk filter kategori
       const filterCategories = (categories: PriceCategory[]) => {
-        if (id === null) {
+        if (id === null && temp_key) {
           // Case 2: Jika id null, filter berdasarkan temp_key
           return categories.filter((cat) => cat.temp_key !== temp_key);
         }
@@ -114,8 +113,11 @@ const priceCategoriesSlice = createSlice({
 
       if (type === "Customer") {
         state.customerCategories = filterCategories(state.customerCategories);
-      } else {
-        state.ecommerceCategories = filterCategories(state.ecommerceCategories);
+      } else if (type === "Marketplace") {
+        // Update dari "Ecommerce" ke "Marketplace"
+        state.marketplaceCategories = filterCategories(
+          state.marketplaceCategories
+        );
       }
     },
   },
@@ -127,16 +129,21 @@ const priceCategoriesSlice = createSlice({
       })
       .addCase(fetchPriceCategories.fulfilled, (state, action) => {
         state.isLoading = false;
+        // Reset state arrays
+        state.customerCategories = [];
+        state.marketplaceCategories = []; // Rename dari ecommerceCategories
+
         action.payload.forEach((group: GroupedPriceCategories) => {
           const categories = group.categories.map((category) => ({
             ...category,
             temp_key: `temp_${Date.now()}_${category.id}`,
+            percentage: Number(category.percentage), // Convert string percentage to number
           }));
 
           if (group.type.toLowerCase() === "customer") {
             state.customerCategories = categories;
-          } else if (group.type.toLowerCase() === "eccomerce") {
-            state.ecommerceCategories = categories;
+          } else if (group.type.toLowerCase() === "marketplace") {
+            state.marketplaceCategories = categories; // Rename dari ecommerceCategories
           }
         });
       })
@@ -152,8 +159,9 @@ export const { addCategory, updateCategory, deleteCategory } =
 
 export const selectCustomerCategories = (state: RootState) =>
   state.priceCategories.customerCategories;
-export const selectEcommerceCategories = (state: RootState) =>
-  state.priceCategories.ecommerceCategories;
+export const selectMarketplaceCategories = (
+  state: RootState // Rename dari selectEcommerceCategories
+) => state.priceCategories.marketplaceCategories;
 export const selectIsLoading = (state: RootState) =>
   state.priceCategories.isLoading;
 export const selectError = (state: RootState) => state.priceCategories.error;
