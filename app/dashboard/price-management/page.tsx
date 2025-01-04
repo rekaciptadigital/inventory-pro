@@ -1,24 +1,25 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { PriceManagementList } from '@/components/price-management/price-management-list';
-import { useProducts } from '@/lib/hooks/use-products';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PriceManagementList } from "@/components/price-management/price-management-list";
+import { useProducts } from "@/lib/hooks/use-products";
 
 export default function PriceManagementPage() {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const { products } = useProducts();
 
   const handleEdit = (productId: string) => {
     router.push(`/dashboard/price-management/${productId}`);
   };
 
-  const filteredProducts = products.filter(product => 
-    product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProducts = products.filter(
+    (product) =>
+      product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -40,10 +41,7 @@ export default function PriceManagementPage() {
         </div>
       </div>
 
-      <PriceManagementList 
-        products={filteredProducts}
-        onEdit={handleEdit}
-      />
+      <PriceManagementList products={filteredProducts} onEdit={handleEdit} />
     </div>
   );
 }
