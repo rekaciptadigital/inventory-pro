@@ -1,29 +1,69 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import type { ProductType } from '@/types/product-type';
+import { useState, useEffect } from "react";
+import type { ProductType } from "@/types/product-type";
 
 export function useProductTypes() {
   const [productTypes, setProductTypes] = useState<ProductType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedProductTypes = localStorage.getItem('productTypes');
-    if (savedProductTypes) {
-      setProductTypes(JSON.parse(savedProductTypes));
-    }
+    const initializeProductTypes = () => {
+      const savedProductTypes = localStorage.getItem("productTypes");
+      if (savedProductTypes) {
+        const parsed = JSON.parse(savedProductTypes);
+        console.log("Loaded product types:", parsed); // Debug log
+        setProductTypes(parsed);
+      } else {
+        // Initialize with default product types if none exist
+        const defaultTypes = [
+          {
+            id: "1",
+            name: "Arrow",
+            code: "AR",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            id: "2",
+            name: "Bow",
+            code: "BW",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            id: "3",
+            name: "Accessory",
+            code: "AC",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ];
+        console.log("Setting default types:", defaultTypes); // Debug log
+        setProductTypes(defaultTypes);
+        localStorage.setItem("productTypes", JSON.stringify(defaultTypes));
+      }
+      setIsLoading(false);
+    };
+
+    initializeProductTypes();
   }, []);
 
   const addProductType = (name: string, code: string): Promise<ProductType> => {
     return new Promise((resolve, reject) => {
       // Check for duplicate names
-      if (productTypes.some(type => type.name.toLowerCase() === name.toLowerCase())) {
-        reject(new Error('A product type with this name already exists'));
+      if (
+        productTypes.some(
+          (type) => type.name.toLowerCase() === name.toLowerCase()
+        )
+      ) {
+        reject(new Error("A product type with this name already exists"));
         return;
       }
 
       // Check for duplicate codes
-      if (productTypes.some(type => type.code === code)) {
-        reject(new Error('A product type with this code already exists'));
+      if (productTypes.some((type) => type.code === code)) {
+        reject(new Error("A product type with this code already exists"));
         return;
       }
 
@@ -37,30 +77,35 @@ export function useProductTypes() {
 
       const updatedTypes = [...productTypes, newProductType];
       setProductTypes(updatedTypes);
-      localStorage.setItem('productTypes', JSON.stringify(updatedTypes));
+      localStorage.setItem("productTypes", JSON.stringify(updatedTypes));
       resolve(newProductType);
     });
   };
 
-  const updateProductType = (id: string, name: string, code: string): Promise<ProductType> => {
+  const updateProductType = (
+    id: string,
+    name: string,
+    code: string
+  ): Promise<ProductType> => {
     return new Promise((resolve, reject) => {
       // Check for duplicate names, excluding the current type
-      if (productTypes.some(type => 
-        type.id !== id && type.name.toLowerCase() === name.toLowerCase()
-      )) {
-        reject(new Error('A product type with this name already exists'));
+      if (
+        productTypes.some(
+          (type) =>
+            type.id !== id && type.name.toLowerCase() === name.toLowerCase()
+        )
+      ) {
+        reject(new Error("A product type with this name already exists"));
         return;
       }
 
       // Check for duplicate codes, excluding the current type
-      if (productTypes.some(type => 
-        type.id !== id && type.code === code
-      )) {
-        reject(new Error('A product type with this code already exists'));
+      if (productTypes.some((type) => type.id !== id && type.code === code)) {
+        reject(new Error("A product type with this code already exists"));
         return;
       }
 
-      const updatedTypes = productTypes.map(type => {
+      const updatedTypes = productTypes.map((type) => {
         if (type.id === id) {
           return {
             ...type,
@@ -73,27 +118,28 @@ export function useProductTypes() {
       });
 
       setProductTypes(updatedTypes);
-      localStorage.setItem('productTypes', JSON.stringify(updatedTypes));
-      resolve(updatedTypes.find(type => type.id === id)!);
+      localStorage.setItem("productTypes", JSON.stringify(updatedTypes));
+      resolve(updatedTypes.find((type) => type.id === id)!);
     });
   };
 
   const deleteProductType = (id: string): Promise<void> => {
     return new Promise((resolve) => {
-      const updatedTypes = productTypes.filter(type => type.id !== id);
+      const updatedTypes = productTypes.filter((type) => type.id !== id);
       setProductTypes(updatedTypes);
-      localStorage.setItem('productTypes', JSON.stringify(updatedTypes));
+      localStorage.setItem("productTypes", JSON.stringify(updatedTypes));
       resolve();
     });
   };
 
   const getProductTypeName = (typeId: string): string => {
-    const productType = productTypes.find(type => type.id === typeId);
-    return productType?.name || 'Unknown Type';
+    const productType = productTypes.find((type) => type.id === typeId);
+    return productType?.name || "Unknown Type";
   };
 
   return {
     productTypes,
+    isLoading,
     addProductType,
     updateProductType,
     deleteProductType,
