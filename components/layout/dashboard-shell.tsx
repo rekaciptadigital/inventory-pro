@@ -11,8 +11,8 @@ export function DashboardShell({
   onToggleSidebar,
 }: DashboardShellProps) {
   return (
-    <div className="flex-1">
-      <header className="sticky top-0 z-10 border-b bg-background">
+    <div className="flex-1 flex flex-col h-screen">
+      <header className="shrink-0 border-b bg-background">
         <div className="flex h-16 items-center px-4">
           <Button
             variant="ghost"
@@ -24,7 +24,7 @@ export function DashboardShell({
           </Button>
         </div>
       </header>
-      <main className="h-[calc(100vh-4rem)] overflow-y-auto">
+      <main className="flex-1 overflow-auto">
         <div className="container mx-auto p-6 lg:p-8">{children}</div>
       </main>
     </div>
