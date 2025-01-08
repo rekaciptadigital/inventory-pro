@@ -1,23 +1,42 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/components/ui/use-toast';
 import { buildCategoryTree, flattenCategoryTree } from '@/lib/utils/category-utils';
+import { 
+  getProductCategories,
+  updateProductCategory,
+  deleteProductCategory
+} from '@/lib/api/product-categories';
 import type { Category, CategoryFormData, CategoryTreeItem } from '@/types/category';
 import { generateSlug } from '@/lib/utils/slug';
 
 export function useCategories() {
+  const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryTree, setCategoryTree] = useState<CategoryTreeItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const savedCategories = localStorage.getItem('categories');
-    if (savedCategories) {
-      const parsedCategories = JSON.parse(savedCategories);
-      setCategories(parsedCategories);
-      setCategoryTree(buildCategoryTree(parsedCategories));
-    }
+    fetchCategories();
   }, []);
 
+  const fetchCategories = async () => {
+    try {
+      setIsLoading(true);
+      const response = await getProductCategories();
+      setCategories(response.data);
+      setCategoryTree(buildCategoryTree(response.data));
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch categories",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   const saveCategories = (updatedCategories: Category[]) => {
     setCategories(updatedCategories);
     setCategoryTree(buildCategoryTree(updatedCategories));
@@ -67,69 +86,11 @@ export function useCategories() {
   const updateCategory = async (id: string, data: CategoryFormData): Promise<Category> => {
     return new Promise((resolve, reject) => {
       try {
-        // Validate unique name within the same level
         const siblings = categories.filter(cat => 
           cat.parentId === data.parentId && cat.id !== id
-        );
-        if (siblings.some(cat => cat.name.toLowerCase() === data.name.toLowerCase())) {
-          throw new Error('A category with this name already exists at this level');
-        }
-
-        // Prevent circular reference
-        if (id === data.parentId) {
-          throw new Error('A category cannot be its own parent');
-        }
-
-        // Check if new parent is not a descendant
-        const isDescendant = (parentId: string | null, targetId: string): boolean => {
-          if (!parentId) return false;
-          const parent = categories.find(cat => cat.id === parentId);
-          if (!parent) return false;
-          if (parent.id === targetId) return true;
-          return isDescendant(parent.parentId, targetId);
-        };
-
-        if (data.parentId && isDescendant(data.parentId, id)) {
-          throw new Error('Cannot move a category to its own descendant');
-        }
-
-        // Calculate new level
-        const level = data.parentId 
-          ? (categories.find(cat => cat.id === data.parentId)?.level || 0) + 1
-          : 0;
-
-        const updatedCategories = categories.map(category => {
-          if (category.id === id) {
-            return {
-              ...category,
-              name: data.name,
-              slug: generateSlug(data.name),
-              description: data.description,
-              status: data.status,
-              parentId: data.parentId,
-              level,
-              updatedAt: new Date().toISOString(),
-            };
-          }
-          return category;
-        });
-
-        // Update levels of all descendants
-        const updateDescendantLevels = (parentId: string, parentLevel: number) => {
-          const children = updatedCategories.filter(cat => cat.parentId === parentId);
-          children.forEach(child => {
-            const childIndex = updatedCategories.findIndex(cat => cat.id === child.id);
-            updatedCategories[childIndex] = {
-              ...child,
-              level: parentLevel + 1,
-            };
-            updateDescendantLevels(child.id, parentLevel + 1);
-          });
-        };
-
-        updateDescendantLevels(id, level);
-        saveCategories(updatedCategories);
-        resolve(updatedCategories.find(cat => cat.id === id)!);
+        await updateProductCategory(Number(id), data);
+        await fetchCategories();
+        resolve(categories.find(cat => cat.id === id)!);
       } catch (error) {
         reject(error);
       }
@@ -139,20 +100,6 @@ export function useCategories() {
   const deleteCategory = async (id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       try {
-        // Get all descendant categories
-        const getDescendants = (categoryId: string): string[] => {
-          const children = categories.filter(cat => cat.parentId === categoryId);
-          return [
-            categoryId,
-            ...children.flatMap(child => getDescendants(child.id)),
-          ];
-        };
-
-        const categoriesToDelete = getDescendants(id);
-        const updatedCategories = categories.filter(
-          category => !categoriesToDelete.includes(category.id)
-        );
-
         saveCategories(updatedCategories);
         resolve();
       } catch (error) {
@@ -200,7 +147,8 @@ export function useCategories() {
           }
         });
 
-        saveCategories(updatedCategories);
+        await deleteProductCategory(Number(id));
+        await fetchCategories();
         resolve();
       } catch (error) {
         reject(error);
@@ -211,6 +159,7 @@ export function useCategories() {
   return {
     categories,
     categoryTree,
+    isLoading,
     addCategory,
     updateCategory,
     deleteCategory,

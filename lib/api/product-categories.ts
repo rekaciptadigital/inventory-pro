@@ -62,13 +62,33 @@ export async function createProductCategory(
 export async function updateProductCategory(
   id: number,
   data: ProductCategoryFormData
-): Promise<ApiResponse<ProductCategory>> {
-  const response = await axiosInstance.put(`/product-categories/${id}`, data);
-  return response.data;
+): Promise<void> {
+  try {
+    const response = await axiosInstance.put(`/product-categories/${id}`, data);
+    if (response.data.status.code === 200) {
+      return response.data;
+    }
+    throw new Error(response.data.error?.[0] || 'Failed to update category');
+  } catch (error: any) {
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error[0]);
+    }
+    throw new Error('Failed to update category');
+  }
 }
 
 export async function deleteProductCategory(id: number): Promise<void> {
-  await axiosInstance.delete(`/product-categories/${id}`);
+  try {
+    const response = await axiosInstance.delete(`/product-categories/${id}`);
+    if (response.data.status.code !== 200) {
+      throw new Error(response.data.error?.[0] || 'Failed to delete category');
+    }
+  } catch (error: any) {
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error[0]);
+    }
+    throw new Error('Failed to delete category');
+  }
 }
 
 export async function updateProductCategoryStatus(

@@ -23,10 +23,16 @@ import type { Category, CategoryTreeItem } from '@/types/category';
 interface CategoryTreeProps {
   categories: CategoryTreeItem[];
   onEdit: (category: Category) => void;
+  onDelete: (category: Category) => void;
   onAddSubcategory: (parent: Category) => void;
 }
 
-export function CategoryTree({ categories, onEdit, onAddSubcategory }: CategoryTreeProps) {
+export function CategoryTree({ 
+  categories, 
+  onEdit, 
+  onDelete,
+  onAddSubcategory 
+}: CategoryTreeProps) {
   const { toast } = useToast();
   const { deleteCategory } = useCategories();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -133,6 +139,13 @@ export function CategoryTree({ categories, onEdit, onAddSubcategory }: CategoryT
                 onClick={() => onEdit(category)}
               >
                 <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onDelete(category)}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
