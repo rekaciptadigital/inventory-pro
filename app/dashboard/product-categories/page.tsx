@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, Search } from 'lucide-react';
+import { ProductCategoryForm } from '@/components/categories/product-category-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -38,6 +39,7 @@ import type { ProductCategory } from '@/types/product-category';
 export default function ProductCategoriesPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<string>('all');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sort, setSort] = useState<'ASC' | 'DESC'>('DESC');
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
   const { currentPage, pageSize, handlePageChange, handlePageSizeChange } = usePagination();
@@ -46,6 +48,7 @@ export default function ProductCategoriesPage() {
     categories,
     pagination,
     isLoading,
+    createCategory,
     error,
   } = useProductCategories({
     search,
@@ -126,11 +129,30 @@ export default function ProductCategoriesPage() {
             Manage your product categories and subcategories
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add New Category
         </Button>
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Category</DialogTitle>
+            <DialogDescription>
+              Create a new product category or subcategory
+            </DialogDescription>
+          </DialogHeader>
+          <ProductCategoryForm
+            categories={categories}
+            onSubmit={async (data) => {
+              await createCategory(data);
+              setIsDialogOpen(false);
+            }}
+            onClose={() => setIsDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       <div className="flex gap-4">
         <div className="relative flex-1">
