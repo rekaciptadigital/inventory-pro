@@ -9,4 +9,6 @@ export interface ProductCategory {
   parent_id: number | null;
   status: boolean;
   children: ProductCategory[];
+  parent?: ProductCategory; // Add this for direct parent
+  parents?: ProductCategory[]; // Add this for parent hierarchy
 }

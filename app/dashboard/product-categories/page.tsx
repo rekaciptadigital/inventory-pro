@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Plus, Search } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Search,
+  Pencil,
+  Trash,
+} from "lucide-react";
 import { ProductCategoryForm } from "@/components/categories/product-category-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +42,18 @@ import { usePagination } from "@/lib/hooks/use-pagination";
 import { useProductCategories } from "@/lib/hooks/use-product-categories";
 import { formatDate } from "@/lib/utils/format";
 import type { ProductCategory } from "@/types/product-category";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Edit, Trash2 } from "lucide-react";
 
 const generateUniqueKey = (prefix: string) => {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -48,18 +67,31 @@ export default function ProductCategoriesPage() {
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(
     new Set()
   );
+  const [selectedCategory, setSelectedCategory] =
+    useState<ProductCategory | null>(null);
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
+
   const { currentPage, pageSize, handlePageChange, handlePageSizeChange } =
     usePagination();
 
-  const { categories, pagination, isLoading, createCategory, error } =
-    useProductCategories({
-      search,
-      status: status === "all" ? undefined : status === "true",
-      page: currentPage,
-      limit: pageSize,
-      sort: "created_at",
-      order: sort,
-    });
+  const {
+    categories,
+    pagination,
+    isLoading,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    getCategory, // Add this
+    error,
+  } = useProductCategories({
+    search,
+    status: status === "all" ? undefined : status === "true",
+    page: currentPage,
+    limit: pageSize,
+    sort: "created_at",
+    order: sort,
+  });
 
   const toggleExpand = (categoryId: number) => {
     const newExpanded = new Set(expandedCategories);
@@ -69,6 +101,47 @@ export default function ProductCategoriesPage() {
       newExpanded.add(categoryId);
     }
     setExpandedCategories(newExpanded);
+  };
+
+  const handleUpdate = async (data: z.infer<typeof formSchema>) => {
+    if (!selectedCategory?.id) return;
+
+    try {
+      await updateCategory({
+        id: selectedCategory.id,
+        data: {
+          name: data.name,
+          description: data.description || "",
+          status: data.status,
+        },
+      });
+      setIsUpdateDialogOpen(false);
+      setSelectedCategory(null);
+    } catch (error) {
+      console.error("Update error:", error);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      setIsDeleting(id);
+      await deleteCategory(id);
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const handleEdit = async (category: ProductCategory) => {
+    try {
+      const detailData = await getCategory(category.id);
+      console.log("Category detail:", detailData); // Tambahkan log untuk debugging
+      if (detailData?.data) {
+        setSelectedCategory(detailData.data);
+        setIsUpdateDialogOpen(true);
+      }
+    } catch (error) {
+      console.error("Failed to fetch category details:", error);
+    }
   };
 
   const renderCategory = (category: ProductCategory, level: number = 0) => {
@@ -83,20 +156,6 @@ export default function ProductCategoriesPage() {
               className="flex items-center"
               style={{ paddingLeft: `${level * 2}rem` }}
             >
-              {hasChildren && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 p-0 mr-2"
-                  onClick={() => toggleExpand(category.id)}
-                >
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
               {category.name}
             </div>
           </TableCell>
@@ -107,8 +166,56 @@ export default function ProductCategoriesPage() {
               {category.status ? "Active" : "Inactive"}
             </Badge>
           </TableCell>
-          <TableCell>{formatDate(category.created_at)}</TableCell>
-          <TableCell>{formatDate(category.updated_at)}</TableCell>
+          <TableCell>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleEdit(category)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Category</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this category? This action
+                      cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleDelete(category.id)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      disabled={isDeleting === category.id}
+                    >
+                      {isDeleting === category.id ? "Deleting..." : "Delete"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              {hasChildren && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => toggleExpand(category.id)}
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+            </div>
+          </TableCell>
         </TableRow>
         {hasChildren &&
           isExpanded &&
@@ -156,6 +263,28 @@ export default function ProductCategoriesPage() {
             }}
             onClose={() => setIsDialogOpen(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+        <DialogContent className="flex flex-col max-h-[90vh]">
+          <DialogHeader className="flex-none border-b bg-background pb-4">
+            <DialogTitle>Update Category</DialogTitle>
+            <DialogDescription>
+              Update product category details
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto py-4">
+            <ProductCategoryForm
+              categories={categories}
+              initialData={selectedCategory}
+              onSubmit={handleUpdate}
+              onClose={() => {
+                setIsUpdateDialogOpen(false);
+                setSelectedCategory(null);
+              }}
+            />
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -213,8 +342,7 @@ export default function ProductCategoriesPage() {
               <TableHead>Code</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Created At</TableHead>
-              <TableHead>Updated At</TableHead>
+              <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
