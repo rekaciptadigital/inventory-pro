@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -13,21 +13,21 @@ import {
   FormLabel,
   FormMessage,
   FormDescription,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import type { ProductCategory } from '@/types/product-category';
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import type { ProductCategory } from "@/types/product-category";
 
 const formSchema = z.object({
-  name: z.string().min(1, 'Category name is required'),
+  name: z.string().min(1, "Category name is required"),
   description: z.string().optional(),
   parent_id: z.number().nullable(),
   status: z.boolean().default(true),
@@ -49,8 +49,8 @@ export function ProductCategoryForm({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
-      description: '',
+      name: "",
+      description: "",
       parent_id: null,
       status: true,
     },
@@ -71,7 +71,7 @@ export function ProductCategoryForm({
     level = 0,
     result: Array<{ id: number; name: string; level: number }> = []
   ) => {
-    cats.forEach(cat => {
+    cats.forEach((cat) => {
       result.push({ id: cat.id, name: cat.name, level });
       if (cat.children?.length) {
         flattenCategories(cat.children, level + 1, result);
@@ -106,7 +106,7 @@ export function ProductCategoryForm({
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea 
+                <Textarea
                   placeholder="Enter category description (optional)"
                   className="resize-none"
                   {...field}
@@ -124,8 +124,10 @@ export function ProductCategoryForm({
             <FormItem>
               <FormLabel>Parent Category</FormLabel>
               <Select
-                onValueChange={(value) => field.onChange(value ? Number(value) : null)}
-                value={field.value?.toString()}
+                onValueChange={(value) =>
+                  field.onChange(value === "null" ? null : Number(value))
+                }
+                value={field.value?.toString() || "null"}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -133,13 +135,15 @@ export function ProductCategoryForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="">None (Top Level)</SelectItem>
+                  <SelectItem value="null">None (Top Level)</SelectItem>
                   {flatCategories.map((category) => (
-                    <SelectItem 
-                      key={category.id} 
+                    <SelectItem
+                      key={category.id}
                       value={category.id.toString()}
                       className="pl-[var(--indent)]"
-                      style={{ '--indent': `${category.level * 1.5}rem` } as any}
+                      style={
+                        { "--indent": `${category.level * 1.5}rem` } as any
+                      }
                     >
                       {category.name}
                     </SelectItem>
@@ -162,7 +166,8 @@ export function ProductCategoryForm({
               <div className="space-y-0.5">
                 <FormLabel>Active Status</FormLabel>
                 <FormDescription>
-                  Category will {field.value ? 'be visible' : 'not be visible'} in the system
+                  Category will {field.value ? "be visible" : "not be visible"}{" "}
+                  in the system
                 </FormDescription>
               </div>
               <FormControl>
@@ -185,7 +190,7 @@ export function ProductCategoryForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Creating...' : 'Create Category'}
+            {isSubmitting ? "Creating..." : "Create Category"}
           </Button>
         </div>
       </form>

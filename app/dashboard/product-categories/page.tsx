@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, Search } from 'lucide-react';
-import { ProductCategoryForm } from '@/components/categories/product-category-form';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React, { useState } from "react";
+import { ChevronDown, ChevronRight, Plus, Search } from "lucide-react";
+import { ProductCategoryForm } from "@/components/categories/product-category-form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -19,45 +19,47 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { PaginationControls } from '@/components/ui/pagination/pagination-controls';
-import { PaginationInfo } from '@/components/ui/pagination/pagination-info';
-import { usePagination } from '@/lib/hooks/use-pagination';
-import { useProductCategories } from '@/lib/hooks/use-product-categories';
-import { formatDate } from '@/lib/utils/format';
-import type { ProductCategory } from '@/types/product-category';
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PaginationControls } from "@/components/ui/pagination/pagination-controls";
+import { PaginationInfo } from "@/components/ui/pagination/pagination-info";
+import { usePagination } from "@/lib/hooks/use-pagination";
+import { useProductCategories } from "@/lib/hooks/use-product-categories";
+import { formatDate } from "@/lib/utils/format";
+import type { ProductCategory } from "@/types/product-category";
+
+const generateUniqueKey = (prefix: string) => {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
 
 export default function ProductCategoriesPage() {
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<string>('all');
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [sort, setSort] = useState<'ASC' | 'DESC'>('DESC');
-  const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
-  const { currentPage, pageSize, handlePageChange, handlePageSizeChange } = usePagination();
+  const [sort, setSort] = useState<"ASC" | "DESC">("DESC");
+  const [expandedCategories, setExpandedCategories] = useState<Set<number>>(
+    new Set()
+  );
+  const { currentPage, pageSize, handlePageChange, handlePageSizeChange } =
+    usePagination();
 
-  const {
-    categories,
-    pagination,
-    isLoading,
-    createCategory,
-    error,
-  } = useProductCategories({
-    search,
-    status: status === 'all' ? undefined : status === 'true',
-    page: currentPage,
-    limit: pageSize,
-    sort: 'created_at',
-    order: sort,
-  });
+  const { categories, pagination, isLoading, createCategory, error } =
+    useProductCategories({
+      search,
+      status: status === "all" ? undefined : status === "true",
+      page: currentPage,
+      limit: pageSize,
+      sort: "created_at",
+      order: sort,
+    });
 
   const toggleExpand = (categoryId: number) => {
     const newExpanded = new Set(expandedCategories);
@@ -74,10 +76,13 @@ export default function ProductCategoriesPage() {
     const isExpanded = expandedCategories.has(category.id);
 
     return (
-      <>
-        <TableRow key={category.id}>
+      <React.Fragment key={generateUniqueKey(`category_${category.id}`)}>
+        <TableRow>
           <TableCell className="font-medium">
-            <div className="flex items-center" style={{ paddingLeft: `${level * 2}rem` }}>
+            <div
+              className="flex items-center"
+              style={{ paddingLeft: `${level * 2}rem` }}
+            >
               {hasChildren && (
                 <Button
                   variant="ghost"
@@ -96,19 +101,19 @@ export default function ProductCategoriesPage() {
             </div>
           </TableCell>
           <TableCell>{category.code}</TableCell>
-          <TableCell>{category.description || '-'}</TableCell>
+          <TableCell>{category.description || "-"}</TableCell>
           <TableCell>
-            <Badge variant={category.status ? 'default' : 'secondary'}>
-              {category.status ? 'Active' : 'Inactive'}
+            <Badge variant={category.status ? "default" : "secondary"}>
+              {category.status ? "Active" : "Inactive"}
             </Badge>
           </TableCell>
           <TableCell>{formatDate(category.created_at)}</TableCell>
           <TableCell>{formatDate(category.updated_at)}</TableCell>
         </TableRow>
-        {hasChildren && isExpanded && category.children.map(child => 
-          renderCategory(child, level + 1)
-        )}
-      </>
+        {hasChildren &&
+          isExpanded &&
+          category.children.map((child) => renderCategory(child, level + 1))}
+      </React.Fragment>
     );
   };
 
@@ -185,7 +190,7 @@ export default function ProductCategoriesPage() {
         </Select>
         <Select
           value={sort}
-          onValueChange={(value: 'ASC' | 'DESC') => {
+          onValueChange={(value: "ASC" | "DESC") => {
             setSort(value);
             handlePageChange(1);
           }}
@@ -215,22 +220,24 @@ export default function ProductCategoriesPage() {
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, index) => (
-                <TableRow key={index}>
+                <TableRow key={generateUniqueKey(`skeleton_${index}`)}>
                   {Array.from({ length: 6 }).map((_, cellIndex) => (
-                    <TableCell key={cellIndex}>
+                    <TableCell
+                      key={generateUniqueKey(`cell_${index}_${cellIndex}`)}
+                    >
                       <Skeleton className="h-6 w-full" />
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : categories.length === 0 ? (
-              <TableRow>
+              <TableRow key={generateUniqueKey("empty_row")}>
                 <TableCell colSpan={6} className="text-center py-8">
                   No categories found
                 </TableCell>
               </TableRow>
             ) : (
-              categories.map(category => renderCategory(category))
+              categories.map((category) => renderCategory(category))
             )}
           </TableBody>
         </Table>
