@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -21,38 +21,36 @@ interface ProductCategorySelectProps {
   value?: string;
   onValueChange: (value: string) => void;
   disabled?: boolean;
+  parentId?: string | null;
 }
 
 export function ProductCategorySelect({
   value,
   onValueChange,
   disabled = false,
+  parentId,
 }: ProductCategorySelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const { categories, isLoading } = useProductCategories({
-    search,
-    status: true, // Only show active categories
-  });
+  const { categories, isLoading } = useProductCategories();
 
-  // Flatten category tree for display
-  const flattenCategories = (cats: any[], level = 0, path: string[] = []): any[] => {
-    return cats.reduce((acc: any[], cat) => {
-      const currentPath = [...path, cat.name];
-      acc.push({
-        ...cat,
-        level,
-        fullPath: currentPath.join(' > '),
-      });
-      if (cat.children?.length) {
-        acc.push(...flattenCategories(cat.children, level + 1, currentPath));
-      }
-      return acc;
-    }, []);
-  };
+  // Filter categories based on parentId and search term
+  const filteredCategories = categories
+    .filter(category => {
+      const matchesParent = parentId === null 
+        ? !category.parentId 
+        : category.parentId === parentId;
+      
+      const matchesSearch = category.name
+        .toLowerCase()
+        .includes(search.toLowerCase());
+      
+      return matchesParent && matchesSearch;
+    })
+    .sort((a, b) => a.order - b.order);
 
-  const flatCategories = flattenCategories(categories);
-  const selectedCategory = flatCategories.find(cat => cat.id === value);
+  // Find the selected category
+  const selectedCategory = categories.find(cat => cat.id === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -65,7 +63,7 @@ export function ProductCategorySelect({
           disabled={disabled}
         >
           {selectedCategory ? (
-            <span className="truncate">{selectedCategory.fullPath}</span>
+            <span className="truncate">{selectedCategory.name}</span>
           ) : (
             "Select category..."
           )}
@@ -84,7 +82,7 @@ export function ProductCategorySelect({
           </CommandEmpty>
           <ScrollArea className="h-[300px]">
             <CommandGroup>
-              {flatCategories.map((category) => (
+              {filteredCategories.map((category) => (
                 <CommandItem
                   key={category.id}
                   value={category.id}
@@ -92,10 +90,6 @@ export function ProductCategorySelect({
                     onValueChange(category.id);
                     setOpen(false);
                   }}
-                  className={cn(
-                    "flex items-center",
-                    category.level > 0 && `pl-${(category.level * 4) + 2}`
-                  )}
                 >
                   <Check
                     className={cn(
