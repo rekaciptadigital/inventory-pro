@@ -3,6 +3,7 @@ import * as z from 'zod';
 export const productFormSchema = z.object({
   brand: z.string().min(1, 'Brand is required'),
   productTypeId: z.string().min(1, 'Product type is required'),
+  categoryId: z.string().min(1, 'Product category is required'),
   sku: z.string(),
   uniqueCode: z.string().optional(),
   fullProductName: z.string(),

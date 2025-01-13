@@ -21,10 +21,12 @@ import {
 import { Combobox } from "@/components/ui/combobox";
 import { BrandSearchSelect } from "@/components/brands/brand-search-select";
 import { ProductTypeSearchSelect } from "@/components/product-types/product-type-search-select";
+import { ProductCategorySelect } from "@/components/categories/product-category-select";
 import { UseFormReturn } from "react-hook-form";
 import { ProductFormValues } from "./form-schema";
 import { useBrands } from "@/lib/hooks/use-brands";
 import { useProductTypeList } from "@/lib/hooks/product-types/use-product-type-list";
+import { useProductCategories } from "@/lib/hooks/use-product-categories";
 import { generateSKU } from "@/lib/utils/sku-generator";
 
 interface BasicInfoProps {
@@ -35,6 +37,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
   const { brands } = useBrands();
   const { data: productTypesData, isLoading: isLoadingProductTypes } =
     useProductTypeList();
+  const { categories, isLoading: isLoadingCategories } = useProductCategories();
   const productTypes = productTypesData?.data ?? [];
 
   const brandOptions = brands.map((brand) => ({
@@ -44,6 +47,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
 
   const selectedBrand = form.watch("brand");
   const selectedProductType = form.watch("productTypeId");
+  const selectedCategory = form.watch("categoryId");
   const productName = form.watch("productName");
   const uniqueCode = form.watch("uniqueCode");
 
@@ -159,19 +163,39 @@ export function BasicInfo({ form }: BasicInfoProps) {
         />
       </div>
 
-      <FormField
-        control={form.control}
-        name="productName"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Product Name</FormLabel>
-            <FormControl>
-              <Input placeholder="Enter product name" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <div className="grid grid-cols-2 gap-4">
+        <FormField
+          control={form.control}
+          name="categoryId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Product Category</FormLabel>
+              <FormControl>
+                <ProductCategorySelect
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  disabled={isLoadingCategories}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="productName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Product Name</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter product name" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
 
       <FormField
         control={form.control}
