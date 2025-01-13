@@ -10,65 +10,36 @@ interface DynamicCategorySelectProps {
 }
 
 export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
-  const [categoryPath, setCategoryPath] = useState<string[]>([]);
   const { categories, isLoading } = useProductCategories();
 
-  // Find category and its children by ID
-  const findCategory = (id: string) => {
-    const findInCategories = (cats: any[]): any => {
-      for (const cat of cats) {
-        if (cat.id === id) return cat;
-        if (cat.children?.length) {
-          const found = findInCategories(cat.children);
-          if (found) return found;
-        }
+  // Flatten nested categories
+  const flattenCategories = (categories: any[], parentId: string | null = null): any[] => {
+    let result: any[] = [];
+    categories.forEach(category => {
+      const flatCategory = { ...category };
+      if (category.children) {
+        result = [...result, ...flattenCategories(category.children, category.id)];
       }
-      return null;
-    };
-    return findInCategories(categories);
+      result.push(flatCategory);
+    });
+    return result;
   };
 
-  // Update category path when main category changes
-  useEffect(() => {
-    const mainCategoryId = form.watch('categoryId');
-    if (mainCategoryId) {
-      const newPath = [mainCategoryId];
-      let currentCat = findCategory(mainCategoryId);
-      
-      // Reset all subcategory fields
-      form.setValue('subCategory1', '');
-      form.setValue('subCategory2', '');
-      form.setValue('subCategory3', '');
-      
-      setCategoryPath(newPath);
-    } else {
-      setCategoryPath([]);
-    }
-  }, [form.watch('categoryId')]);
-
-  // Update path when subcategories change
-  useEffect(() => {
-    const sub1 = form.watch('subCategory1');
-    const sub2 = form.watch('subCategory2');
-    const sub3 = form.watch('subCategory3');
-
-    const newPath = [form.watch('categoryId')];
-    if (sub1) newPath.push(sub1);
-    if (sub2) newPath.push(sub2);
-    if (sub3) newPath.push(sub3);
-
-    setCategoryPath(newPath);
-  }, [
-    form.watch('categoryId'),
-    form.watch('subCategory1'),
-    form.watch('subCategory2'),
-    form.watch('subCategory3'),
-  ]);
-
   // Get subcategories for a given parent
-  const getSubcategories = (parentId: string) => {
-    const parent = findCategory(parentId);
-    return parent?.children || [];
+  const getSubCategories = (parentId: string | null) => {
+    const flatCategories = flattenCategories(categories);
+    return flatCategories.filter(cat => 
+      cat.parent_id?.toString() === parentId?.toString()
+    );
+  };
+
+  // Check if category has children
+  const hasChildren = (categoryId: string | null) => {
+    if (!categoryId) return false;
+    const category = flattenCategories(categories).find(cat => 
+      cat.id.toString() === categoryId.toString()
+    );
+    return category?.children?.length > 0;
   };
 
   return (
@@ -84,13 +55,12 @@ export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
                 value={field.value}
                 onValueChange={(value) => {
                   field.onChange(value);
-                  // Reset subcategories when main category changes
                   form.setValue('subCategory1', '');
                   form.setValue('subCategory2', '');
                   form.setValue('subCategory3', '');
                 }}
                 disabled={isLoading}
-                parentId={null} // Only show top-level categories
+                parentId={null}
               />
             </FormControl>
             <FormMessage />
@@ -99,7 +69,7 @@ export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
       />
 
       {/* First Level Subcategory */}
-      {categoryPath[0] && getSubcategories(categoryPath[0]).length > 0 && (
+      {form.watch('categoryId') && hasChildren(form.watch('categoryId')) && (
         <FormField
           control={form.control}
           name="subCategory1"
@@ -111,12 +81,11 @@ export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
                   value={field.value}
                   onValueChange={(value) => {
                     field.onChange(value);
-                    // Reset lower level subcategories
                     form.setValue('subCategory2', '');
                     form.setValue('subCategory3', '');
                   }}
                   disabled={isLoading}
-                  parentId={categoryPath[0]}
+                  parentId={form.watch('categoryId')}
                 />
               </FormControl>
               <FormMessage />
@@ -126,7 +95,7 @@ export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
       )}
 
       {/* Second Level Subcategory */}
-      {categoryPath[1] && getSubcategories(categoryPath[1]).length > 0 && (
+      {form.watch('subCategory1') && hasChildren(form.watch('subCategory1')) && (
         <FormField
           control={form.control}
           name="subCategory2"
@@ -138,11 +107,10 @@ export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
                   value={field.value}
                   onValueChange={(value) => {
                     field.onChange(value);
-                    // Reset lower level subcategory
                     form.setValue('subCategory3', '');
                   }}
                   disabled={isLoading}
-                  parentId={categoryPath[1]}
+                  parentId={form.watch('subCategory1')}
                 />
               </FormControl>
               <FormMessage />
@@ -152,7 +120,7 @@ export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
       )}
 
       {/* Third Level Subcategory */}
-      {categoryPath[2] && getSubcategories(categoryPath[2]).length > 0 && (
+      {form.watch('subCategory2') && hasChildren(form.watch('subCategory2')) && (
         <FormField
           control={form.control}
           name="subCategory3"
@@ -164,7 +132,7 @@ export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
                   value={field.value}
                   onValueChange={field.onChange}
                   disabled={isLoading}
-                  parentId={categoryPath[2]}
+                  parentId={form.watch('subCategory2')}
                 />
               </FormControl>
               <FormMessage />

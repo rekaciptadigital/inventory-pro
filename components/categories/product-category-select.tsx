@@ -34,12 +34,25 @@ export function ProductCategorySelect({
   const [search, setSearch] = useState('');
   const { categories, isLoading } = useProductCategories();
 
+  // Flatten nested categories
+  const flattenCategories = (categories: any[]): any[] => {
+    let result: any[] = [];
+    categories.forEach(category => {
+      const flatCategory = { ...category };
+      if (category.children) {
+        result = [...result, ...flattenCategories(category.children)];
+      }
+      result.push(flatCategory);
+    });
+    return result;
+  };
+
   // Filter categories based on parentId and search term
-  const filteredCategories = categories
+  const filteredCategories = flattenCategories(categories)
     .filter(category => {
       const matchesParent = parentId === null 
-        ? !category.parentId 
-        : category.parentId === parentId;
+        ? !category.parent_id 
+        : category.parent_id?.toString() === parentId?.toString();
       
       const matchesSearch = category.name
         .toLowerCase()
@@ -47,10 +60,11 @@ export function ProductCategorySelect({
       
       return matchesParent && matchesSearch;
     })
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   // Find the selected category
-  const selectedCategory = categories.find(cat => cat.id === value);
+  const selectedCategory = flattenCategories(categories)
+    .find(cat => cat.id.toString() === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -85,16 +99,16 @@ export function ProductCategorySelect({
               {filteredCategories.map((category) => (
                 <CommandItem
                   key={category.id}
-                  value={category.id}
+                  value={category.id.toString()}
                   onSelect={() => {
-                    onValueChange(category.id);
+                    onValueChange(category.id.toString());
                     setOpen(false);
                   }}
                 >
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      value === category.id ? "opacity-100" : "opacity-0"
+                      value === category.id.toString() ? "opacity-100" : "opacity-0"
                     )}
                   />
                   <span>{category.name}</span>
