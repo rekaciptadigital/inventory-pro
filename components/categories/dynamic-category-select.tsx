@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react';
+// Komponen ini menangani tampilan form kategori yang dinamis
+// Dapat menampilkan hingga 3 level sub-kategori secara otomatis
+// berdasarkan struktur data kategori yang tersedia
+
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { useProductCategories } from '@/lib/hooks/use-product-categories';
 import { ProductCategorySelect } from './product-category-select';
@@ -6,13 +9,14 @@ import type { UseFormReturn } from 'react-hook-form';
 import type { ProductFormValues } from '@/components/inventory/product-form/form-schema';
 
 interface DynamicCategorySelectProps {
-  form: UseFormReturn<ProductFormValues>;
+  form: Readonly<UseFormReturn<ProductFormValues>>;
 }
 
-export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
+export function DynamicCategorySelect({ form }: Readonly<DynamicCategorySelectProps>) {
   const { categories, isLoading } = useProductCategories();
 
-  // Flatten nested categories
+  // Fungsi untuk meratakan struktur kategori nested
+  // Mempertahankan informasi parent_id untuk relasi antar kategori
   const flattenCategories = (categories: any[], parentId: string | null = null): any[] => {
     let result: any[] = [];
     categories.forEach(category => {
@@ -25,16 +29,9 @@ export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
     return result;
   };
 
-  // Get subcategories for a given parent
-  const getSubCategories = (parentId: string | null) => {
-    const flatCategories = flattenCategories(categories);
-    return flatCategories.filter(cat => 
-      cat.parent_id?.toString() === parentId?.toString()
-    );
-  };
-
-  // Check if category has children
-  const hasChildren = (categoryId: string | null) => {
+  // Fungsi untuk mengecek apakah suatu kategori memiliki sub-kategori
+  // Digunakan untuk menentukan apakah perlu menampilkan level selanjutnya
+  const hasChildren = (categoryId: string | undefined | null): boolean => {
     if (!categoryId) return false;
     const category = flattenCategories(categories).find(cat => 
       cat.id.toString() === categoryId.toString()
@@ -44,6 +41,7 @@ export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
 
   return (
     <div className="space-y-4">
+      {/* Kategori Utama */}
       <FormField
         control={form.control}
         name="categoryId"
@@ -68,7 +66,8 @@ export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
         )}
       />
 
-      {/* First Level Subcategory */}
+      {/* Sub Kategori Level 1 
+          Muncul jika kategori utama terpilih dan memiliki sub-kategori */}
       {form.watch('categoryId') && hasChildren(form.watch('categoryId')) && (
         <FormField
           control={form.control}
@@ -94,7 +93,8 @@ export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
         />
       )}
 
-      {/* Second Level Subcategory */}
+      {/* Sub Kategori Level 2
+          Muncul jika sub-kategori level 1 terpilih dan memiliki sub-kategori */}
       {form.watch('subCategory1') && hasChildren(form.watch('subCategory1')) && (
         <FormField
           control={form.control}
@@ -119,7 +119,8 @@ export function DynamicCategorySelect({ form }: DynamicCategorySelectProps) {
         />
       )}
 
-      {/* Third Level Subcategory */}
+      {/* Sub Kategori Level 3
+          Muncul jika sub-kategori level 2 terpilih dan memiliki sub-kategori */}
       {form.watch('subCategory2') && hasChildren(form.watch('subCategory2')) && (
         <FormField
           control={form.control}

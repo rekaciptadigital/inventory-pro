@@ -1,3 +1,6 @@
+// Komponen untuk menampilkan dan mengelola form informasi dasar produk
+// Mencakup data utama seperti brand, tipe produk, kategori, dan informasi produk lainnya
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -18,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Combobox } from "@/components/ui/combobox";
 import { BrandSearchSelect } from "@/components/brands/brand-search-select";
 import { ProductTypeSearchSelect } from "@/components/product-types/product-type-search-select";
 import { DynamicCategorySelect } from "@/components/categories/dynamic-category-select";
@@ -26,36 +28,31 @@ import { UseFormReturn } from "react-hook-form";
 import { ProductFormValues } from "./form-schema";
 import { useBrands } from "@/lib/hooks/use-brands";
 import { useProductTypeList } from "@/lib/hooks/product-types/use-product-type-list";
-import { useProductCategories } from "@/lib/hooks/use-product-categories";
 import { generateSKU } from "@/lib/utils/sku-generator";
 
 interface BasicInfoProps {
-  form: UseFormReturn<ProductFormValues>;
+  form: UseFormReturn<ProductFormValues>;  // Menerima instance form dari react-hook-form
 }
 
-export function BasicInfo({ form }: BasicInfoProps) {
-  const { brands } = useBrands();
-  const { data: productTypesData, isLoading: isLoadingProductTypes } =
-    useProductTypeList();
-  const { categories, isLoading: isLoadingCategories } = useProductCategories();
+export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
+  // Hooks untuk mengambil data master
+  const { brands } = useBrands();  // Data brand
+  const { data: productTypesData } = useProductTypeList();  // Data tipe produk
   const productTypes = productTypesData?.data ?? [];
 
-  const brandOptions = brands.map((brand) => ({
-    label: brand.name,
-    value: brand.id.toString(), // Convert value to string
-  }));
-
+  // Memantau perubahan nilai form yang diperlukan untuk generate SKU dan nama lengkap
   const selectedBrand = form.watch("brand");
   const selectedProductType = form.watch("productTypeId");
-  const selectedCategory = form.watch("categoryId");
   const productName = form.watch("productName");
   const uniqueCode = form.watch("uniqueCode");
 
+  // State lokal untuk SKU dan nama lengkap produk
   const [sku, setSku] = useState(form.getValues("sku") || "");
   const [fullName, setFullName] = useState(
     form.getValues("fullProductName") || ""
   );
 
+  // Effect untuk generate SKU dan nama lengkap produk otomatis
   useEffect(() => {
     if (selectedBrand && selectedProductType) {
       const brand = brands.find((b) => b.id.toString() === selectedBrand); // Ensure comparison is correct
@@ -87,6 +84,7 @@ export function BasicInfo({ form }: BasicInfoProps) {
     productTypes,
   ]);
 
+  // Render form dengan layout grid dan spacing
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Basic Information</h3>

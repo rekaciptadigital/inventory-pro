@@ -1,3 +1,6 @@
+// Komponen dropdown untuk pemilihan kategori
+// Menyediakan fitur pencarian dan tampilan hierarki kategori
+
 import { useState } from 'react';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -18,10 +21,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useProductCategories } from '@/lib/hooks/use-product-categories';
 
 interface ProductCategorySelectProps {
-  value?: string;
-  onValueChange: (value: string) => void;
-  disabled?: boolean;
-  parentId?: string | null;
+  value?: string;               // ID kategori yang terpilih
+  onValueChange: (value: string) => void;  // Callback saat kategori dipilih
+  disabled?: boolean;           // Status disabled komponen
+  parentId?: string | null;     // ID parent untuk filtering sub-kategori
 }
 
 export function ProductCategorySelect({
@@ -29,12 +32,15 @@ export function ProductCategorySelect({
   onValueChange,
   disabled = false,
   parentId,
-}: ProductCategorySelectProps) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
+}: Readonly<ProductCategorySelectProps>) {
+  // State untuk kontrol UI
+  const [open, setOpen] = useState(false);  // Kontrol dropdown
+  const [search, setSearch] = useState(''); // Kata kunci pencarian
+  
+  // Data kategori dari API
   const { categories, isLoading } = useProductCategories();
 
-  // Flatten nested categories
+  // Fungsi utilitas untuk data kategori
   const flattenCategories = (categories: any[]): any[] => {
     let result: any[] = [];
     categories.forEach(category => {
@@ -47,7 +53,7 @@ export function ProductCategorySelect({
     return result;
   };
 
-  // Filter categories based on parentId and search term
+  // Filter dan urutkan kategori berdasarkan parent dan pencarian
   const filteredCategories = flattenCategories(categories)
     .filter(category => {
       const matchesParent = parentId === null 
@@ -62,17 +68,16 @@ export function ProductCategorySelect({
     })
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-  // Find the selected category
+  // Cari kategori yang sedang terpilih
   const selectedCategory = flattenCategories(categories)
     .find(cat => cat.id.toString() === value);
 
+  // Render dropdown dengan Radix UI Popover
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          role="combobox"
-          aria-expanded={open}
           className="w-full justify-between"
           disabled={disabled}
         >
