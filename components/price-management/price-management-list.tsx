@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -12,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Edit } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/format';
-import { PriceEditForm } from './price-edit-form';
 import type { Product } from '@/types/inventory';
 
 interface PriceManagementListProps {
@@ -20,12 +19,10 @@ interface PriceManagementListProps {
 }
 
 export function PriceManagementList({ products }: PriceManagementListProps) {
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const router = useRouter();
 
   const handleEdit = (product: Product) => {
-    setSelectedProduct(product);
-    setIsEditDialogOpen(true);
+    router.push(`/dashboard/price-management/${product.id}`);
   };
 
   if (products.length === 0) {
@@ -72,18 +69,6 @@ export function PriceManagementList({ products }: PriceManagementListProps) {
           </TableBody>
         </Table>
       </div>
-
-      {selectedProduct && (
-        <PriceEditForm
-          product={selectedProduct}
-          open={isEditDialogOpen}
-          onOpenChange={setIsEditDialogOpen}
-          onSuccess={() => {
-            setSelectedProduct(null);
-            // Trigger any necessary data refetch or updates
-          }}
-        />
-      )}
     </>
   );
 }
