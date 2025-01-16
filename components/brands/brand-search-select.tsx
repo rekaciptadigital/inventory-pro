@@ -14,7 +14,9 @@ import {
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useBrands } from '@/lib/hooks/use-brands';
+import { useQuery } from '@tanstack/react-query';
+import { getBrands } from '@/lib/api/brands';
+import { Loader2 } from 'lucide-react';
 
 // Interface untuk props komponen
 interface BrandSearchSelectProps {
@@ -41,9 +43,17 @@ export function BrandSearchSelect({
   // State untuk mengontrol popup dropdown
   const [open, setOpen] = useState(false);
   // State untuk menyimpan kata kunci pencarian
-  const [searchTerm, setSearchTerm] = useState('');
+  const [search, setSearch] = useState('');
   // Mengambil data brand menggunakan custom hook
-  const { brands } = useBrands({ search: searchTerm });
+  
+  const { data: response, isLoading } = useQuery({
+    queryKey: ['brands', { search }],
+    queryFn: () => getBrands({ search, limit: 10 }),
+    placeholderData: (previousData) => previousData,
+  });
+
+  const brands = response?.data || [];
+  const selectedBrand = brands.find(brand => brand.id.toString() === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -51,22 +61,25 @@ export function BrandSearchSelect({
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          aria-expanded={open}
-          className="w-full justify-between"
+          role="combobox"
+          className="w-full justify-between relative"
           disabled={disabled}
         >
-          {value ? (
-            <span className="flex items-center gap-2">
-              <span className="font-medium">
-                {brands.find((brand) => brand.id.toString() === value)?.name ?? 'Select brand...'}
+          {selectedBrand ? (
+            <span className="flex items-center gap-2 text-left">
+              <span className="font-medium">{selectedBrand.name}</span>
+              <span className="text-muted-foreground text-sm">
+                ({selectedBrand.code})
               </span>
-              {value && (
-                <span className="text-muted-foreground text-sm">
-                  ({brands.find((brand) => brand.id.toString() === value)?.code})
-                </span>
-              )}
             </span>
-          ) : (
+          ) : isLoading ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-muted-foreground">
+                Loading...
+              </span>
+            </div>
+          ) : ( 
             'Select brand...'
           )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -79,12 +92,14 @@ export function BrandSearchSelect({
           {/* Input pencarian brand */}
           <CommandInput
             placeholder="Search brands..."
-            value={searchTerm}
-            onValueChange={setSearchTerm}
+            value={search}
+            onValueChange={setSearch}
           />
           
           {/* Pesan saat tidak ada brand yang ditemukan */}
-          <CommandEmpty>No brands found</CommandEmpty>
+          <CommandEmpty>
+            {isLoading ? "Loading..." : "No brands found"}
+          </CommandEmpty>
 
           {/* Area scroll untuk daftar brand */}
           <ScrollArea className="h-[200px]">
@@ -93,18 +108,18 @@ export function BrandSearchSelect({
               {brands.map((brand) => (
                 <CommandItem
                   key={brand.id}
-                  value={brand.id.toString()} // Convert to string
+                  value={brand.id.toString()}
                   onSelect={() => {
-                    onValueChange(brand.id.toString());
                     setOpen(false);
+                    onValueChange(brand.id.toString());
                   }}
                 >
                   <Check
                     className={cn(
                       'mr-2 h-4 w-4',
-                      value === brand.id.toString() ? 'opacity-100' : 'opacity-0',
+                      value === brand.id ? 'opacity-100' : 'opacity-0'
                     )}
-                  />
+                   />
                   <div className="flex flex-col">
                     <span>{brand.name}</span>
                     <span className="text-sm text-muted-foreground">
