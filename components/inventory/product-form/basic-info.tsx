@@ -21,9 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BrandSearchSelect } from "@/components/brands/brand-search-select";
-import { ProductTypeSearchSelect } from "@/components/product-types/product-type-search-select";
-import { DynamicCategorySelect } from "@/components/categories/dynamic-category-select";
+import { BrandSelector, ProductTypeSelector, CategorySelector } from './enhanced-selectors';
 import { UseFormReturn } from "react-hook-form";
 import { ProductFormValues } from "./form-schema";
 import { useBrands } from "@/lib/hooks/use-brands";
@@ -97,10 +95,7 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
             <FormItem>
               <FormLabel>Brand</FormLabel>
               <FormControl>
-                <BrandSearchSelect
-                  value={field.value}
-                  onValueChange={field.onChange}
-                />
+                <BrandSelector />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -114,16 +109,15 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
             <FormItem>
               <FormLabel>Product Type</FormLabel>
               <FormControl>
-                <ProductTypeSearchSelect
-                  value={field.value}
-                  onValueChange={field.onChange}
-                />
+                <ProductTypeSelector />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
       </div>
+
+      <CategorySelector />
 
       <div className="grid grid-cols-2 gap-4">
         <FormField
@@ -160,8 +154,6 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
           )}
         />
       </div>
-
-      <DynamicCategorySelect form={form} />
 
       <FormField
         control={form.control}
