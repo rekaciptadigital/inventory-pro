@@ -1,17 +1,37 @@
-// Mengimpor instance axios dan tipe data yang diperlukan
 import axiosInstance from "./axios";
-import type { Brand } from "@/types/brand";
-import type { ApiResponse } from "@/types/api";
 
-// Mendefinisikan interface untuk filter brand
-export interface BrandFilters {
-  status?: boolean;
-  search?: string;
-  page?: number;
-  limit?: number;
+export interface BrandResponse {
+  status: {
+    code: number;
+    message: string;
+  };
+  data: Array<{
+    id: number;
+    created_at: string;
+    updated_at: string;
+    deleted_at: null | string;
+    name: string;
+    code: string;
+    description: string;
+    status: boolean;
+  }>;
+  pagination: {
+    links: {
+      first: string;
+      previous: string | null;
+      current: string;
+      next: string | null;
+      last: string;
+    };
+    currentPage: number;
+    totalPages: number;
+    pageSize: number;
+    totalItems: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
 }
 
-// Mendefinisikan interface untuk data form brand
 export interface BrandFormData {
   name: string;
   code: string;
@@ -19,68 +39,56 @@ export interface BrandFormData {
   status: boolean;
 }
 
-// Fungsi untuk mendapatkan daftar brand dengan filter
-export async function getBrands(
-  filters: BrandFilters = {}
-): Promise<ApiResponse<Brand[]>> {
-  const params = new URLSearchParams();
-  // Menambahkan filter status ke parameter jika ada
-  if (typeof filters.status === "boolean") {
-    params.append("status", filters.status.toString());
-  }
-  // Menambahkan filter pencarian ke parameter jika ada
-  if (filters.search) {
-    params.append("search", filters.search);
-  }
-  // Menambahkan filter halaman ke parameter jika ada
-  if (filters.page) {
-    params.append("page", filters.page.toString());
-  }
-  // Menambahkan filter limit ke parameter jika ada
-  if (filters.limit) {
-    params.append("limit", filters.limit.toString());
-  }
-
-  // Mengirim permintaan GET ke endpoint /brands dengan parameter yang telah ditentukan
-  const response = await axiosInstance.get(`/brands?${params.toString()}`);
-  return response.data;
+interface GetBrandsParams {
+  search?: string;
+  page?: number;
+  limit?: number;
+  sort?: string;
+  order?: "ASC" | "DESC"; // Update type to use uppercase
 }
 
-// Fungsi untuk mendapatkan detail brand berdasarkan ID
-export async function getBrand(id: string): Promise<ApiResponse<Brand>> {
-  const response = await axiosInstance.get(`/brands/${id}`);
-  return response.data;
-}
+export const getBrands = async ({
+  search = "",
+  page = 1,
+  limit = 10,
+  sort = "created_at",
+  order = "DESC", // Set default to uppercase
+}: GetBrandsParams = {}) => {
+  try {
+    const response = await axiosInstance.get<BrandResponse>("/brands", {
+      params: {
+        search,
+        page,
+        limit,
+        sort,
+        order,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching brands:", error);
+    throw error;
+  }
+};
 
-// Fungsi untuk membuat brand baru
-export async function createBrand(
-  data: BrandFormData
-): Promise<ApiResponse<Brand>> {
+export const createBrand = async (data: BrandFormData) => {
   const response = await axiosInstance.post("/brands", data);
   return response.data;
-}
+};
 
-// Fungsi untuk memperbarui brand berdasarkan ID
-export async function updateBrand(
-  id: string,
-  data: BrandFormData
-): Promise<ApiResponse<Brand>> {
+export const updateBrand = async (id: number, data: BrandFormData) => {
   const response = await axiosInstance.put(`/brands/${id}`, data);
   return response.data;
-}
+};
 
-// Fungsi untuk menghapus brand berdasarkan ID
-export async function deleteBrand(id: string): Promise<void> {
-  await axiosInstance.delete(`/brands/${id}`);
-}
+export const deleteBrand = async (id: number) => {
+  const response = await axiosInstance.delete(`/brands/${id}`);
+  return response.data;
+};
 
-// Fungsi untuk memperbarui status brand berdasarkan ID
-export async function updateBrandStatus(
-  id: string,
-  status: boolean
-): Promise<ApiResponse<Brand>> {
+export const updateBrandStatus = async (id: number, status: boolean) => {
   const response = await axiosInstance.patch(`/brands/${id}/status`, {
     status,
   });
   return response.data;
-}
+};

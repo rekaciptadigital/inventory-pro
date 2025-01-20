@@ -21,66 +21,78 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BrandSelector, ProductTypeSelector, CategorySelector } from './enhanced-selectors';
+import {
+  BrandSelector,
+  ProductTypeSelector,
+  CategorySelector,
+} from "./enhanced-selectors";
 import { UseFormReturn } from "react-hook-form";
 import { ProductFormValues } from "./form-schema";
 import { useBrands } from "@/lib/hooks/use-brands";
 import { useProductTypeList } from "@/lib/hooks/product-types/use-product-type-list";
 import { generateSKU } from "@/lib/utils/sku-generator";
+import { useDispatch } from "react-redux";
+import {
+  setBrand,
+  setProductType,
+} from "@/lib/store/slices/formInventoryProductSlice";
 
 interface BasicInfoProps {
-  form: UseFormReturn<ProductFormValues>;  // Menerima instance form dari react-hook-form
+  form: UseFormReturn<ProductFormValues>; // Menerima instance form dari react-hook-form
 }
 
 export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
-  // Hooks untuk mengambil data master
-  const { brands } = useBrands();  // Data brand
-  const { data: productTypesData } = useProductTypeList();  // Data tipe produk
-  const productTypes = productTypesData?.data ?? [];
-
-  // Memantau perubahan nilai form yang diperlukan untuk generate SKU dan nama lengkap
-  const selectedBrand = form.watch("brand");
-  const selectedProductType = form.watch("productTypeId");
-  const productName = form.watch("productName");
-  const uniqueCode = form.watch("uniqueCode");
-
-  // State lokal untuk SKU dan nama lengkap produk
+  const dispatch = useDispatch();
   const [sku, setSku] = useState(form.getValues("sku") || "");
   const [fullName, setFullName] = useState(
     form.getValues("fullProductName") || ""
   );
 
-  // Effect untuk generate SKU dan nama lengkap produk otomatis
+  // Watch form values
+  const selectedBrand = form.watch("brand");
+  const selectedProductType = form.watch("productTypeId");
+  const productName = form.watch("productName");
+  const uniqueCode = form.watch("uniqueCode");
+
+  // Effect for generating SKU and full product name
   useEffect(() => {
+    // Only proceed if we have both brand and product type selected
     if (selectedBrand && selectedProductType) {
-      const brand = brands.find((b) => b.id.toString() === selectedBrand); // Ensure comparison is correct
-      const productType = productTypes.find(
-        (pt) => pt.id.toString() === selectedProductType
-      ); // Updated to match string comparison
+      try {
+        // Get brand and product type from localStorage
+        const savedBrands = localStorage.getItem("brands");
+        const savedProductTypes = localStorage.getItem("productTypes");
 
-      if (brand && productType) {
-        // Generate SKU
-        const generatedSku = generateSKU(brand, productType, uniqueCode);
-        setSku(generatedSku);
-        form.setValue("sku", generatedSku);
+        const brands = savedBrands ? JSON.parse(savedBrands) : [];
+        const productTypes = savedProductTypes
+          ? JSON.parse(savedProductTypes)
+          : [];
 
-        // Generate full product name
-        if (productName) {
-          const generatedFullName = `${brand.name} ${productType.name} ${productName}`;
-          setFullName(generatedFullName);
-          form.setValue("fullProductName", generatedFullName);
+        const brand = brands.find(
+          (b: any) => b.id.toString() === selectedBrand
+        );
+        const productType = productTypes.find(
+          (pt: any) => pt.id.toString() === selectedProductType
+        );
+
+        if (brand && productType) {
+          // Generate SKU
+          const generatedSku = generateSKU(brand, productType, uniqueCode);
+          setSku(generatedSku);
+          form.setValue("sku", generatedSku);
+
+          // Generate full product name only if we have a product name
+          if (productName) {
+            const generatedFullName = `${brand.name} ${productType.name} ${productName}`;
+            setFullName(generatedFullName);
+            form.setValue("fullProductName", generatedFullName);
+          }
         }
+      } catch (error) {
+        console.error("Error generating SKU or full name:", error);
       }
     }
-  }, [
-    selectedBrand,
-    selectedProductType,
-    productName,
-    uniqueCode,
-    form,
-    brands,
-    productTypes,
-  ]);
+  }, [selectedBrand, selectedProductType, productName, uniqueCode, form]);
 
   // Render form dengan layout grid dan spacing
   return (

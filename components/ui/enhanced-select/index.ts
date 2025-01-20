@@ -1,1 +1,2 @@
-export * from './enhanced-select';
+export * from "./client-select";
+export type { SelectOption } from "./enhanced-select";

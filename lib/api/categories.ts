@@ -1,20 +1,24 @@
 import axiosInstance from "./axios";
 
-export interface ProductTypeResponse {
+export interface Category {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: null | string;
+  name: string;
+  code: string;
+  description: string;
+  parent_id: number | null;
+  status: boolean;
+  children: Category[];
+}
+
+export interface CategoryResponse {
   status: {
     code: number;
     message: string;
   };
-  data: Array<{
-    id: number;
-    created_at: string;
-    updated_at: string;
-    deleted_at: null | string;
-    name: string;
-    code: string;
-    description: string;
-    status: boolean;
-  }>;
+  data: Category[];
   pagination: {
     links: {
       first: string;
@@ -32,24 +36,16 @@ export interface ProductTypeResponse {
   };
 }
 
-interface GetProductTypesParams {
-  search?: string;
-  page?: number;
-  limit?: number;
-  sort?: string;
-  order?: "asc" | "desc";
-}
-
-export const getProductTypes = async ({
+export const getCategories = async ({
   search = "",
   page = 1,
   limit = 10,
   sort = "created_at",
-  order = "desc",
-}: GetProductTypesParams = {}) => {
+  order = "DESC",
+} = {}) => {
   try {
-    const response = await axiosInstance.get<ProductTypeResponse>(
-      "/product-types",
+    const response = await axiosInstance.get<CategoryResponse>(
+      "/product-categories",
       {
         params: {
           search,
@@ -62,7 +58,7 @@ export const getProductTypes = async ({
     );
     return response.data;
   } catch (error) {
-    console.error("Error fetching product types:", error);
+    console.error("Error fetching categories:", error);
     throw error;
   }
 };

@@ -3,6 +3,44 @@
 import { useState, useEffect } from "react";
 import type { ProductType } from "@/types/product-type";
 
+interface GetProductTypesParams {
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+interface ProductTypeResponse {
+  status: {
+    code: number;
+    message: string;
+  };
+  data: Array<{
+    id: number;
+    created_at: string;
+    updated_at: string;
+    deleted_at: null | string;
+    name: string;
+    code: string;
+    description: string;
+    status: boolean;
+  }>;
+  pagination: {
+    links: {
+      first: string;
+      previous: string | null;
+      current: string;
+      next: string | null;
+      last: string;
+    };
+    currentPage: number;
+    totalPages: number;
+    pageSize: number;
+    totalItems: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
+}
+
 export function useProductTypes() {
   const [productTypes, setProductTypes] = useState<ProductType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -137,6 +175,55 @@ export function useProductTypes() {
     return productType?.name || "Unknown Type";
   };
 
+  const getProductTypes = async ({
+    search = "",
+    page = 1,
+    limit = 10,
+  }: GetProductTypesParams): Promise<ProductTypeResponse> => {
+    // Simulate API pagination
+    const filteredTypes = productTypes.filter(
+      (type) =>
+        type.name.toLowerCase().includes(search.toLowerCase()) ||
+        type.code.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedTypes = filteredTypes.slice(startIndex, endIndex);
+
+    return {
+      status: {
+        code: 200,
+        message: "Success",
+      },
+      data: paginatedTypes.map((type) => ({
+        id: parseInt(type.id),
+        created_at: type.createdAt,
+        updated_at: type.updatedAt,
+        deleted_at: null,
+        name: type.name,
+        code: type.code,
+        description: "",
+        status: true,
+      })),
+      pagination: {
+        links: {
+          first: "",
+          previous: null,
+          current: "",
+          next: null,
+          last: "",
+        },
+        currentPage: page,
+        totalPages: Math.ceil(filteredTypes.length / limit),
+        pageSize: limit,
+        totalItems: filteredTypes.length,
+        hasNext: endIndex < filteredTypes.length,
+        hasPrevious: startIndex > 0,
+      },
+    };
+  };
+
   return {
     productTypes,
     isLoading,
@@ -144,5 +231,6 @@ export function useProductTypes() {
     updateProductType,
     deleteProductType,
     getProductTypeName,
+    getProductTypes,
   };
 }

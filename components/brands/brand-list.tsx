@@ -34,11 +34,20 @@ interface BrandListProps {
 }
 
 export function BrandList({
-  brands,
+  brands = [],
   onEdit,
   onDelete,
   onStatusChange,
 }: BrandListProps) {
+  if (!Array.isArray(brands)) {
+    console.error("BrandList received invalid brands prop:", brands);
+    return (
+      <div className="border rounded-lg p-8 text-center text-muted-foreground">
+        Error loading brands. Please try again.
+      </div>
+    );
+  }
+
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
 

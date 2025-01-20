@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PaginationControls } from "@/components/ui/pagination/pagination-controls";
@@ -82,9 +82,7 @@ export default function BrandsPage() {
         brands={brands}
         onEdit={handleEdit}
         onDelete={deleteBrand}
-        onStatusChange={async (id, status) => {
-          await updateBrandStatus(id, status);
-        }}
+        onStatusChange={updateBrandStatus}
       />
 
       <BrandFormDialog
