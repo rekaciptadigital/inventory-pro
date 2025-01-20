@@ -225,6 +225,7 @@ export function CategorySelector() {
     selected: SelectOption | null;
     level: number;
   } | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<ProductCategory[]>([]);
 
   const loadCategoryOptions = useCallback(
     async (
@@ -300,8 +301,8 @@ export function CategorySelector() {
           });
         }
 
-        // Update Redux store with selected categories
-        const selectedCategories = newStates
+        // Prepare new selected categories
+        const newSelectedCategories = newStates
           .filter((state) => state.selectedCategories.length > 0)
           .map((state, idx) => ({
             product_category_id: parseInt(state.selectedCategories[0].value),
@@ -310,7 +311,7 @@ export function CategorySelector() {
             category_hierarchy: idx + 1,
           }));
 
-        dispatch(updateProductCategories(selectedCategories));
+        setSelectedCategories(newSelectedCategories);
         return newStates;
       });
 
@@ -319,7 +320,7 @@ export function CategorySelector() {
       setSelectorStates((prev) => {
         const newStates = prev.slice(0, level + 1);
 
-        const remainingCategories = newStates
+        const newRemainingCategories = newStates
           .slice(0, level)
           .filter((state) => state.selectedCategories.length > 0)
           .map((state, idx) => ({
@@ -329,7 +330,7 @@ export function CategorySelector() {
             category_hierarchy: idx + 1,
           }));
 
-        dispatch(updateProductCategories(remainingCategories));
+        setSelectedCategories(newRemainingCategories);
         return newStates;
       });
 
@@ -338,6 +339,11 @@ export function CategorySelector() {
 
     setPendingSelection(null);
   }, [pendingSelection, dispatch, setValue]);
+
+  // Effect to update Redux store when selectedCategories changes
+  useEffect(() => {
+    dispatch(updateProductCategories(selectedCategories));
+  }, [selectedCategories, dispatch]);
 
   const handleChange = useCallback(
     (selected: SelectOption | null, level: number) => {
