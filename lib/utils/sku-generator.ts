@@ -5,13 +5,33 @@ import type { ProductType } from "@/types/product-type";
 import type { VariantType } from "@/types/variant";
 import { generateRandomDigits } from "./sku/random-generator"; // Perbaiki path impor
 
-export function generateSKU(brand: any, productType: any, uniqueCode?: string) {
-  if (!brand || !productType) {
+interface SkuBrand {
+  id: number;
+  code: string;
+  name: string;
+}
+
+interface SkuProductType {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export function generateSKU(
+  brand: SkuBrand,
+  productType: SkuProductType,
+  uniqueCode?: string
+): string {
+  if (!brand?.code || !productType?.code) {
+    console.warn("Missing required data for SKU generation:", {
+      brand,
+      productType,
+    });
     return "";
   }
 
-  const brandCode = brand.code || "";
-  const typeCode = productType.code || "";
+  const brandCode = brand.code;
+  const typeCode = productType.code;
   const code =
     uniqueCode || Math.random().toString(36).substring(2, 8).toUpperCase();
 

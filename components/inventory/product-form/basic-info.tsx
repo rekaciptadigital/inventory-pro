@@ -3,7 +3,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   FormField,
   FormItem,
@@ -31,10 +31,13 @@ import { ProductFormValues } from "./form-schema";
 import { useBrands } from "@/lib/hooks/use-brands";
 import { useProductTypeList } from "@/lib/hooks/product-types/use-product-type-list";
 import { generateSKU } from "@/lib/utils/sku-generator";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   setBrand,
   setProductType,
+  selectBrand,
+  selectProductType,
+  updateForm,
 } from "@/lib/store/slices/formInventoryProductSlice";
 
 interface BasicInfoProps {
@@ -47,54 +50,76 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
   const [fullName, setFullName] = useState(
     form.getValues("fullProductName") || ""
   );
+  const [lastUpdate, setLastUpdate] = useState<string>("");
 
-  // Watch form values
-  const selectedBrand = form.watch("brand");
-  const selectedProductType = form.watch("productTypeId");
-  const productName = form.watch("productName");
+  const selectedBrandData = useSelector(selectBrand);
+  const selectedProductTypeData = useSelector(selectProductType);
   const uniqueCode = form.watch("uniqueCode");
+  const productName = form.watch("productName");
 
-  // Effect for generating SKU and full product name
+  // Handle unique code changes
+  const handleUniqueCodeChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      form.setValue("uniqueCode", value);
+      dispatch(updateForm({ unique_code: value }));
+      setLastUpdate(`uniqueCode-${Date.now()}`);
+    },
+    [dispatch, form]
+  );
+
+  // Effect for generating SKU and updating Redux
   useEffect(() => {
-    // Only proceed if we have both brand and product type selected
-    if (selectedBrand && selectedProductType) {
-      try {
-        // Get brand and product type from localStorage
-        const savedBrands = localStorage.getItem("brands");
-        const savedProductTypes = localStorage.getItem("productTypes");
+    if (!selectedBrandData.id || !selectedProductTypeData.id) return;
 
-        const brands = savedBrands ? JSON.parse(savedBrands) : [];
-        const productTypes = savedProductTypes
-          ? JSON.parse(savedProductTypes)
-          : [];
+    const brand = {
+      id: selectedBrandData.id,
+      code: selectedBrandData.code,
+      name: selectedBrandData.name,
+    };
 
-        const brand = brands.find(
-          (b: any) => b.id.toString() === selectedBrand
-        );
-        const productType = productTypes.find(
-          (pt: any) => pt.id.toString() === selectedProductType
-        );
+    const productType = {
+      id: selectedProductTypeData.id,
+      code: selectedProductTypeData.code,
+      name: selectedProductTypeData.name,
+    };
 
-        if (brand && productType) {
-          // Generate SKU
-          const generatedSku = generateSKU(brand, productType, uniqueCode);
-          setSku(generatedSku);
-          form.setValue("sku", generatedSku);
+    try {
+      const generatedSku = generateSKU(brand, productType, uniqueCode);
+      setSku(generatedSku);
+      form.setValue("sku", generatedSku);
 
-          // Generate full product name only if we have a product name
-          if (productName) {
-            const generatedFullName = `${brand.name} ${productType.name} ${productName}`;
-            setFullName(generatedFullName);
-            form.setValue("fullProductName", generatedFullName);
-          }
-        }
-      } catch (error) {
-        console.error("Error generating SKU or full name:", error);
-      }
+      // Update Redux store
+      dispatch(
+        updateForm({
+          sku: generatedSku,
+          unique_code: uniqueCode || "",
+        })
+      );
+    } catch (error) {
+      console.error("Error generating SKU:", error);
     }
-  }, [selectedBrand, selectedProductType, productName, uniqueCode, form]);
+  }, [
+    selectedBrandData.id,
+    selectedProductTypeData.id,
+    uniqueCode,
+    lastUpdate,
+  ]);
 
-  // Render form dengan layout grid dan spacing
+  // Effect for full product name
+  useEffect(() => {
+    if (
+      !selectedBrandData.name ||
+      !selectedProductTypeData.name ||
+      !productName
+    )
+      return;
+
+    const generatedFullName = `${selectedBrandData.name} ${selectedProductTypeData.name} ${productName}`;
+    setFullName(generatedFullName);
+    form.setValue("fullProductName", generatedFullName);
+  }, [selectedBrandData.name, selectedProductTypeData.name, productName]);
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Basic Information</h3>
@@ -139,7 +164,11 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
             <FormItem>
               <FormLabel>Unique Code</FormLabel>
               <FormControl>
-                <Input placeholder="Enter unique code (optional)" {...field} />
+                <Input
+                  {...field}
+                  onChange={handleUniqueCodeChange}
+                  placeholder="Enter unique code (optional)"
+                />
               </FormControl>
               <FormDescription>
                 Leave empty for auto-generated code

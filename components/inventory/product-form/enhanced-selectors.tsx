@@ -12,6 +12,9 @@ import type { ProductFormValues } from "./form-schema";
 import {
   setBrand,
   setProductType,
+  addCategory,
+  removeCategory,
+  updateProductCategories,
 } from "@/lib/store/slices/formInventoryProductSlice";
 import { getProductTypes } from "@/lib/api/product-types";
 import { getCategories } from "@/lib/api/categories";
@@ -214,19 +217,23 @@ export function CategorySelector() {
     formState: { errors },
     setValue,
   } = useFormContext<ProductFormValues>();
-  const [selectorStates, setSelectorStates] = useState<CategorySelectorState[]>([
-    { level: 0, parentId: null, selectedCategories: [] }
-  ]);
-  const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const dispatch = useDispatch();
+  const [selectorStates, setSelectorStates] = useState<CategorySelectorState[]>(
+    [{ level: 0, parentId: null, selectedCategories: [] }]
+  );
+  const [pendingSelection, setPendingSelection] = useState<{
+    selected: SelectOption | null;
+    level: number;
+  } | null>(null);
 
-  const loadCategoryOptions = async (
-    search: string,
-    loadedOptions: SelectOption[],
-    { page }: { page: number }
-  ) => {
-    try {
-      // Only fetch from API for root level categories if we don't have them yet
-      if (page === 1) {
+  const loadCategoryOptions = useCallback(
+    async (
+      search: string,
+      loadedOptions: SelectOption[],
+      { page }: { page: number }
+    ) => {
+      try {
+        // Only fetch from API for root level categories
         const response = await getCategories({
           search,
           page,
@@ -234,11 +241,12 @@ export function CategorySelector() {
           sort: "created_at",
           order: "DESC",
         });
-        setAllCategories(response.data);
 
         // Filter based on parent_id for root level
-        const rootCategories = response.data.filter(cat => cat.parent_id === null);
-        
+        const rootCategories = response.data.filter(
+          (cat) => cat.parent_id === null
+        );
+
         return {
           options: rootCategories.map((category) => ({
             value: category.id.toString(),
@@ -246,65 +254,96 @@ export function CategorySelector() {
             subLabel: category.code,
             data: category, // Include full category data with children
           })),
-          hasMore: false, // Since we get all data at once
+          hasMore: response.pagination.hasNext,
           additional: {
-            page: 1,
-            hasMore: false,
+            page: page + 1,
+            hasMore: response.pagination.hasNext,
           },
         };
+      } catch (error) {
+        console.error("Error loading categories:", error);
+        return {
+          options: [],
+          hasMore: false,
+          additional: { page: 1, hasMore: false },
+        };
       }
-      return {
-        options: [],
-        hasMore: false,
-        additional: { page, hasMore: false },
-      };
-    } catch (error) {
-      console.error("Error loading categories:", error);
-      return {
-        options: [],
-        hasMore: false,
-        additional: { page: 1, hasMore: false },
-      };
-    }
-  };
+    },
+    []
+  );
 
-  const handleChange = useCallback(
-    (selected: SelectOption | null, level: number) => {
-      if (selected?.data) {
-        setSelectorStates((prev) => {
-          const newStates = prev.slice(0, level + 1);
-          newStates[level] = {
-            ...newStates[level],
-            selectedCategories: [selected],
-          };
+  // Effect to handle state updates
+  useEffect(() => {
+    if (pendingSelection === null) return;
 
-          // Add new selector if selected category has children
-          if (selected.data.children?.length > 0) {
-            const childrenOptions = selected.data.children.map(child => ({
+    const { selected, level } = pendingSelection;
+
+    if (selected?.data) {
+      setSelectorStates((prev) => {
+        const newStates = prev.slice(0, level + 1);
+        newStates[level] = {
+          ...newStates[level],
+          selectedCategories: [selected],
+        };
+
+        if (selected.data.children?.length > 0) {
+          newStates.push({
+            level: level + 1,
+            parentId: parseInt(selected.value),
+            selectedCategories: [],
+            availableOptions: selected.data.children.map((child) => ({
               value: child.id.toString(),
               label: child.name,
               subLabel: child.code,
               data: child,
-            }));
+            })),
+          });
+        }
 
-            newStates.push({
-              level: level + 1,
-              parentId: parseInt(selected.value),
-              selectedCategories: [],
-              availableOptions: childrenOptions,
-            });
-          }
+        // Update Redux store with selected categories
+        const selectedCategories = newStates
+          .filter((state) => state.selectedCategories.length > 0)
+          .map((state, idx) => ({
+            product_category_id: parseInt(state.selectedCategories[0].value),
+            product_category_parent: state.selectedCategories[0].data.parent_id,
+            product_category_name: state.selectedCategories[0].data.name,
+            category_hierarchy: idx + 1,
+          }));
 
-          return newStates;
-        });
+        dispatch(updateProductCategories(selectedCategories));
+        return newStates;
+      });
 
-        setValue("categoryId", selected.value);
-      } else {
-        setSelectorStates((prev) => prev.slice(0, level + 1));
-        setValue("categoryId", "");
-      }
+      setValue("categoryId", selected.value);
+    } else {
+      setSelectorStates((prev) => {
+        const newStates = prev.slice(0, level + 1);
+
+        const remainingCategories = newStates
+          .slice(0, level)
+          .filter((state) => state.selectedCategories.length > 0)
+          .map((state, idx) => ({
+            product_category_id: parseInt(state.selectedCategories[0].value),
+            product_category_parent: state.selectedCategories[0].data.parent_id,
+            product_category_name: state.selectedCategories[0].data.name,
+            category_hierarchy: idx + 1,
+          }));
+
+        dispatch(updateProductCategories(remainingCategories));
+        return newStates;
+      });
+
+      setValue("categoryId", "");
+    }
+
+    setPendingSelection(null);
+  }, [pendingSelection, dispatch, setValue]);
+
+  const handleChange = useCallback(
+    (selected: SelectOption | null, level: number) => {
+      setPendingSelection({ selected, level });
     },
-    [setValue]
+    []
   );
 
   return (
@@ -314,11 +353,15 @@ export function CategorySelector() {
           key={`category-${state.level}`}
           name={`category-${state.level}`}
           control={control}
-          loadOptions={index === 0 ? loadCategoryOptions : async () => ({
-            options: state.availableOptions || [],
-            hasMore: false,
-            additional: { page: 1, hasMore: false },
-          })}
+          loadOptions={
+            index === 0
+              ? loadCategoryOptions
+              : async () => ({
+                  options: state.availableOptions || [],
+                  hasMore: false,
+                  additional: { page: 1, hasMore: false },
+                })
+          }
           onChange={(selected) => handleChange(selected, state.level)}
           value={state.selectedCategories[0] || null}
           defaultOptions={index === 0 ? true : state.availableOptions || []}
