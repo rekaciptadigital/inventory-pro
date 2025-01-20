@@ -32,10 +32,9 @@ export function generateSKU(
 
   const brandCode = brand.code;
   const typeCode = productType.code;
-  const code =
-    uniqueCode || Math.random().toString(36).substring(2, 8).toUpperCase();
+  const code = uniqueCode || generateRandomDigits(4);
 
-  return `${brandCode}-${typeCode}-${code}`.toUpperCase();
+  return `${brandCode}${typeCode}${code}`.toUpperCase();
 }
 
 export function generateVariantSKU(
@@ -54,7 +53,7 @@ export function generateVariantSKU(
     .filter(Boolean)
     .join("");
 
-  return `${baseSku}-${variantCodes}`;
+  return `${baseSku}${variantCodes}`;
 }
 
 export function generateAllVariantSkus(

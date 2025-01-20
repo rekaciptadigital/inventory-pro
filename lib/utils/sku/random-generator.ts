@@ -1,6 +1,7 @@
 export function generateRandomDigits(length: number): string {
-  return Array.from(
-    { length }, 
-    () => Math.floor(Math.random() * 10)
-  ).join('').padStart(length, '0');
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += Math.floor(Math.random() * 10).toString();
+  }
+  return result;
 }
