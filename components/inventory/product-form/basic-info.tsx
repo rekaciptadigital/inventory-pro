@@ -154,7 +154,16 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
         />
       </div>
 
-      <CategorySelector />
+      <FormField
+        control={form.control}
+        name="categoryId"
+        render={() => (
+          <FormItem>
+            <FormLabel>Category</FormLabel>
+            <CategorySelector />
+          </FormItem>
+        )}
+      />
 
       <div className="grid grid-cols-2 gap-4">
         <FormField
