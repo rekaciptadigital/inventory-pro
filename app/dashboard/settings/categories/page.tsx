@@ -270,33 +270,33 @@ export default function CategoriesPage() {
                   key={category.temp_key}
                   className="flex flex-col gap-4 p-4 border rounded-md bg-background relative"
                   onMouseEnter={() => setHoveredCategory(category.id.toString())}
-                  onMouseLeave={() => setHoveredCategory(null)} 
+                  onMouseLeave={() => setHoveredCategory(null)}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
                       <div className="text-sm font-medium">
                         {category.name}
                         {defaultCategory === category.id.toString() && (
                           <span className="text-xs text-muted-foreground ml-2">(Default)</span>
                         )}
                       </div>
+                      {defaultCategory !== category.id.toString() && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSetDefault(category.id.toString())}
+                          className={cn(
+                            "opacity-0 transition-opacity",
+                            hoveredCategory === category.id.toString() && "opacity-100"
+                          )}
+                        >
+                          Set Default
+                        </Button>
+                      )}
                       {defaultCategory === category.id && (
                         <span className="text-xs text-muted-foreground ml-2">(Default)</span>
                       )}
                     </div>
-                    {defaultCategory !== category.id.toString() && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                          "opacity-0 transition-opacity absolute right-4 top-4",
-                          hoveredCategory === category.id.toString() && "opacity-100"
-                        )}
-                        onClick={() => handleSetDefault(category.id.toString())}
-                      >
-                        Set Default
-                      </Button>
-                    )}
                   </div>
                   <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
