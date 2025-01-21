@@ -85,9 +85,9 @@ export function BrandList({
           <TableRow>
             <TableHead>Brand Name</TableHead>
             <TableHead>Brand Code</TableHead>
-            <TableHead>Status</TableHead>
             <TableHead>Created At</TableHead>
             <TableHead>Updated At</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -96,6 +96,8 @@ export function BrandList({
             <TableRow key={brand.id}>
               <TableCell className="font-medium">{brand.name}</TableCell>
               <TableCell>{brand.code}</TableCell>
+              <TableCell>{formatDate(brand.created_at)}</TableCell>
+              <TableCell>{formatDate(brand.updated_at)}</TableCell>
               <TableCell>
                 <Switch
                   checked={brand.status}
@@ -105,8 +107,6 @@ export function BrandList({
                   }
                 />
               </TableCell>
-              <TableCell>{formatDate(brand.created_at)}</TableCell>
-              <TableCell>{formatDate(brand.updated_at)}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Button
