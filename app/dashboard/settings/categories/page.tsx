@@ -4,12 +4,14 @@ import { useEffect, useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchPriceCategories,
+  setDefaultCategory,
   addCategory,
   updateCategory,
   deleteCategory,
   selectCustomerCategories,
-  selectMarketplaceCategories, // Rename dari selectEcommerceCategories
+  selectMarketplaceCategories,
   selectIsLoading,
+  selectDefaultCategory,
 } from "@/lib/store/slices/priceCategoriesSlice";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,7 +29,7 @@ import type { PriceCategoryFormData } from "@/lib/api/price-categories";
 import {
   deletePriceCategory,
   batchUpdatePriceCategories,
-} from "@/lib/api/price-categories"; // Tambahkan import ini
+} from "@/lib/api/price-categories";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,15 +40,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+import { FormLabel } from "@/components/ui/form";
 
 export default function CategoriesPage() {
   const dispatch = useDispatch();
-  const { toast } = useToast(); // Pindahkan ke atas
+  const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
   const customerCategories = useSelector(selectCustomerCategories);
-  const marketplaceCategories = useSelector(selectMarketplaceCategories); // Rename dari ecommerceCategories
+  const marketplaceCategories = useSelector(selectMarketplaceCategories);
   const isLoading = useSelector(selectIsLoading);
+  const defaultCategory = useSelector(selectDefaultCategory);
+
+  const handleSetDefault = (categoryId: string) => {
+    dispatch(setDefaultCategory(categoryId));
+    toast({
+      title: "Success",
+      description: "Default category has been updated",
+    });
+  };
 
   useEffect(() => {
     // Gunakan Promise untuk menghindari warning setState during render
@@ -254,8 +268,36 @@ export default function CategoriesPage() {
               {customerCategories.map((category) => (
                 <div
                   key={category.temp_key}
-                  className="flex flex-col gap-4 p-4 border rounded-md bg-background"
+                  className="flex flex-col gap-4 p-4 border rounded-md bg-background relative"
+                  onMouseEnter={() => setHoveredCategory(category.id.toString())}
+                  onMouseLeave={() => setHoveredCategory(null)} 
                 >
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium">
+                        {category.name}
+                        {defaultCategory === category.id.toString() && (
+                          <span className="text-xs text-muted-foreground ml-2">(Default)</span>
+                        )}
+                      </div>
+                      {defaultCategory === category.id && (
+                        <span className="text-xs text-muted-foreground ml-2">(Default)</span>
+                      )}
+                    </div>
+                    {defaultCategory !== category.id.toString() && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "opacity-0 transition-opacity absolute right-4 top-4",
+                          hoveredCategory === category.id.toString() && "opacity-100"
+                        )}
+                        onClick={() => handleSetDefault(category.id.toString())}
+                      >
+                        Set Default
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Input

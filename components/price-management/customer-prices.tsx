@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -20,11 +21,14 @@ import type { Product } from '@/types/inventory';
 
 interface CustomerPricesProps {
   product: Product;
+  defaultCategory?: string;
+  onSetDefault?: (categoryId: string) => void;
 }
 
-export function CustomerPrices({ product }: CustomerPricesProps) {
+export function CustomerPrices({ product, defaultCategory, onSetDefault }: CustomerPricesProps) {
   const { categories } = usePriceCategories();
   const { taxes } = useTaxes();
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const form = useForm({
     defaultValues: {
       customerPrices: product.customerPrices || {},
@@ -53,7 +57,25 @@ export function CustomerPrices({ product }: CustomerPricesProps) {
               return (
                 <div key={category.id} className="space-y-4 p-4 rounded-lg border">
                   <div className="flex items-center justify-between">
-                    <FormLabel>{category.name} Price Settings</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <FormLabel>{category.name} Price Settings</FormLabel>
+                      {defaultCategory === category.id && (
+                        <span className="text-xs text-muted-foreground">(Default)</span>
+                      )}
+                    </div>
+                    {onSetDefault && defaultCategory !== category.id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "opacity-0 transition-opacity",
+                          hoveredCategory === category.id && "opacity-100"
+                        )}
+                        onClick={() => onSetDefault(category.id)}
+                      >
+                        Set Default
+                      </Button>
+                    )}
                   </div>
 
                   <div className="space-y-4">

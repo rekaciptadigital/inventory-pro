@@ -65,9 +65,9 @@ export function ProductTypeList({
             <TableHead>Type Name</TableHead>
             <TableHead>Code</TableHead>
             <TableHead>Description</TableHead>
-            <TableHead>Status</TableHead>
             <TableHead>Created At</TableHead>
             <TableHead>Updated At</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -77,14 +77,14 @@ export function ProductTypeList({
               <TableCell className="font-medium">{type.name}</TableCell>
               <TableCell>{type.code}</TableCell>
               <TableCell>{type.description || '-'}</TableCell>
+              <TableCell>{formatDate(type.created_at)}</TableCell>
+              <TableCell>{formatDate(type.updated_at)}</TableCell>
               <TableCell>
                 <Switch
                   checked={type.status}
                   onCheckedChange={(checked) => onStatusChange(type.id, checked)}
                 />
               </TableCell>
-              <TableCell>{formatDate(type.created_at)}</TableCell>
-              <TableCell>{formatDate(type.updated_at)}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Button

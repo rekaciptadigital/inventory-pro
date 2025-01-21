@@ -9,14 +9,16 @@ import type { RootState } from "../store";
 
 interface PriceCategoriesState {
   customerCategories: PriceCategory[];
-  marketplaceCategories: PriceCategory[]; // Rename dari ecommerceCategories
+  marketplaceCategories: PriceCategory[];
+  defaultCategoryId: string | null;
   isLoading: boolean;
   error: string | null;
 }
 
 const initialState: PriceCategoriesState = {
   customerCategories: [],
-  marketplaceCategories: [], // Rename dari ecommerceCategories
+  marketplaceCategories: [],
+  defaultCategoryId: null,
   isLoading: false,
   error: null,
 };
@@ -120,6 +122,9 @@ const priceCategoriesSlice = createSlice({
         );
       }
     },
+    setDefaultCategory: (state, action: PayloadAction<string>) => {
+      state.defaultCategoryId = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -154,7 +159,7 @@ const priceCategoriesSlice = createSlice({
   },
 });
 
-export const { addCategory, updateCategory, deleteCategory } =
+export const { addCategory, updateCategory, deleteCategory, setDefaultCategory } =
   priceCategoriesSlice.actions;
 
 export const selectCustomerCategories = (state: RootState) =>
@@ -162,6 +167,7 @@ export const selectCustomerCategories = (state: RootState) =>
 export const selectMarketplaceCategories = (
   state: RootState // Rename dari selectEcommerceCategories
 ) => state.priceCategories.marketplaceCategories;
+export const selectDefaultCategory = (state: RootState) => state.priceCategories.defaultCategoryId;
 export const selectIsLoading = (state: RootState) =>
   state.priceCategories.isLoading;
 export const selectError = (state: RootState) => state.priceCategories.error;
