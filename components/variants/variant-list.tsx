@@ -57,8 +57,8 @@ export function VariantList({ variants, onEdit, onDelete, isLoading }: VariantLi
             <TableHead>Name</TableHead>
             <TableHead>Values</TableHead>
             <TableHead>Display Order</TableHead>
-            <TableHead>Status</TableHead>
             <TableHead>Created At</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -76,12 +76,12 @@ export function VariantList({ variants, onEdit, onDelete, isLoading }: VariantLi
                 </div>
               </TableCell>
               <TableCell>{variant.display_order}</TableCell>
+              <TableCell>{formatDate(variant.created_at)}</TableCell>
               <TableCell>
                 <Badge variant={variant.status ? 'default' : 'secondary'}>
                   {variant.status ? 'Active' : 'Inactive'}
                 </Badge>
               </TableCell>
-              <TableCell>{formatDate(variant.created_at)}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Button
