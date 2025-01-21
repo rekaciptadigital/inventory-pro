@@ -417,7 +417,13 @@ export default function CategoriesPage() {
                         className="w-full"
                       />
                       <div className="text-xs text-muted-foreground">
-                        {category.formula}
+                        Formula: Default price + {category.percentage}% markup
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {defaultCategory ? 
+                          `Based on ${customerCategories.find(c => c.id.toString() === defaultCategory)?.name || 'Default'} category price` 
+                          : 'Please set a default customer category first'
+                        }
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
@@ -431,7 +437,7 @@ export default function CategoriesPage() {
                               {
                                 ...category,
                                 percentage: Number(e.target.value),
-                                formula: `Formula: HB Naik + ${e.target.value}% markup`,
+                                formula: `Formula: Default price + ${e.target.value}% markup`,
                               },
                               "Marketplace"
                             )
@@ -441,7 +447,7 @@ export default function CategoriesPage() {
                           className="w-full"
                         />
                         <span className="text-xs text-muted-foreground block">
-                          Percentage (%): e.g., 10 for 10%
+                          Additional markup (%) on top of default price
                         </span>
                       </div>
                       <Button
