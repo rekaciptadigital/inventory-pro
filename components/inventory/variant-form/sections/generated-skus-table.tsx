@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -8,19 +8,20 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { VariantSkuField } from './variant-sku-field';
-import { 
+} from "@/components/ui/table";
+import { VariantSkuField } from "./variant-sku-field";
+import {
   generateVariantCombinations,
   formatVariantName,
-  type VariantCombination 
-} from '@/lib/utils/variant/combinations';
-import { useVariantTypes } from '@/lib/hooks/use-variant-types';
-import { generateSequentialCode } from '@/lib/utils/sku/variant-code-generator';
+  type VariantCombination,
+} from "@/lib/utils/variant/combinations";
+import { useVariantTypes } from "@/lib/hooks/use-variant-types";
+import { generateSequentialCode } from "@/lib/utils/sku/variant-code-generator";
+import type { SelectedVariant } from "@/types/variant";
 
 interface GeneratedSkusTableProps {
   baseSku: string;
-  selectedVariants: Array<{ typeId: string; values: string[] }>;
+  selectedVariants: SelectedVariant[];
   productDetails: {
     brand: string;
     productType: string;
@@ -55,41 +56,21 @@ export function GeneratedSkusTable({
 
   const variantTypes = variantTypesResponse?.data ?? [];
 
-  // Memoize combinations to prevent unnecessary recalculations
-  const combinations = useMemo(() => {
-    if (!baseSku || selectedVariants.length === 0) return [];
-    return generateVariantCombinations(selectedVariants, variantTypes);
-  }, [baseSku, selectedVariants, variantTypes]);
+  // Generate combinations of variant values
+  const generateCombinations = (variants: SelectedVariant[]) => {
+    if (variants.length === 0) return [[]];
 
-  // Memoize variants generation
-  const variants = useMemo(() => {
-    if (combinations.length === 0) return [];
-    
-    return combinations.map((combination, index) => {
-      const defaultCode = generateSequentialCode(index);
-      return {
-        mainSku: baseSku,
-        uniqueCode: variantCodes[index] || defaultCode,
-        defaultUniqueCode: defaultCode,
-        combination,
-      };
-    });
-  }, [combinations, baseSku, variantCodes]);
+    const [first, ...rest] = variants;
+    const restCombinations = generateCombinations(rest);
 
-  const handleUniqueCodeChange = (index: number, newCode: string) => {
-    setVariantCodes(prev => ({
-      ...prev,
-      [index]: newCode
-    }));
+    return first.values.flatMap((value) =>
+      restCombinations.map((combo) => [value, ...combo])
+    );
   };
 
-  const handleReset = (index: number) => {
-    setVariantCodes(prev => {
-      const newCodes = { ...prev };
-      delete newCodes[index];
-      return newCodes;
-    });
-  };
+  const combinations = generateCombinations(
+    selectedVariants.filter((v) => v.values.length > 0)
+  );
 
   if (isLoading) {
     return <div>Loading variant types...</div>;
@@ -99,39 +80,30 @@ export function GeneratedSkusTable({
     return <div>Error loading variant types</div>;
   }
 
-  if (!baseSku || variants.length === 0) return null;
+  if (!baseSku || combinations.length === 0) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[40%]">Full Product Name</TableHead>
-            <TableHead>SKU & Unique Code</TableHead>
+            <TableHead>SKU</TableHead>
+            <TableHead>Variant Combination</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {variants.map((variant, index) => (
+          {combinations.map((combo, index) => (
             <TableRow key={index}>
-              <TableCell>
-                {formatVariantName(
-                  productDetails.brand,
-                  productDetails.productType,
-                  productDetails.productName,
-                  variant.combination
-                )}
+              <TableCell className="font-medium">
+                {baseSku}-{combo.join("-")}
               </TableCell>
               <TableCell>
-                <VariantSkuField
-                  index={index}
-                  mainSku={variant.mainSku}
-                  uniqueCode={variant.uniqueCode}
-                  defaultUniqueCode={variant.defaultUniqueCode}
-                  existingCodes={variants.map(v => v.uniqueCode)}
-                  error={errors[index]}
-                  onUniqueCodeChange={(code) => handleUniqueCodeChange(index, code)}
-                  onReset={() => handleReset(index)}
-                />
+                {combo.map((value, i) => (
+                  <span key={i}>
+                    {selectedVariants[i]?.typeId ? `${value}` : value}
+                    {i < combo.length - 1 ? " / " : ""}
+                  </span>
+                ))}
               </TableCell>
             </TableRow>
           ))}

@@ -3,7 +3,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   FormField,
   FormItem,
@@ -47,15 +47,24 @@ interface BasicInfoProps {
 export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
   const dispatch = useDispatch();
   const [sku, setSku] = useState(form.getValues("sku") || "");
-  const [fullName, setFullName] = useState(
-    form.getValues("fullProductName") || ""
-  );
   const [lastUpdate, setLastUpdate] = useState<string>("");
 
   const selectedBrandData = useSelector(selectBrand);
   const selectedProductTypeData = useSelector(selectProductType);
   const uniqueCode = form.watch("uniqueCode");
   const productName = form.watch("productName");
+
+  // Memoize the full product name
+  const fullName = useMemo(() => {
+    if (
+      !selectedBrandData.name ||
+      !selectedProductTypeData.name ||
+      !productName
+    ) {
+      return "";
+    }
+    return `${selectedBrandData.name} ${selectedProductTypeData.name} ${productName}`;
+  }, [selectedBrandData.name, selectedProductTypeData.name, productName]);
 
   // Handle unique code changes
   const handleUniqueCodeChange = useCallback(
@@ -64,6 +73,61 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
       form.setValue("uniqueCode", value);
       dispatch(updateForm({ unique_code: value }));
       setLastUpdate(`uniqueCode-${Date.now()}`);
+    },
+    [dispatch, form]
+  );
+
+  // Handler for product name changes
+  const handleProductNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      form.setValue("productName", value);
+      dispatch(
+        updateForm({
+          product_name: value,
+        })
+      );
+    },
+    [dispatch, form]
+  );
+
+  // Handler for vendor SKU changes
+  const handleVendorSkuChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      form.setValue("vendorSku", value);
+      dispatch(
+        updateForm({
+          vendor_sku: value,
+        })
+      );
+    },
+    [dispatch, form]
+  );
+
+  // Handler for description changes
+  const handleDescriptionChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const value = e.target.value;
+      form.setValue("description", value);
+      dispatch(
+        updateForm({
+          description: value,
+        })
+      );
+    },
+    [dispatch, form]
+  );
+
+  // Handler for unit changes
+  const handleUnitChange = useCallback(
+    (value: string) => {
+      form.setValue("unit", value);
+      dispatch(
+        updateForm({
+          unit: value,
+        })
+      );
     },
     [dispatch, form]
   );
@@ -106,19 +170,45 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
     lastUpdate,
   ]);
 
-  // Effect for full product name
+  // Effect for full product name and updating Redux
   useEffect(() => {
-    if (
-      !selectedBrandData.name ||
-      !selectedProductTypeData.name ||
-      !productName
-    )
-      return;
+    if (fullName) {
+      form.setValue("fullProductName", fullName);
+      dispatch(
+        updateForm({
+          product_name: productName,
+          full_product_name: fullName,
+        })
+      );
+    }
+  }, [fullName, productName, dispatch, form]);
 
-    const generatedFullName = `${selectedBrandData.name} ${selectedProductTypeData.name} ${productName}`;
-    setFullName(generatedFullName);
-    form.setValue("fullProductName", generatedFullName);
-  }, [selectedBrandData.name, selectedProductTypeData.name, productName]);
+  // Effect untuk memastikan vendor SKU dan description tersimpan di Redux saat komponen mount
+  useEffect(() => {
+    const initialVendorSku = form.getValues("vendorSku");
+    const initialDescription = form.getValues("description");
+
+    if (initialVendorSku || initialDescription) {
+      dispatch(
+        updateForm({
+          vendor_sku: initialVendorSku || "",
+          description: initialDescription || "",
+        })
+      );
+    }
+  }, []);
+
+  // Effect to initialize unit value in Redux
+  useEffect(() => {
+    const initialUnit = form.getValues("unit");
+    if (initialUnit) {
+      dispatch(
+        updateForm({
+          unit: initialUnit,
+        })
+      );
+    }
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -212,7 +302,11 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
           <FormItem>
             <FormLabel>Product Name</FormLabel>
             <FormControl>
-              <Input placeholder="Enter product name" {...field} />
+              <Input
+                {...field}
+                onChange={handleProductNameChange}
+                placeholder="Enter product name"
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -248,7 +342,15 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
           <FormItem>
             <FormLabel>Vendor SKU</FormLabel>
             <FormControl>
-              <Input placeholder="Enter vendor SKU (optional)" {...field} />
+              <Input
+                {...field}
+                onChange={handleVendorSkuChange}
+                onBlur={(e) => {
+                  field.onBlur();
+                  dispatch(updateForm({ vendor_sku: e.target.value }));
+                }}
+                placeholder="Enter vendor SKU (optional)"
+              />
             </FormControl>
             <FormDescription>
               Enter original vendor SKU if available
@@ -266,9 +368,14 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
             <FormLabel>Description</FormLabel>
             <FormControl>
               <Textarea
+                {...field}
+                onChange={handleDescriptionChange}
+                onBlur={(e) => {
+                  field.onBlur();
+                  dispatch(updateForm({ description: e.target.value }));
+                }}
                 placeholder="Enter product description (optional)"
                 className="min-h-[100px] resize-none"
-                {...field}
               />
             </FormControl>
             <FormDescription>
@@ -285,7 +392,13 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Unit</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
+            <Select
+              onValueChange={(value) => {
+                field.onChange(value);
+                handleUnitChange(value);
+              }}
+              defaultValue={field.value}
+            >
               <FormControl>
                 <SelectTrigger>
                   <SelectValue placeholder="Select unit" />

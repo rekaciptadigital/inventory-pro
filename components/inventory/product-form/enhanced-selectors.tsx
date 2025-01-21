@@ -8,6 +8,7 @@ import {
 import { ClientSelect } from "@/components/ui/enhanced-select/client-select";
 import { useBrands } from "@/lib/hooks/use-brands";
 import { useProductCategories } from "@/lib/hooks/use-product-categories";
+import { useVariants } from "@/lib/hooks/use-variants";
 import type { ProductFormValues } from "./form-schema";
 import {
   setBrand,
@@ -225,7 +226,9 @@ export function CategorySelector() {
     selected: SelectOption | null;
     level: number;
   } | null>(null);
-  const [selectedCategories, setSelectedCategories] = useState<ProductCategory[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<
+    ProductCategory[]
+  >([]);
 
   const loadCategoryOptions = useCallback(
     async (
@@ -383,5 +386,135 @@ export function CategorySelector() {
         />
       ))}
     </div>
+  );
+}
+
+export function VariantTypeSelector({
+  value,
+  onChange,
+  excludeIds = [],
+}: {
+  value: SelectOption | null;
+  onChange: (selected: SelectOption | null) => void;
+  excludeIds?: number[];
+}) {
+  const { variants, isLoading } = useVariants();
+
+  const loadOptions = useCallback(
+    async (search: string) => {
+      try {
+        const filteredVariants = variants
+          .filter((variant) => !excludeIds.includes(variant.id))
+          .filter((variant) =>
+            variant.name.toLowerCase().includes(search.toLowerCase())
+          )
+          .map((variant) => ({
+            value: variant.id.toString(),
+            label: variant.name,
+            data: {
+              id: variant.id,
+              name: variant.name,
+              values: variant.values,
+            },
+          }));
+
+        return {
+          options: filteredVariants,
+          hasMore: false,
+          additional: { page: 1 },
+        };
+      } catch (error) {
+        console.error("Error loading variants:", error);
+        return {
+          options: [],
+          hasMore: false,
+          additional: { page: 1 },
+        };
+      }
+    },
+    [variants, excludeIds]
+  );
+
+  if (isLoading) {
+    return <div>Loading variants...</div>;
+  }
+
+  return (
+    <ClientSelect
+      value={value}
+      onChange={onChange}
+      loadOptions={loadOptions}
+      defaultOptions
+      placeholder="Select variant type..."
+      isClearable={false}
+      classNames={{
+        control: () => "h-10",
+        placeholder: () => "text-sm",
+        input: () => "text-sm",
+        option: () => "text-sm",
+      }}
+    />
+  );
+}
+
+export function VariantValueSelector({
+  values = [],
+  value,
+  onChange,
+  isDisabled = false,
+}: {
+  values: string[];
+  value: SelectOption | null;
+  onChange: (selected: SelectOption | null) => void;
+  isDisabled?: boolean;
+}) {
+  const loadOptions = useCallback(
+    async (search: string) => {
+      try {
+        console.log("Available values:", values); // Debug log
+
+        const options = values
+          .filter((val) => val.toLowerCase().includes(search.toLowerCase()))
+          .map((val) => ({
+            value: val,
+            label: val,
+            data: val,
+          }));
+
+        console.log("Filtered options:", options); // Debug log
+
+        return {
+          options,
+          hasMore: false,
+          additional: { page: 1 },
+        };
+      } catch (error) {
+        console.error("Error loading variant values:", error);
+        return {
+          options: [],
+          hasMore: false,
+          additional: { page: 1 },
+        };
+      }
+    },
+    [values]
+  );
+
+  return (
+    <ClientSelect
+      value={value}
+      onChange={onChange}
+      loadOptions={loadOptions}
+      defaultOptions={true} // Make sure this is true
+      isDisabled={isDisabled}
+      placeholder="Select variant value..."
+      isClearable={false}
+      classNames={{
+        control: () => "h-10",
+        placeholder: () => "text-sm",
+        input: () => "text-sm",
+        option: () => "text-sm",
+      }}
+    />
   );
 }

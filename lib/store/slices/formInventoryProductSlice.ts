@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction, createSelector } from "@reduxjs/toolkit";
 import type { RootState } from "../store";
 import type {
   InventoryProductForm,
@@ -12,6 +12,17 @@ interface ProductCategory {
   product_category_parent: number | null;
   product_category_name: string;
   category_hierarchy: number;
+}
+
+interface VariantValue {
+  variant_value_id: number;
+  variant_value_name: string;
+}
+
+interface Variant {
+  variant_id: number;
+  variant_name: string;
+  variant_values: VariantValue[];
 }
 
 export interface InventoryProductForm {
@@ -30,7 +41,7 @@ export interface InventoryProductForm {
   unit: string;
   slug: string;
   categories: ProductCategory[];
-  variants: ProductVariant[];
+  variants: Variant[];
   product_by_variant: ProductByVariant[];
 }
 
@@ -101,7 +112,7 @@ const formInventoryProductSlice = createSlice({
         (cat) => cat.category_hierarchy < action.payload
       );
     },
-    setVariants: (state, action: PayloadAction<ProductVariant[]>) => {
+    setVariants: (state, action: PayloadAction<Variant[]>) => {
       state.variants = action.payload;
     },
     setProductByVariant: (state, action: PayloadAction<ProductByVariant[]>) => {
@@ -124,6 +135,20 @@ const formInventoryProductSlice = createSlice({
       state.sku = action.payload.sku;
       state.unique_code = action.payload.unique_code;
     },
+    updateVariant: (
+      state,
+      action: PayloadAction<{
+        variantId: number;
+        values: VariantValue[];
+      }>
+    ) => {
+      const variantIndex = state.variants.findIndex(
+        (v) => v.variant_id === action.payload.variantId
+      );
+      if (variantIndex !== -1) {
+        state.variants[variantIndex].variant_values = action.payload.values;
+      }
+    },
   },
 });
 
@@ -140,28 +165,76 @@ export const {
   resetForm,
   updateProductCategories,
   updateSkuInfo,
+  updateVariant,
 } = formInventoryProductSlice.actions;
 
-// Export selectors
+// Memoized selectors
 export const selectFormInventoryProduct = (state: RootState) =>
   state.formInventoryProduct;
-export const selectBrand = (state: RootState) => ({
-  id: state.formInventoryProduct.brand_id,
-  code: state.formInventoryProduct.brand_code,
-  name: state.formInventoryProduct.brand_name,
-});
-export const selectProductType = (state: RootState) => ({
-  id: state.formInventoryProduct.product_type_id,
-  code: state.formInventoryProduct.product_type_code,
-  name: state.formInventoryProduct.product_type_name,
-});
-export const selectSkuDetails = (state: RootState) => ({
-  sku: state.formInventoryProduct.sku,
-  uniqueCode: state.formInventoryProduct.unique_code,
-});
-export const selectSkuInfo = (state: RootState) => ({
-  sku: state.formInventoryProduct.sku,
-  unique_code: state.formInventoryProduct.unique_code,
-});
+
+export const selectBrand = createSelector(
+  selectFormInventoryProduct,
+  (form) => ({
+    id: form.brand_id,
+    code: form.brand_code,
+    name: form.brand_name,
+  })
+);
+
+export const selectProductType = createSelector(
+  selectFormInventoryProduct,
+  (form) => ({
+    id: form.product_type_id,
+    code: form.product_type_code,
+    name: form.product_type_name,
+  })
+);
+
+export const selectSkuDetails = createSelector(
+  selectFormInventoryProduct,
+  (form) => ({
+    sku: form.sku,
+    uniqueCode: form.unique_code,
+  })
+);
+
+export const selectSkuInfo = createSelector(
+  selectFormInventoryProduct,
+  (form) => ({
+    sku: form.sku,
+    unique_code: form.unique_code,
+  })
+);
+
+export const selectProductNames = createSelector(
+  selectFormInventoryProduct,
+  (form) => ({
+    product_name: form.product_name,
+    full_product_name: form.full_product_name,
+  })
+);
+
+export const selectProductDetails = createSelector(
+  selectFormInventoryProduct,
+  (form) => ({
+    vendor_sku: form.vendor_sku,
+    description: form.description,
+  })
+);
+
+export const selectUnit = createSelector(
+  selectFormInventoryProduct,
+  (form) => form.unit
+);
+
+export const selectVariants = createSelector(
+  selectFormInventoryProduct,
+  (form) => form.variants
+);
+
+export const selectVariantsWithValues = createSelector(
+  selectFormInventoryProduct,
+  (form) => form.variants
+);
 
 export default formInventoryProductSlice.reducer;
