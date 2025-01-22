@@ -110,7 +110,7 @@ export function DashboardNav() {
           <AccordionItem value={item.name} className="border-none">
             <AccordionTrigger
               className={cn(
-                "flex items-center space-x-2 px-3 py-2 text-base rounded-lg text-muted-foreground",
+                "flex items-center space-x-2 px-3 py-2 text-sm rounded-lg text-muted-foreground", // Changed from text-base to text-sm
                 "hover:bg-accent hover:text-accent-foreground transition-colors",
                 "hover:no-underline",
                 !isOpen &&
@@ -170,7 +170,7 @@ export function DashboardNav() {
             : "text-muted-foreground",
           !isOpen &&
             "lg:justify-center lg:px-2 group-hover:justify-start group-hover:px-3",
-          "text-base lg:text-sm"
+          "text-sm" // Changed from "text-base lg:text-sm"
         )}
       >
         <Icon className="h-5 w-5 flex-shrink-0" />
@@ -210,8 +210,8 @@ export function DashboardNav() {
               <Target className="h-6 w-6 text-primary" />
               <span
                 className={cn(
-                  "font-bold text-lg whitespace-nowrap",
-                  !isOpen && "hidden group-hover:block" // Show on hover when minimized
+                  "font-semibold text-lg whitespace-nowrap",  // Changed from font-bold to font-semibold
+                  !isOpen && "hidden group-hover:block"
                 )}
               >
                 Archery Pro
@@ -311,7 +311,7 @@ export function DashboardNav() {
 
             <nav className="flex-1 space-y-2 px-3 py-4">
               {navigation.map((item) => (
-                <div key={item.name} className="text-base">
+                <div key={item.name} className="text-sm"> {/* Changed from text-base */}
                   {renderNavItem(item)}
                 </div>
               ))}
