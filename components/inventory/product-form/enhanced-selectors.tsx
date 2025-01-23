@@ -464,57 +464,115 @@ export function VariantValueSelector({
   isDisabled = false,
 }: {
   values: string[];
-  value: SelectOption | null;
-  onChange: (selected: SelectOption | null) => void;
+  value: SelectOption[] | null;
+  onChange: (selected: SelectOption[]) => void;
   isDisabled?: boolean;
 }) {
+  const [options, setOptions] = useState<SelectOption[]>([]);
+
+  useEffect(() => {
+    const newOptions = values.map((val) => ({
+      value: val,
+      label: val,
+      data: val,
+    }));
+    setOptions(newOptions);
+    console.log("Available options updated:", newOptions);
+  }, [values]);
+
   const loadOptions = useCallback(
     async (search: string) => {
-      try {
-        console.log("Available values:", values); // Debug log
+      const filteredOptions = options.filter((option) =>
+        option.label.toLowerCase().includes(search.toLowerCase())
+      );
 
-        const options = values
-          .filter((val) => val.toLowerCase().includes(search.toLowerCase()))
-          .map((val) => ({
-            value: val,
-            label: val,
-            data: val,
-          }));
-
-        console.log("Filtered options:", options); // Debug log
-
-        return {
-          options,
-          hasMore: false,
-          additional: { page: 1 },
-        };
-      } catch (error) {
-        console.error("Error loading variant values:", error);
-        return {
-          options: [],
-          hasMore: false,
-          additional: { page: 1 },
-        };
-      }
+      return {
+        options: filteredOptions,
+        hasMore: false,
+        additional: { page: 1 },
+      };
     },
-    [values]
+    [options]
   );
 
   return (
     <ClientSelect
       value={value}
-      onChange={onChange}
+      onChange={(selected) => {
+        const selectedArray = selected
+          ? Array.isArray(selected)
+            ? selected
+            : [selected]
+          : [];
+        console.log("Selected values:", selectedArray);
+        onChange(selectedArray);
+      }}
       loadOptions={loadOptions}
-      defaultOptions={true} // Make sure this is true
+      defaultOptions={options}
       isDisabled={isDisabled}
-      placeholder="Select variant value..."
-      isClearable={false}
+      placeholder="Select variant values..."
+      isClearable={true}
+      isMulti={true}
       classNames={{
-        control: () => "h-10",
+        control: () =>
+          "min-h-[40px] max-h-[120px] overflow-y-auto scrollbar-thin scrollbar-thumb-accent scrollbar-track-transparent",
         placeholder: () => "text-sm",
         input: () => "text-sm",
         option: () => "text-sm",
+        multiValue: () =>
+          "bg-accent/50 rounded max-w-[calc(100%-8px)] my-0.5 flex-shrink-0",
+        multiValueLabel: () =>
+          "text-sm text-foreground px-1.5 py-0.5 truncate max-w-[160px] md:max-w-[200px]",
+        multiValueRemove: () =>
+          "hover:bg-accent/80 hover:text-foreground rounded-r px-1 flex items-center",
+        valueContainer: () => "gap-1 p-1.5 flex flex-wrap items-center",
+        container: () => "min-w-0",
       }}
+      styles={{
+        menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+        multiValue: (base) => ({
+          ...base,
+          backgroundColor: "hsl(var(--accent))",
+          margin: "2px",
+        }),
+        multiValueLabel: (base) => ({
+          ...base,
+          color: "hsl(var(--accent-foreground))",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }),
+        multiValueRemove: (base) => ({
+          ...base,
+          color: "hsl(var(--accent-foreground))",
+          padding: "0 4px",
+          ":hover": {
+            backgroundColor: "hsl(var(--accent))",
+            color: "hsl(var(--accent-foreground))",
+          },
+        }),
+        valueContainer: (base) => ({
+          ...base,
+          padding: "2px 6px",
+          gap: "2px",
+          flexWrap: "wrap",
+          maxHeight: "120px",
+          overflowY: "auto",
+        }),
+        control: (base) => ({
+          ...base,
+          minHeight: "40px",
+          height: "auto",
+          maxHeight: "120px",
+          overflow: "hidden",
+        }),
+        input: (base) => ({
+          ...base,
+          margin: "2px",
+        }),
+      }}
+      menuPortalTarget={null} // Remove dynamic document check
+      key={`variant-value-${values.join(",")}`} // More stable key
     />
   );
 }

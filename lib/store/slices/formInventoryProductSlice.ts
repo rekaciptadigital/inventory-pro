@@ -25,6 +25,14 @@ interface Variant {
   variant_values: VariantValue[];
 }
 
+// Add new interface for variant selector
+interface VariantSelectorData {
+  id: number;
+  name: string;
+  values: string[];
+  selected_values?: string[];
+}
+
 export interface InventoryProductForm {
   brand_id: number | null;
   brand_code: string;
@@ -43,6 +51,7 @@ export interface InventoryProductForm {
   categories: ProductCategory[];
   variants: Variant[];
   product_by_variant: ProductByVariant[];
+  variant_selectors: VariantSelectorData[]; // Add new property
 }
 
 const initialState: InventoryProductForm = {
@@ -63,6 +72,7 @@ const initialState: InventoryProductForm = {
   categories: [],
   variants: [],
   product_by_variant: [],
+  variant_selectors: [], // Add new initial state
 };
 
 const formInventoryProductSlice = createSlice({
@@ -149,6 +159,50 @@ const formInventoryProductSlice = createSlice({
         state.variants[variantIndex].variant_values = action.payload.values;
       }
     },
+    // Add new reducers for variant selectors
+    addVariantSelector: (state, action: PayloadAction<VariantSelectorData>) => {
+      state.variant_selectors.push(action.payload);
+    },
+    updateVariantSelector: (
+      state,
+      action: PayloadAction<{ id: number; data: Partial<VariantSelectorData> }>
+    ) => {
+      const index = state.variant_selectors.findIndex(
+        (v) => v.id === action.payload.id
+      );
+      if (index !== -1) {
+        state.variant_selectors[index] = {
+          ...state.variant_selectors[index],
+          ...action.payload.data,
+        };
+      }
+    },
+    removeVariantSelector: (state, action: PayloadAction<number>) => {
+      state.variant_selectors = state.variant_selectors.filter(
+        (v) => v.id !== action.payload
+      );
+    },
+    setVariantSelectors: (
+      state,
+      action: PayloadAction<VariantSelectorData[]>
+    ) => {
+      state.variant_selectors = action.payload;
+    },
+    updateVariantSelectorValues: (
+      state,
+      action: PayloadAction<{ id: number; selected_values: string[] }>
+    ) => {
+      const index = state.variant_selectors.findIndex(
+        (v) => v.id === action.payload.id
+      );
+      if (index !== -1) {
+        state.variant_selectors[index].selected_values =
+          action.payload.selected_values;
+      }
+    },
+    clearVariantSelectors: (state) => {
+      state.variant_selectors = [];
+    },
   },
 });
 
@@ -166,6 +220,12 @@ export const {
   updateProductCategories,
   updateSkuInfo,
   updateVariant,
+  addVariantSelector,
+  updateVariantSelector,
+  removeVariantSelector,
+  setVariantSelectors,
+  updateVariantSelectorValues,
+  clearVariantSelectors,
 } = formInventoryProductSlice.actions;
 
 // Memoized selectors
@@ -235,6 +295,12 @@ export const selectVariants = createSelector(
 export const selectVariantsWithValues = createSelector(
   selectFormInventoryProduct,
   (form) => form.variants
+);
+
+// Add new selector
+export const selectVariantSelectors = createSelector(
+  selectFormInventoryProduct,
+  (form) => form.variant_selectors
 );
 
 export default formInventoryProductSlice.reducer;

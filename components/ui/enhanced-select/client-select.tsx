@@ -53,9 +53,10 @@ const LoadingIndicator = () => {
   return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
 };
 
+// Update interface to support multi-select
 interface ClientSelectProps {
-  value: SelectOption | null;
-  onChange: (selected: SelectOption | null) => void;
+  value: SelectOption | SelectOption[] | null;
+  onChange: (selected: SelectOption | SelectOption[] | null) => void;
   loadOptions: any;
   defaultOptions?: boolean | readonly SelectOption[];
   placeholder?: string;
@@ -63,6 +64,7 @@ interface ClientSelectProps {
   isClearable?: boolean;
   error?: string;
   className?: string;
+  isMulti?: boolean;
 }
 
 export function ClientSelect({
@@ -75,6 +77,8 @@ export function ClientSelect({
   isClearable = true,
   error,
   className,
+  isMulti = false, // Add isMulti prop with default false
+  ...props
 }: ClientSelectProps) {
   const selectId = useId();
 
@@ -150,6 +154,7 @@ export function ClientSelect({
   return (
     <div className="relative">
       <AsyncPaginate
+        {...props}
         instanceId={selectId}
         value={value}
         onChange={onChange}
@@ -158,6 +163,7 @@ export function ClientSelect({
         placeholder={placeholder}
         isDisabled={isDisabled}
         isClearable={isClearable}
+        isMulti={isMulti}
         additional={{
           page: 1,
         }}
@@ -169,10 +175,8 @@ export function ClientSelect({
           LoadingIndicator,
           IndicatorSeparator: () => null,
         }}
-        menuPortalTarget={
-          typeof document !== "undefined" ? document.body : null
-        }
-        blurInputOnSelect
+        menuPortalTarget={null} // Remove dynamic document check
+        blurInputOnSelect={!isMulti}
       />
       {error && (
         <p className="text-sm font-medium text-destructive mt-2">{error}</p>
