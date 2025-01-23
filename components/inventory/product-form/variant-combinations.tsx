@@ -164,16 +164,26 @@ export function VariantCombinations() {
     );
 
     return combinations.map((combo, index) => {
-      const uniqueCode = String(index + 1).padStart(4, "0");
+      const defaultUniqueCode = String(index + 1).padStart(4, "0");
+      const originalSkuKey = `${baseSku}-${index + 1}`;
+      const storedUniqueCode = variantUniqueCodes[originalSkuKey];
+      const uniqueCode = storedUniqueCode || defaultUniqueCode;
+
       return {
-        originalSkuKey: `${baseSku}-${index + 1}`,
+        originalSkuKey,
         skuKey: `${baseSku}-${uniqueCode}`,
         productName: `${full_product_name} ${combo.join(" ")}`,
         uniqueCode,
         combo,
       };
     });
-  }, [canShowGeneratedSkus, selectedVariants, baseSku, full_product_name]);
+  }, [
+    canShowGeneratedSkus,
+    selectedVariants,
+    baseSku,
+    full_product_name,
+    variantUniqueCodes,
+  ]);
 
   useEffect(() => {
     if (!selectedVariants.length) return;
@@ -230,30 +240,29 @@ export function VariantCombinations() {
 
   const handleUniqueCodeChange = useCallback(
     (originalSkuKey: string, value: string) => {
-      const cleanValue = value.replace(/\D/g, "").slice(0, 4);
+      const cleanValue = value.replace(/\D/g, "").slice(0, 10); // Increased to 10 digits
 
+      // Update local state immediately
       setVariantUniqueCodes((prev) => ({
         ...prev,
         [originalSkuKey]: cleanValue,
       }));
 
-      // Delay Redux update to prevent rapid re-renders
-      requestAnimationFrame(() => {
-        const updatedVariants = variantData.map((variant) => ({
-          originalSkuKey: variant.originalSkuKey,
-          sku:
-            variant.originalSkuKey === originalSkuKey
-              ? `${baseSku}-${cleanValue || "0000"}`
-              : variant.skuKey,
-          unique_code:
-            variant.originalSkuKey === originalSkuKey
-              ? cleanValue
-              : variant.uniqueCode,
-          product_name: variant.productName,
-        }));
+      // Update Redux store immediately without requestAnimationFrame
+      const updatedVariants = variantData.map((variant) => ({
+        originalSkuKey: variant.originalSkuKey,
+        sku:
+          variant.originalSkuKey === originalSkuKey
+            ? `${baseSku}-${cleanValue || "0000"}`
+            : variant.skuKey,
+        unique_code:
+          variant.originalSkuKey === originalSkuKey
+            ? cleanValue
+            : variant.uniqueCode,
+        product_name: variant.productName,
+      }));
 
-        dispatch(updateForm({ product_by_variant: updatedVariants }));
-      });
+      dispatch(updateForm({ product_by_variant: updatedVariants }));
     },
     [baseSku, variantData, dispatch]
   );
@@ -377,7 +386,9 @@ export function VariantCombinations() {
                           </TableCell>
                           <TableCell>
                             <Input
-                              key={`${skuKey}-input`}
+                              key={`${skuKey}-input-${
+                                variantUniqueCodes[originalSkuKey] || uniqueCode
+                              }`}
                               value={
                                 variantUniqueCodes[originalSkuKey] || uniqueCode
                               }
@@ -392,10 +403,11 @@ export function VariantCombinations() {
                                 const currentValue =
                                   variantUniqueCodes[originalSkuKey] ||
                                   uniqueCode;
-                                const paddedValue = currentValue.padStart(
-                                  4,
-                                  "0"
-                                );
+                                // Only pad if less than 4 digits
+                                const paddedValue =
+                                  currentValue.length < 4
+                                    ? currentValue.padStart(4, "0")
+                                    : currentValue;
                                 handleUniqueCodeChange(
                                   originalSkuKey,
                                   paddedValue
@@ -404,7 +416,7 @@ export function VariantCombinations() {
                               }}
                               className="w-[120px] font-mono"
                               placeholder="0000"
-                              maxLength={4}
+                              maxLength={10} // Increased to 10
                               type="text"
                               inputMode="numeric"
                               pattern="\d*"
