@@ -49,391 +49,176 @@ export function VariantCombinations() {
   const [selectedVariants, setSelectedVariants] = useState<SelectedVariant[]>([]);
   const { variantTypes } = useVariantTypes();
   const variantSelectors = useSelector(selectVariantSelectors);
-  const [pendingReduxUpdate, setPendingReduxUpdate] = useState<{
-    type: "variants" | "selector";
-    data: any;
-  } | null>(null);
-  const [pendingTypeUpdate, setPendingTypeUpdate] = useState<{
-    variantId: string;
-    data: { id: number; name: string; values: string[] };
-  } | null>(null);
-  const [pendingValuesUpdate, setPendingValuesUpdate] = useState<{
-    variant: SelectedVariant;
-    selectedValues: string[];
-    variants: any[];
-  } | null>(null);
-  const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
-  const { brands } = useBrands();
-  const { productTypes } = useProductTypes();
-  const brand = form.watch("brand");
-  const productTypeId = form.watch("productTypeId");
-  const sku = form.watch("sku");
-  const productName = form.watch("productName");
-  const brandName = brands?.find((b) => b.id === brand)?.name || "";
-  const productTypeName =
-    productTypes?.find((pt) => pt.id === productTypeId)?.name || "";
-  const productDetails = {
-    brand: brandName,
-    productType: productTypeName,
-    productName,
-  };
-  const generateVariantId = useCallback((index: number) => {
-    return `variant-${index}`;
-  }, []);
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const handleAddVariant = useCallback(() => {
-    const newIndex = selectedVariants.length;
-    const uniqueId = generateVariantId(newIndex);
-
-    setSelectedVariants((prev) => [
-      ...prev,
-      { id: uniqueId, typeId: 0, values: [] },
-    ]);
-
-    const currentVariants = selectedVariants.map((variant) => ({
-      variant_id: variant.typeId,
-      variant_name:
-        variantTypes?.find((vt) => vt.id === variant.typeId)?.name || "",
-      variant_values: variant.values.map((value) => ({
-        variant_value_id: 0,
-        variant_value_name: value,
-      })),
-    }));
-
-    dispatch(updateForm({ variants: currentVariants }));
-  }, [dispatch, selectedVariants, variantTypes]);
-
-  const handleRemoveVariant = useCallback((variantId: string) => {
-    setPendingRemoval(variantId);
-  }, []);
-
-  const handleTypeChange = useCallback(
-    (variantId: string, selected: SelectOption | null) => {
-      if (!selected?.data) return;
-
-      setSelectedVariants((prev) => {
-        const newVariants = prev.map((v) =>
-          v.id === variantId
-            ? {
-                ...v,
-                typeId: parseInt(selected.value),
-                values: [],
-              }
-            : v
-        );
-        return newVariants;
-      });
-
-      setPendingTypeUpdate({
-        variantId,
-        data: {
-          id: parseInt(selected.value),
-          name: selected.data.name,
-          values: selected.data.values || [],
-        },
-      });
-    },
-    []
-  );
-
-  const handleValuesChange = useCallback(
-    (variantId: string, selected: SelectOption[]) => {
-      const variant = selectedVariants.find((v) => v.id === variantId);
-      if (!variant) return;
-
-      setSelectedVariants((prev) => {
-        const newVariants = prev.map((v) =>
-          v.id === variantId
-            ? {
-                ...v,
-                values: selected.map((option) => option.value),
-              }
-            : v
-        );
-
-        const formattedVariants = newVariants
-          .filter((v) => v.typeId)
-          .map((variant) => {
-            const variantType = variantTypes?.find(
-              (vt) => vt.id === variant.typeId
-            );
-            return {
-              variant_id: variant.typeId,
-              variant_name: variantType?.name || "",
-              variant_values: variant.values.map((value) => ({
-                variant_value_id: 0,
-                variant_value_name: value,
-              })),
-            };
-          });
-
-        setPendingValuesUpdate({
-          variant,
-          selectedValues: selected.map((option) => option.value),
-          variants: formattedVariants,
-        });
-
-        return newVariants;
-      });
-    },
-    [variantTypes, selectedVariants]
-  );
-
-  useEffect(() => {
-    if (!pendingReduxUpdate) return;
-
-    if (pendingReduxUpdate.type === "variants") {
-      dispatch(updateForm({ variants: pendingReduxUpdate.data.variants }));
-      dispatch(
-        updateVariantSelectorValues(pendingReduxUpdate.data.selectorUpdate)
-      );
-    }
-
-    setPendingReduxUpdate(null);
-  }, [pendingReduxUpdate, dispatch]);
-
-  useEffect(() => {
-    const savedVariants = form.getValues("variants");
-    if (savedVariants?.length) {
-      const formattedVariants = savedVariants.map((variant, index) => ({
-        id: generateVariantId(index),
-        typeId: variant.variant_id,
-        values: variant.variant_values.map((v) =>
-          v.variant_value_id.toString()
-        ),
-      }));
-      setSelectedVariants(formattedVariants);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (pendingTypeUpdate) {
-      dispatch(
-        addVariantSelector({
-          id: pendingTypeUpdate.data.id,
-          name: pendingTypeUpdate.data.name,
-          values: pendingTypeUpdate.data.values,
-          selected_values: [],
-        })
-      );
-      setPendingTypeUpdate(null);
-    }
-  }, [pendingTypeUpdate, dispatch]);
-
-  useEffect(() => {
-    if (pendingValuesUpdate) {
-      dispatch(updateForm({ variants: pendingValuesUpdate.variants }));
-      dispatch(
-        updateVariantSelectorValues({
-          id: pendingValuesUpdate.variant.typeId,
-          selected_values: pendingValuesUpdate.selectedValues,
-        })
-      );
-      setPendingValuesUpdate(null);
-    }
-  }, [pendingValuesUpdate, dispatch]);
-
-  useEffect(() => {
-    if (pendingRemoval === null) return;
-
-    const variant = selectedVariants.find((v) => v.id === pendingRemoval);
-    if (variant?.typeId) {
-      dispatch(removeVariantSelector(variant.typeId));
-    }
-
-    const newVariants = selectedVariants.filter((v) => v.id !== pendingRemoval);
-
-    const formattedVariants = newVariants
-      .filter((v) => v.typeId)
-      .map((variant) => {
-        const variantType = variantTypes?.find(
-          (vt) => vt.id === variant.typeId
-        );
-        return {
-          variant_id: variant.typeId,
-          variant_name: variantType?.name || "",
-          variant_values: variant.values.map((value) => ({
-            variant_value_id: 0,
-            variant_value_name: value,
-          })),
-        };
-      });
-
-    setSelectedVariants(newVariants);
-    dispatch(updateForm({ variants: formattedVariants }));
-
-    form.setValue("variants", formattedVariants, {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
-
-    setPendingRemoval(null);
-  }, [pendingRemoval, selectedVariants, dispatch, form, variantTypes]);
-
-  const usedTypeIds = selectedVariants.map((v) => v.typeId).filter(Boolean);
-
-  const handleVariantChange = useCallback(
-    (selectedVariants: Variant[]) => {
-      const formattedVariants = selectedVariants.map((variant) => ({
-        variant_id: variant.id,
-        variant_name: variant.name,
-        variant_values: variant.selectedValues.map((value) => ({
-          variant_value_id: value.id,
-          variant_value_name: value.name,
-        })),
-      }));
-
-      dispatch(
-        updateForm({
-          variants: formattedVariants,
-        })
-      );
-    },
-    [dispatch]
-  );
-
-  const handleVariantValuesChange = useCallback(
-    (variantId: number, selectedValues: VariantValue[]) => {
-      dispatch(
-        updateForm({
-          variants: (prevVariants: any[]) => {
-            const updatedVariants = prevVariants.map((variant) => {
-              if (variant.variant_id === variantId) {
-                return {
-                  ...variant,
-                  variant_values: selectedValues.map((value) => ({
-                    variant_value_id: value.id,
-                    variant_value_name: value.name,
-                  })),
-                };
-              }
-              return variant;
-            });
-            return updatedVariants;
-          },
-        })
-      );
-    },
-    [dispatch]
-  );
-
+  const [variantUniqueCodes, setVariantUniqueCodes] = useState<Record<string, string>>({});
+  const [focusedSkuKey, setFocusedSkuKey] = useState<string | null>(null);
   const { full_product_name } = useSelector(selectProductNames);
   const { sku: baseSku } = useSelector(selectSkuInfo);
 
-  const generateCombinations = (variants: SelectedVariant[]) => {
-    if (variants.length === 0) return [[]];
+  const usedTypeIds = useMemo(() => 
+    selectedVariants
+      .map(variant => variant.typeId)
+      .filter(Boolean),
+    [selectedVariants]
+  );
 
-    const [first, ...rest] = variants;
-    const restCombinations = generateCombinations(rest);
+  const generateVariantId = useCallback(() => 
+    `variant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    []
+  );
 
-    return first.values.flatMap((value) =>
-      restCombinations.map((combo) => [value, ...combo])
+  const handleAddVariant = useCallback(() => {
+    setSelectedVariants(prev => [
+      ...prev,
+      { id: generateVariantId(), typeId: 0, values: [] }
+    ]);
+  }, [generateVariantId]);
+
+  const handleRemoveVariant = useCallback((variantId: string) => {
+    setSelectedVariants(prev => 
+      prev.filter(v => v.id !== variantId)
     );
-  };
-
-  const formatVariantCombo = (combo: string[]) => {
-    return combo.join(" ");
-  };
-
-  const [variantUniqueCodes, setVariantUniqueCodes] = useState<
-    Record<string, string>
-  >({});
-
-  const generateUniqueCode = useCallback((index: number) => {
-    return String(index + 1).padStart(4, "0");
   }, []);
+
+  const handleTypeChange = useCallback((
+    variantId: string, 
+    selected: SelectOption | null
+  ) => {
+    if (!selected?.data) return;
+
+    setSelectedVariants(prev => {
+      const newVariants = prev.map(v =>
+        v.id === variantId
+          ? {
+              ...v,
+              typeId: parseInt(selected.value),
+              values: [], // Reset values when type changes
+            }
+          : v
+      );
+      return newVariants;
+    });
+
+    // Update Redux store
+    dispatch(addVariantSelector({
+      id: parseInt(selected.value),
+      name: selected.data.name,
+      values: selected.data.values || [],
+      selected_values: [],
+    }));
+  }, [dispatch]);
+
+  const handleValuesChange = useCallback((
+    variantId: string, 
+    selected: SelectOption[]
+  ) => {
+    const variant = selectedVariants.find(v => v.id === variantId);
+    if (!variant) return;
+
+    setSelectedVariants(prev => {
+      const newVariants = prev.map(v =>
+        v.id === variantId
+          ? {
+              ...v,
+              values: selected.map(option => option.value),
+            }
+          : v
+      );
+
+      const formattedVariants = newVariants
+        .filter(v => v.typeId)
+        .map(variant => {
+          const variantType = variantTypes?.find(
+            vt => vt.id === variant.typeId
+          );
+          return {
+            variant_id: variant.typeId,
+            variant_name: variantType?.name || "",
+            variant_values: variant.values.map(value => ({
+              variant_value_id: 0,
+              variant_value_name: value,
+            })),
+          };
+        });
+
+      // Update Redux store
+      dispatch(updateForm({ variants: formattedVariants }));
+      dispatch(updateVariantSelectorValues({
+        id: variant.typeId,
+        selected_values: selected.map(option => option.value),
+      }));
+
+      return newVariants;
+    });
+  }, [dispatch, selectedVariants, variantTypes]);
 
   const canShowGeneratedSkus = useMemo(() => {
     const hasValidVariants = selectedVariants.some(
-      (v) => v.typeId && v.values.length > 0
+      v => v.typeId && v.values.length > 0
     );
     return Boolean(full_product_name && baseSku && hasValidVariants);
   }, [full_product_name, baseSku, selectedVariants]);
 
-  const productByVariant = useSelector(
-    (state: RootState) => state.formInventoryProduct.product_by_variant
-  );
-
   const variantData = useMemo(() => {
     if (!canShowGeneratedSkus) return [];
 
-    const filteredVariants = selectedVariants.filter(
-      (v) => v.values.length > 0
+    const generateCombinations = (variants: SelectedVariant[]) => {
+      if (variants.length === 0) return [[]];
+      const [first, ...rest] = variants;
+      const restCombinations = generateCombinations(rest);
+      return first.values.flatMap(value => 
+        restCombinations.map(combo => [value, ...combo])
+      );
+    };
+
+    const combinations = generateCombinations(
+      selectedVariants.filter(v => v.values.length > 0)
     );
-    const combinations = generateCombinations(filteredVariants);
 
     return combinations.map((combo, index) => {
-      const variantCombo = formatVariantCombo(combo);
-      const originalSkuKey = `${baseSku}-${index + 1}`;
-
-      const existingVariant = productByVariant?.find(
-        (v) => v.originalSkuKey === originalSkuKey
-      );
-      const uniqueCode =
-        existingVariant?.unique_code || generateUniqueCode(index);
-
+      const uniqueCode = String(index + 1).padStart(4, "0");
       return {
-        originalSkuKey,
+        originalSkuKey: `${baseSku}-${index + 1}`,
         skuKey: `${baseSku}-${uniqueCode}`,
-        productName: `${full_product_name} ${variantCombo}`,
+        productName: `${full_product_name} ${combo.join(" ")}`,
         uniqueCode,
         combo,
       };
     });
-  }, [
-    canShowGeneratedSkus,
-    selectedVariants,
-    full_product_name,
-    baseSku,
-    productByVariant,
-    generateUniqueCode,
-  ]);
+  }, [canShowGeneratedSkus, selectedVariants, baseSku, full_product_name]);
 
-  const handleUniqueCodeChange = useCallback(
-    (originalSkuKey: string, value: string) => {
-      const cleanValue = value.replace(/\D/g, "").slice(0, 4);
-
-      setVariantUniqueCodes((prev) => ({
-        ...prev,
-        [originalSkuKey]: cleanValue,
+  useEffect(() => {
+    if (variantData.length) {
+      dispatch(updateForm({
+        product_by_variant: variantData.map(variant => ({
+          originalSkuKey: variant.originalSkuKey,
+          sku: variant.skuKey,
+          unique_code: variant.uniqueCode,
+          product_name: variant.productName,
+        }))
       }));
+    }
+  }, [variantData, dispatch]);
 
-      const updatedVariants = variantData.map((variant) => ({
-        originalSkuKey: variant.originalSkuKey,
-        sku:
-          variant.originalSkuKey === originalSkuKey
-            ? `${baseSku}-${cleanValue || "0000"}`
-            : variant.skuKey,
-        unique_code:
-          variant.originalSkuKey === originalSkuKey
-            ? cleanValue
-            : variant.uniqueCode,
-        product_name: variant.productName,
-      }));
+  const handleUniqueCodeChange = useCallback((originalSkuKey: string, value: string) => {
+    const cleanValue = value.replace(/\D/g, "").slice(0, 4);
+    setVariantUniqueCodes(prev => ({
+      ...prev,
+      [originalSkuKey]: cleanValue
+    }));
 
-      const timeoutId = setTimeout(() => {
-        dispatch(
-          updateForm({
-            product_by_variant: updatedVariants,
-          })
-        );
-      }, 100);
+    const updatedVariants = variantData.map(variant => ({
+      originalSkuKey: variant.originalSkuKey,
+      sku: variant.originalSkuKey === originalSkuKey 
+        ? `${baseSku}-${cleanValue || "0000"}`
+        : variant.skuKey,
+      unique_code: variant.originalSkuKey === originalSkuKey
+        ? cleanValue
+        : variant.uniqueCode,
+      product_name: variant.productName,
+    }));
 
-      return () => clearTimeout(timeoutId);
-    },
-    [baseSku, dispatch, variantData]
-  );
-
-  const [focusedSkuKey, setFocusedSkuKey] = useState<string | null>(null);
-
-  if (!isClient) {
-    return null;
-  }
+    dispatch(updateForm({ product_by_variant: updatedVariants }));
+  }, [baseSku, variantData, dispatch]);
 
   return (
     <div className="space-y-6">
@@ -542,7 +327,6 @@ export function VariantCombinations() {
                         skuKey,
                         productName,
                         uniqueCode,
-                        combo,
                       }) => (
                         <TableRow key={skuKey}>
                           <TableCell>{productName}</TableCell>
@@ -552,7 +336,9 @@ export function VariantCombinations() {
                           <TableCell>
                             <Input
                               key={`${skuKey}-input`}
-                              value={uniqueCode}
+                              value={
+                                variantUniqueCodes[originalSkuKey] || uniqueCode
+                              }
                               onChange={(e) =>
                                 handleUniqueCodeChange(
                                   originalSkuKey,
