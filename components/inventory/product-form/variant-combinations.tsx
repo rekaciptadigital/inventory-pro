@@ -36,103 +36,56 @@ import { useProductTypes } from "@/lib/hooks/use-product-types";
 import { Input } from "@/components/ui/input";
 import { RootState } from "@/lib/store";
 
-/**
- * Interface untuk struktur data varian yang dipilih
- * typeId: ID numerik untuk tipe varian
- * values: Array string berisi nilai-nilai yang dipilih untuk tipe varian tersebut
- */
 interface SelectedVariant {
-  id: string; // Add unique identifier
-  typeId: number; // Make sure this is number
-  values: string[]; // Already an array, but now will contain multiple values
-  availableValues?: string[]; // Add this to store available values from selected variant
+  id: string;
+  typeId: number;
+  values: string[];
+  availableValues?: string[];
 }
 
-/**
- * Komponen VariantCombinations
- *
- * Komponen ini menangani pembuatan dan pengelolaan kombinasi varian produk.
- * Memungkinkan pengguna untuk:
- * - Menambah/menghapus tipe varian
- * - Memilih nilai-nilai untuk setiap tipe varian
- * - Menghasilkan SKU otomatis berdasarkan kombinasi varian
- */
 export function VariantCombinations() {
   const form = useFormContext<ProductFormValues>();
   const dispatch = useDispatch();
-  const [selectedVariants, setSelectedVariants] = useState<SelectedVariant[]>(
-    []
-  );
-  const { variantTypes } = useVariantTypes(); // Add this hook
+  const [selectedVariants, setSelectedVariants] = useState<SelectedVariant[]>([]);
+  const { variantTypes } = useVariantTypes();
   const variantSelectors = useSelector(selectVariantSelectors);
-
-  // Add new state to track pending Redux updates
   const [pendingReduxUpdate, setPendingReduxUpdate] = useState<{
     type: "variants" | "selector";
     data: any;
   } | null>(null);
-
-  // Add state to track pending updates
   const [pendingTypeUpdate, setPendingTypeUpdate] = useState<{
     variantId: string;
     data: { id: number; name: string; values: string[] };
   } | null>(null);
-
   const [pendingValuesUpdate, setPendingValuesUpdate] = useState<{
     variant: SelectedVariant;
     selectedValues: string[];
     variants: any[];
   } | null>(null);
-
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
-
-  /**
-   * Hooks untuk mengambil data brands dan product types
-   * Data ini digunakan untuk menampilkan nama brand dan tipe produk
-   * dalam generated SKU
-   */
   const { brands } = useBrands();
   const { productTypes } = useProductTypes();
-
-  /**
-   * Memantau perubahan nilai form menggunakan watch
-   * Nilai-nilai ini digunakan untuk membuat SKU dan mengatur harga dasar
-   */
-  // Watch form values
   const brand = form.watch("brand");
   const productTypeId = form.watch("productTypeId");
   const sku = form.watch("sku");
   const productName = form.watch("productName");
-
-  // Get brand and product type names
   const brandName = brands?.find((b) => b.id === brand)?.name || "";
   const productTypeName =
     productTypes?.find((pt) => pt.id === productTypeId)?.name || "";
-
-  // Product details for SKU generation
   const productDetails = {
     brand: brandName,
     productType: productTypeName,
     productName,
   };
-
-  // Replace the generateVariantId function with a more stable version
   const generateVariantId = useCallback((index: number) => {
     return `variant-${index}`;
   }, []);
-
-  // Add clientside initialization flag
   const [isClient, setIsClient] = useState(false);
 
-  // Add effect to mark client-side rendering
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  /**
-   * Fungsi untuk menambah baris varian baru
-   * Menginisialisasi dengan typeId 0 dan array values kosong
-   */
   const handleAddVariant = useCallback(() => {
     const newIndex = selectedVariants.length;
     const uniqueId = generateVariantId(newIndex);
@@ -142,7 +95,6 @@ export function VariantCombinations() {
       { id: uniqueId, typeId: 0, values: [] },
     ]);
 
-    // Update Redux store without touching the form
     const currentVariants = selectedVariants.map((variant) => ({
       variant_id: variant.typeId,
       variant_name:
@@ -156,37 +108,27 @@ export function VariantCombinations() {
     dispatch(updateForm({ variants: currentVariants }));
   }, [dispatch, selectedVariants, variantTypes]);
 
-  /**
-   * Fungsi untuk menghapus baris varian berdasarkan index
-   * Memperbarui state dan nilai form setelah penghapusan
-   */
   const handleRemoveVariant = useCallback((variantId: string) => {
     setPendingRemoval(variantId);
   }, []);
 
-  /**
-   * Fungsi untuk menangani perubahan tipe varian
-   * Mereset nilai values menjadi array kosong saat tipe berubah
-   */
   const handleTypeChange = useCallback(
     (variantId: string, selected: SelectOption | null) => {
       if (!selected?.data) return;
 
-      // Reset the values when type changes
       setSelectedVariants((prev) => {
         const newVariants = prev.map((v) =>
           v.id === variantId
             ? {
                 ...v,
                 typeId: parseInt(selected.value),
-                values: [], // Reset values when type changes
+                values: [],
               }
             : v
         );
         return newVariants;
       });
 
-      // Set pending update instead of dispatching directly
       setPendingTypeUpdate({
         variantId,
         data: {
@@ -199,10 +141,6 @@ export function VariantCombinations() {
     []
   );
 
-  /**
-   * Fungsi untuk memperbarui nilai-nilai varian yang dipilih
-   * Memperbarui state dan nilai form ketika nilai dipilih
-   */
   const handleValuesChange = useCallback(
     (variantId: string, selected: SelectOption[]) => {
       const variant = selectedVariants.find((v) => v.id === variantId);
@@ -213,7 +151,7 @@ export function VariantCombinations() {
           v.id === variantId
             ? {
                 ...v,
-                values: selected.map((option) => option.value), // Handle multiple values
+                values: selected.map((option) => option.value),
               }
             : v
         );
@@ -246,7 +184,6 @@ export function VariantCombinations() {
     [variantTypes, selectedVariants]
   );
 
-  // Add useEffect to handle Redux updates
   useEffect(() => {
     if (!pendingReduxUpdate) return;
 
@@ -260,7 +197,6 @@ export function VariantCombinations() {
     setPendingReduxUpdate(null);
   }, [pendingReduxUpdate, dispatch]);
 
-  // Effect untuk inisialisasi data variant dari Redux jika ada
   useEffect(() => {
     const savedVariants = form.getValues("variants");
     if (savedVariants?.length) {
@@ -275,7 +211,6 @@ export function VariantCombinations() {
     }
   }, []);
 
-  // Effect to handle type updates
   useEffect(() => {
     if (pendingTypeUpdate) {
       dispatch(
@@ -290,7 +225,6 @@ export function VariantCombinations() {
     }
   }, [pendingTypeUpdate, dispatch]);
 
-  // Effect to handle values updates
   useEffect(() => {
     if (pendingValuesUpdate) {
       dispatch(updateForm({ variants: pendingValuesUpdate.variants }));
@@ -304,7 +238,6 @@ export function VariantCombinations() {
     }
   }, [pendingValuesUpdate, dispatch]);
 
-  // Effect to handle variant removal
   useEffect(() => {
     if (pendingRemoval === null) return;
 
@@ -315,7 +248,6 @@ export function VariantCombinations() {
 
     const newVariants = selectedVariants.filter((v) => v.id !== pendingRemoval);
 
-    // Format variants for Redux update
     const formattedVariants = newVariants
       .filter((v) => v.typeId)
       .map((variant) => {
@@ -335,7 +267,6 @@ export function VariantCombinations() {
     setSelectedVariants(newVariants);
     dispatch(updateForm({ variants: formattedVariants }));
 
-    // Update form value
     form.setValue("variants", formattedVariants, {
       shouldValidate: true,
       shouldDirty: true,
@@ -344,15 +275,10 @@ export function VariantCombinations() {
     setPendingRemoval(null);
   }, [pendingRemoval, selectedVariants, dispatch, form, variantTypes]);
 
-  /**
-   * Menyimpan daftar typeId yang sudah digunakan
-   * Digunakan untuk mencegah pemilihan tipe varian yang sama
-   */
   const usedTypeIds = selectedVariants.map((v) => v.typeId).filter(Boolean);
 
   const handleVariantChange = useCallback(
     (selectedVariants: Variant[]) => {
-      // Transform the variants into the required format
       const formattedVariants = selectedVariants.map((variant) => ({
         variant_id: variant.id,
         variant_name: variant.name,
@@ -362,7 +288,6 @@ export function VariantCombinations() {
         })),
       }));
 
-      // Update Redux store
       dispatch(
         updateForm({
           variants: formattedVariants,
@@ -374,7 +299,6 @@ export function VariantCombinations() {
 
   const handleVariantValuesChange = useCallback(
     (variantId: number, selectedValues: VariantValue[]) => {
-      // Update the specific variant's values
       dispatch(
         updateForm({
           variants: (prevVariants: any[]) => {
@@ -398,11 +322,9 @@ export function VariantCombinations() {
     [dispatch]
   );
 
-  // Get values from Redux store
   const { full_product_name } = useSelector(selectProductNames);
   const { sku: baseSku } = useSelector(selectSkuInfo);
 
-  // Generate combinations function
   const generateCombinations = (variants: SelectedVariant[]) => {
     if (variants.length === 0) return [[]];
 
@@ -414,22 +336,18 @@ export function VariantCombinations() {
     );
   };
 
-  // Format variant combination for display - remove separator
   const formatVariantCombo = (combo: string[]) => {
-    return combo.join(" "); // Remove separator, just use space
+    return combo.join(" ");
   };
 
-  // Tambahkan state untuk menyimpan unique codes
   const [variantUniqueCodes, setVariantUniqueCodes] = useState<
     Record<string, string>
   >({});
 
-  // Generate sequential unique code
   const generateUniqueCode = useCallback((index: number) => {
-    return String(index + 1).padStart(4, "0"); // Will generate: 0001, 0002, etc.
+    return String(index + 1).padStart(4, "0");
   }, []);
 
-  // Add validation check for Generated SKUs visibility
   const canShowGeneratedSkus = useMemo(() => {
     const hasValidVariants = selectedVariants.some(
       (v) => v.typeId && v.values.length > 0
@@ -437,12 +355,10 @@ export function VariantCombinations() {
     return Boolean(full_product_name && baseSku && hasValidVariants);
   }, [full_product_name, baseSku, selectedVariants]);
 
-  // Add selector for product_by_variant
   const productByVariant = useSelector(
     (state: RootState) => state.formInventoryProduct.product_by_variant
   );
 
-  // Modify variantData to track unique codes independently
   const variantData = useMemo(() => {
     if (!canShowGeneratedSkus) return [];
 
@@ -453,10 +369,8 @@ export function VariantCombinations() {
 
     return combinations.map((combo, index) => {
       const variantCombo = formatVariantCombo(combo);
-      // Use original skuKey for lookup
       const originalSkuKey = `${baseSku}-${index + 1}`;
 
-      // Find existing variant data from Redux
       const existingVariant = productByVariant?.find(
         (v) => v.originalSkuKey === originalSkuKey
       );
@@ -464,8 +378,8 @@ export function VariantCombinations() {
         existingVariant?.unique_code || generateUniqueCode(index);
 
       return {
-        originalSkuKey, // Keep original key for lookup
-        skuKey: `${baseSku}-${uniqueCode}`, // Display SKU
+        originalSkuKey,
+        skuKey: `${baseSku}-${uniqueCode}`,
         productName: `${full_product_name} ${variantCombo}`,
         uniqueCode,
         combo,
@@ -480,18 +394,15 @@ export function VariantCombinations() {
     generateUniqueCode,
   ]);
 
-  // Modify handleUniqueCodeChange to handle input better
   const handleUniqueCodeChange = useCallback(
     (originalSkuKey: string, value: string) => {
       const cleanValue = value.replace(/\D/g, "").slice(0, 4);
 
-      // Update local state immediately
       setVariantUniqueCodes((prev) => ({
         ...prev,
         [originalSkuKey]: cleanValue,
       }));
 
-      // Prepare the updated variants data
       const updatedVariants = variantData.map((variant) => ({
         originalSkuKey: variant.originalSkuKey,
         sku:
@@ -505,7 +416,6 @@ export function VariantCombinations() {
         product_name: variant.productName,
       }));
 
-      // Debounce Redux update
       const timeoutId = setTimeout(() => {
         dispatch(
           updateForm({
@@ -519,12 +429,10 @@ export function VariantCombinations() {
     [baseSku, dispatch, variantData]
   );
 
-  // Add state to track the currently focused input
   const [focusedSkuKey, setFocusedSkuKey] = useState<string | null>(null);
 
-  // Modify the return statement to handle client-side rendering
   if (!isClient) {
-    return null; // or a loading state
+    return null;
   }
 
   return (
@@ -666,7 +574,7 @@ export function VariantCombinations() {
                                 );
                                 setFocusedSkuKey(null);
                               }}
-                              className="w-[120px] font-mono" // Removed text-center class
+                              className="w-[120px] font-mono"
                               placeholder="0000"
                               maxLength={4}
                               type="text"
