@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react"; // Add useRef
 import { useFormContext } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
 import { Plus, X } from "lucide-react";
@@ -238,31 +238,53 @@ export function VariantCombinations() {
     }
   }, [variantData, dispatch]);
 
-  const handleUniqueCodeChange = useCallback(
-    (originalSkuKey: string, value: string) => {
-      const cleanValue = value.replace(/\D/g, "").slice(0, 10); // Increased to 10 digits
+  // Add stable ref for input elements
+  const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
-      // Update local state immediately
+  // Modify input handling functions
+  const handleUniqueCodeChange = useCallback(
+    (originalSkuKey: string, value: string, inputElement: HTMLInputElement) => {
+      const cleanValue = value.replace(/\D/g, "").slice(0, 10);
+
+      // Store input element reference
+      inputRefs.current.set(originalSkuKey, inputElement);
+
+      // Update local state
       setVariantUniqueCodes((prev) => ({
         ...prev,
         [originalSkuKey]: cleanValue,
       }));
 
-      // Update Redux store immediately without requestAnimationFrame
-      const updatedVariants = variantData.map((variant) => ({
-        originalSkuKey: variant.originalSkuKey,
-        sku:
-          variant.originalSkuKey === originalSkuKey
-            ? `${baseSku}-${cleanValue || "0000"}`
-            : variant.skuKey,
-        unique_code:
-          variant.originalSkuKey === originalSkuKey
-            ? cleanValue
-            : variant.uniqueCode,
-        product_name: variant.productName,
-      }));
+      // Update Redux store
+      dispatch(
+        updateForm({
+          product_by_variant: variantData.map((variant) => ({
+            originalSkuKey: variant.originalSkuKey,
+            sku:
+              variant.originalSkuKey === originalSkuKey
+                ? `${baseSku}-${cleanValue || "0000"}`
+                : variant.skuKey,
+            unique_code:
+              variant.originalSkuKey === originalSkuKey
+                ? cleanValue
+                : variant.uniqueCode,
+            product_name: variant.productName,
+          })),
+        })
+      );
 
-      dispatch(updateForm({ product_by_variant: updatedVariants }));
+      // Maintain focus on the input
+      requestAnimationFrame(() => {
+        const input = inputRefs.current.get(originalSkuKey);
+        if (input && document.activeElement !== input) {
+          input.focus();
+          // Preserve cursor position
+          const cursorPos = input.selectionStart;
+          requestAnimationFrame(() => {
+            input.setSelectionRange(cursorPos, cursorPos);
+          });
+        }
+      });
     },
     [baseSku, variantData, dispatch]
   );
@@ -386,37 +408,39 @@ export function VariantCombinations() {
                           </TableCell>
                           <TableCell>
                             <Input
-                              key={`${skuKey}-input-${
-                                variantUniqueCodes[originalSkuKey] || uniqueCode
-                              }`}
+                              ref={(el) => {
+                                if (el)
+                                  inputRefs.current.set(originalSkuKey, el);
+                              }}
                               value={
                                 variantUniqueCodes[originalSkuKey] || uniqueCode
                               }
-                              onChange={(e) =>
-                                handleUniqueCodeChange(
-                                  originalSkuKey,
-                                  e.target.value
-                                )
-                              }
-                              onFocus={() => setFocusedSkuKey(originalSkuKey)}
-                              onBlur={() => {
-                                const currentValue =
-                                  variantUniqueCodes[originalSkuKey] ||
-                                  uniqueCode;
-                                // Only pad if less than 4 digits
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value.match(/^\d*$/)) {
+                                  handleUniqueCodeChange(
+                                    originalSkuKey,
+                                    value,
+                                    e.target
+                                  );
+                                }
+                              }}
+                              onBlur={(e) => {
+                                const value = e.target.value;
                                 const paddedValue =
-                                  currentValue.length < 4
-                                    ? currentValue.padStart(4, "0")
-                                    : currentValue;
+                                  value.length < 4
+                                    ? value.padStart(4, "0")
+                                    : value;
                                 handleUniqueCodeChange(
                                   originalSkuKey,
-                                  paddedValue
+                                  paddedValue,
+                                  e.target
                                 );
-                                setFocusedSkuKey(null);
+                                inputRefs.current.delete(originalSkuKey);
                               }}
                               className="w-[120px] font-mono"
                               placeholder="0000"
-                              maxLength={10} // Increased to 10
+                              maxLength={10}
                               type="text"
                               inputMode="numeric"
                               pattern="\d*"
