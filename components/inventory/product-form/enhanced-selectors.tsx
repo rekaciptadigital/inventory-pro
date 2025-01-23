@@ -470,6 +470,7 @@ export function VariantValueSelector({
 }) {
   const [options, setOptions] = useState<SelectOption[]>([]);
 
+  // Update options whenever values prop changes
   useEffect(() => {
     const newOptions = values.map((val) => ({
       value: val,
@@ -477,7 +478,6 @@ export function VariantValueSelector({
       data: val,
     }));
     setOptions(newOptions);
-    console.log("Available options updated:", newOptions);
   }, [values]);
 
   const loadOptions = useCallback(
@@ -495,18 +495,18 @@ export function VariantValueSelector({
     [options]
   );
 
+  const handleChange = useCallback(
+    (selected: any) => {
+      const selectedArray = Array.isArray(selected) ? selected : [];
+      onChange(selectedArray);
+    },
+    [onChange]
+  );
+
   return (
     <ClientSelect
       value={value}
-      onChange={(selected) => {
-        const selectedArray = selected
-          ? Array.isArray(selected)
-            ? selected
-            : [selected]
-          : [];
-        console.log("Selected values:", selectedArray);
-        onChange(selectedArray);
-      }}
+      onChange={handleChange}
       loadOptions={loadOptions}
       defaultOptions={options}
       isDisabled={isDisabled}
@@ -571,8 +571,9 @@ export function VariantValueSelector({
           margin: "2px",
         }),
       }}
-      menuPortalTarget={null} // Remove dynamic document check
-      key={`variant-value-${values.join(",")}`} // More stable key
+      menuPortalTarget={null}
+      closeMenuOnSelect={false}
+      key={`variant-value-${values.join(",")}`}
     />
   );
 }
