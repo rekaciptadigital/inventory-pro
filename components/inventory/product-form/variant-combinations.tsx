@@ -54,7 +54,6 @@ export function VariantCombinations() {
   const [variantUniqueCodes, setVariantUniqueCodes] = useState<
     Record<string, string>
   >({});
-  const [focusedSkuKey, setFocusedSkuKey] = useState<string | null>(null);
   const { full_product_name } = useSelector(selectProductNames);
   const { sku: baseSku } = useSelector(selectSkuInfo);
 
@@ -238,55 +237,149 @@ export function VariantCombinations() {
     }
   }, [variantData, dispatch]);
 
-  // Add stable ref for input elements
-  const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const updateTimeoutRef = useRef<NodeJS.Timeout>();
+  const [localValues, setLocalValues] = useState<Record<string, string>>({});
 
-  // Modify input handling functions
-  const handleUniqueCodeChange = useCallback(
-    (originalSkuKey: string, value: string, inputElement: HTMLInputElement) => {
-      const cleanValue = value.replace(/\D/g, "").slice(0, 10);
+  // Fungsi untuk update local state
+  const updateLocalValue = useCallback((key: string, value: string) => {
+    setLocalValues((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  }, []);
 
-      // Store input element reference
-      inputRefs.current.set(originalSkuKey, inputElement);
+  // Fungsi untuk update Redux dengan debounce
+  const debouncedUpdateRedux = useCallback(
+    (originalSkuKey: string, value: string) => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
 
-      // Update local state
-      setVariantUniqueCodes((prev) => ({
-        ...prev,
-        [originalSkuKey]: cleanValue,
-      }));
+      updateTimeoutRef.current = setTimeout(() => {
+        setVariantUniqueCodes((prev) => ({
+          ...prev,
+          [originalSkuKey]: value,
+        }));
 
-      // Update Redux store
-      dispatch(
-        updateForm({
-          product_by_variant: variantData.map((variant) => ({
-            originalSkuKey: variant.originalSkuKey,
-            sku:
-              variant.originalSkuKey === originalSkuKey
-                ? `${baseSku}-${cleanValue || "0000"}`
-                : variant.skuKey,
-            unique_code:
-              variant.originalSkuKey === originalSkuKey
-                ? cleanValue
-                : variant.uniqueCode,
-            product_name: variant.productName,
-          })),
-        })
-      );
-
-      // Maintain focus on the input
-      requestAnimationFrame(() => {
-        const input = inputRefs.current.get(originalSkuKey);
-        if (input && document.activeElement !== input) {
-          input.focus();
-          // Preserve cursor position
-          const cursorPos = input.selectionStart;
-          requestAnimationFrame(() => {
-            input.setSelectionRange(cursorPos, cursorPos);
-          });
-        }
-      });
+        dispatch(
+          updateForm({
+            product_by_variant: variantData.map((variant) => ({
+              originalSkuKey: variant.originalSkuKey,
+              sku:
+                variant.originalSkuKey === originalSkuKey
+                  ? `${baseSku}-${value || "0000"}`
+                  : variant.skuKey,
+              unique_code:
+                variant.originalSkuKey === originalSkuKey
+                  ? value
+                  : variant.uniqueCode,
+              product_name: variant.productName,
+            })),
+          })
+        );
+      }, 300);
     },
     [baseSku, variantData, dispatch]
+  );
+
+  // Modifikasi handler untuk perubahan input
+  const handleUniqueCodeChange = useCallback(
+    (originalSkuKey: string, value: string) => {
+      if (!value.match(/^\d*$/)) return;
+
+      const cleanValue = value.replace(/\D/g, "").slice(0, 10);
+
+      // Jika value kosong, hapus dari localValues untuk menggunakan default value
+      if (!cleanValue) {
+        setLocalValues((prev) => {
+          const newValues = { ...prev };
+          delete newValues[originalSkuKey];
+          return newValues;
+        });
+
+        // Reset ke nilai default di Redux juga
+        if (updateTimeoutRef.current) {
+          clearTimeout(updateTimeoutRef.current);
+        }
+
+        updateTimeoutRef.current = setTimeout(() => {
+          setVariantUniqueCodes((prev) => {
+            const newValues = { ...prev };
+            delete newValues[originalSkuKey];
+            return newValues;
+          });
+
+          // Dapatkan default unique code dari variantData
+          const defaultUniqueCode =
+            variantData.find((v) => v.originalSkuKey === originalSkuKey)
+              ?.uniqueCode || "0000";
+
+          dispatch(
+            updateForm({
+              product_by_variant: variantData.map((variant) => ({
+                originalSkuKey: variant.originalSkuKey,
+                sku:
+                  variant.originalSkuKey === originalSkuKey
+                    ? `${baseSku}-${defaultUniqueCode}`
+                    : variant.skuKey,
+                unique_code:
+                  variant.originalSkuKey === originalSkuKey
+                    ? defaultUniqueCode
+                    : variant.uniqueCode,
+                product_name: variant.productName,
+              })),
+            })
+          );
+        }, 300);
+
+        return;
+      }
+
+      // Normal flow untuk value yang tidak kosong
+      updateLocalValue(originalSkuKey, cleanValue);
+      debouncedUpdateRedux(originalSkuKey, cleanValue);
+    },
+    [updateLocalValue, debouncedUpdateRedux, baseSku, variantData, dispatch]
+  );
+
+  // Handler untuk blur event
+  const handleInputBlur = useCallback(
+    (originalSkuKey: string, value: string) => {
+      const cleanValue = value.replace(/\D/g, "").slice(0, 10);
+      const paddedValue =
+        cleanValue.length < 4 ? cleanValue.padStart(4, "0") : cleanValue;
+
+      updateLocalValue(originalSkuKey, paddedValue);
+      debouncedUpdateRedux(originalSkuKey, paddedValue);
+    },
+    [updateLocalValue, debouncedUpdateRedux]
+  );
+
+  // Cleanup pada unmount
+  useEffect(() => {
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Render input component
+  const renderUniqueCodeInput = useCallback(
+    (originalSkuKey: string, uniqueCode: string) => (
+      <Input
+        value={localValues[originalSkuKey] ?? uniqueCode}
+        onChange={(e) => handleUniqueCodeChange(originalSkuKey, e.target.value)}
+        onBlur={(e) => handleInputBlur(originalSkuKey, e.target.value)}
+        className="w-[120px] font-mono"
+        placeholder="0000"
+        maxLength={10}
+        type="text"
+        inputMode="numeric"
+        pattern="\d*"
+      />
+    ),
+    [localValues, handleUniqueCodeChange, handleInputBlur]
   );
 
   const renderVariantValue = useCallback(
@@ -312,6 +405,7 @@ export function VariantCombinations() {
     [handleValuesChange]
   );
 
+  // Modify TableCell render
   return (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -407,44 +501,7 @@ export function VariantCombinations() {
                             {skuKey}
                           </TableCell>
                           <TableCell>
-                            <Input
-                              ref={(el) => {
-                                if (el)
-                                  inputRefs.current.set(originalSkuKey, el);
-                              }}
-                              value={
-                                variantUniqueCodes[originalSkuKey] || uniqueCode
-                              }
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value.match(/^\d*$/)) {
-                                  handleUniqueCodeChange(
-                                    originalSkuKey,
-                                    value,
-                                    e.target
-                                  );
-                                }
-                              }}
-                              onBlur={(e) => {
-                                const value = e.target.value;
-                                const paddedValue =
-                                  value.length < 4
-                                    ? value.padStart(4, "0")
-                                    : value;
-                                handleUniqueCodeChange(
-                                  originalSkuKey,
-                                  paddedValue,
-                                  e.target
-                                );
-                                inputRefs.current.delete(originalSkuKey);
-                              }}
-                              className="w-[120px] font-mono"
-                              placeholder="0000"
-                              maxLength={10}
-                              type="text"
-                              inputMode="numeric"
-                              pattern="\d*"
-                            />
+                            {renderUniqueCodeInput(originalSkuKey, uniqueCode)}
                           </TableCell>
                         </TableRow>
                       )

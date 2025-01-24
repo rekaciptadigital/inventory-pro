@@ -212,7 +212,7 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-medium">Basic Information</h3>
+      <h3 className="text-lg font-medium">Basic Informations</h3>
 
       <div className="grid grid-cols-2 gap-4">
         <FormField
