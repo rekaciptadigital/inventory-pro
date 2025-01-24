@@ -74,9 +74,51 @@ export function VariantCombinations() {
     ]);
   }, [generateVariantId]);
 
-  const handleRemoveVariant = useCallback((variantId: string) => {
-    setSelectedVariants((prev) => prev.filter((v) => v.id !== variantId));
-  }, []);
+  const handleRemoveVariant = useCallback(
+    (variantId: string) => {
+      setSelectedVariants((prev) => {
+        const newVariants = prev.filter((v) => v.id !== variantId);
+
+        // Jika tidak ada variant yang tersisa, reset semua state terkait
+        if (newVariants.length === 0) {
+          // Reset local states
+          setVariantUniqueCodes({});
+          setLocalValues({});
+
+          // Reset Redux states
+          dispatch(
+            updateForm({
+              variants: [],
+              variant_selectors: [],
+              product_by_variant: [],
+            })
+          );
+        } else {
+          // Update Redux untuk variant yang dihapus
+          const variantToRemove = prev.find((v) => v.id === variantId);
+          if (variantToRemove?.typeId) {
+            dispatch(removeVariantSelector(variantToRemove.typeId));
+          }
+        }
+
+        return newVariants;
+      });
+    },
+    [dispatch]
+  );
+
+  useEffect(() => {
+    // Jika tidak ada variants yang dipilih, pastikan state Redux bersih
+    if (selectedVariants.length === 0) {
+      dispatch(
+        updateForm({
+          variants: [],
+          variant_selectors: [],
+          product_by_variant: [],
+        })
+      );
+    }
+  }, [selectedVariants, dispatch]);
 
   const handleTypeChange = useCallback(
     (variantId: string, selected: SelectOption | null) => {
