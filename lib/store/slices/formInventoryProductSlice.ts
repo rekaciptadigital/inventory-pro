@@ -47,7 +47,7 @@ export interface InventoryProductForm {
   vendor_sku: string;
   description: string;
   unit: string;
-  slug: string;
+  slug: string; // Make sure slug is included in the interface
   categories: ProductCategory[];
   variants: Variant[];
   product_by_variant: ProductByVariant[];
@@ -68,7 +68,7 @@ const initialState: InventoryProductForm = {
   vendor_sku: "",
   description: "",
   unit: "PC",
-  slug: "",
+  slug: "", // Add initial value for slug
   categories: [],
   variants: [],
   product_by_variant: [],

@@ -172,16 +172,24 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
 
   // Effect for full product name and updating Redux
   useEffect(() => {
-    if (fullName) {
+    if (fullName && sku) {
       form.setValue("fullProductName", fullName);
+
+      // Generate slug from full product name with random number 1-100
+      const randomNum = Math.floor(Math.random() * 100) + 1; // generates number between 1-100
+      const slug = `${fullName
+        .toLowerCase()
+        .replace(/\s+/g, "-")}-${sku}-${randomNum}`;
+
       dispatch(
         updateForm({
           product_name: productName,
           full_product_name: fullName,
+          slug,
         })
       );
     }
-  }, [fullName, productName, dispatch, form]);
+  }, [fullName, sku, productName, dispatch, form]);
 
   // Effect untuk memastikan vendor SKU dan description tersimpan di Redux saat komponen mount
   useEffect(() => {

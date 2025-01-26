@@ -264,6 +264,7 @@ export function VariantCombinations() {
     return () => clearTimeout(timer);
   }, [selectedVariants, variantTypes, dispatch]);
 
+  // Modifikasi pada useEffect untuk variantData
   useEffect(() => {
     if (variantData.length) {
       dispatch(
@@ -271,8 +272,8 @@ export function VariantCombinations() {
           product_by_variant: variantData.map((variant) => ({
             originalSkuKey: variant.originalSkuKey,
             sku: variant.skuKey,
-            unique_code: variant.uniqueCode,
-            product_name: variant.productName,
+            sku_product_unique_code: variant.uniqueCode, // Ubah dari unique_code
+            full_product_name: variant.productName, // Ubah key dari product_name ke full_product_name
           })),
         })
       );
@@ -290,7 +291,7 @@ export function VariantCombinations() {
     }));
   }, []);
 
-  // Fungsi untuk update Redux dengan debounce
+  // Modifikasi pada debouncedUpdateRedux
   const debouncedUpdateRedux = useCallback(
     (originalSkuKey: string, value: string) => {
       if (updateTimeoutRef.current) {
@@ -311,11 +312,11 @@ export function VariantCombinations() {
                 variant.originalSkuKey === originalSkuKey
                   ? `${baseSku}-${value || "0000"}`
                   : variant.skuKey,
-              unique_code:
-                variant.originalSkuKey === originalSkuKey
+              sku_product_unique_code:
+                variant.originalSkuKey === originalSkuKey // Ubah dari unique_code
                   ? value
                   : variant.uniqueCode,
-              product_name: variant.productName,
+              full_product_name: variant.productName, // Ubah key dari product_name ke full_product_name
             })),
           })
         );
@@ -325,6 +326,7 @@ export function VariantCombinations() {
   );
 
   // Modifikasi handler untuk perubahan input
+  // Modifikasi pada handleUniqueCodeChange untuk reset case
   const handleUniqueCodeChange = useCallback(
     (originalSkuKey: string, value: string) => {
       if (!value.match(/^\d*$/)) return;
@@ -364,11 +366,11 @@ export function VariantCombinations() {
                   variant.originalSkuKey === originalSkuKey
                     ? `${baseSku}-${defaultUniqueCode}`
                     : variant.skuKey,
-                unique_code:
-                  variant.originalSkuKey === originalSkuKey
+                sku_product_unique_code:
+                  variant.originalSkuKey === originalSkuKey // Ubah dari unique_code
                     ? defaultUniqueCode
                     : variant.uniqueCode,
-                product_name: variant.productName,
+                full_product_name: variant.productName, // Ubah key dari product_name ke full_product_name
               })),
             })
           );
