@@ -35,8 +35,6 @@ export function VariantSelector({
           },
         }));
 
-      console.log("Filtered variants:", filteredVariants); // Debug log
-
       return {
         options: filteredVariants,
         hasMore: false,

@@ -80,7 +80,7 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
   // Handler for product name changes
   const handleProductNameChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
+      const value = e.target.value.slice(0, 255); // Limit to 255 characters
       form.setValue("productName", value);
       dispatch(
         updateForm({
@@ -173,18 +173,23 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
   // Effect for full product name and updating Redux
   useEffect(() => {
     if (fullName && sku) {
-      form.setValue("fullProductName", fullName);
+      const truncatedFullName = fullName.slice(0, 255); // Limit full_product_name to 255
+      form.setValue("fullProductName", truncatedFullName);
 
       // Generate slug from full product name with random number 1-100
-      const randomNum = Math.floor(Math.random() * 100) + 1; // generates number between 1-100
-      const slug = `${fullName
+      const randomNum = Math.floor(Math.random() * 100) + 1;
+      const baseSlug = `${truncatedFullName
         .toLowerCase()
-        .replace(/\s+/g, "-")}-${sku}-${randomNum}`;
+        .replace(/\s+/g, "-")}-${randomNum}-${sku}`;
+      // Ensure total slug length including random number doesn't exceed 255
+      const maxBaseLength = 250 - String(randomNum).length;
+      const truncatedSlug = baseSlug.slice(0, maxBaseLength);
+      const slug = `${truncatedSlug}`;
 
       dispatch(
         updateForm({
-          product_name: productName,
-          full_product_name: fullName,
+          product_name: productName.slice(0, 255),
+          full_product_name: truncatedFullName,
           slug,
         })
       );
@@ -314,8 +319,10 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
                 {...field}
                 onChange={handleProductNameChange}
                 placeholder="Enter product name"
+                maxLength={255} // Add maxLength attribute
               />
             </FormControl>
+            <FormDescription>Maximum 255 characters</FormDescription>
             <FormMessage />
           </FormItem>
         )}

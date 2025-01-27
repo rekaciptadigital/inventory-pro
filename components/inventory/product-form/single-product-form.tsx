@@ -13,6 +13,12 @@ import { productFormSchema, type ProductFormValues } from "./form-schema";
 import { generateSKU } from "@/lib/utils/sku-generator";
 import { useBrands } from "@/lib/hooks/use-brands";
 import { useProductTypeList } from "@/lib/hooks/product-types/use-product-type-list";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  createInventoryProduct,
+  CreateInventoryData,
+} from "@/lib/api/inventory";
 
 interface SingleProductFormProps {
   onSuccess?: (product: ProductFormValues) => void;
@@ -51,70 +57,74 @@ export function SingleProductForm({
     mode: "onChange",
   });
 
+  // Add selector for form data from Redux
+  const formData = useSelector(
+    (state: RootState) => state.formInventoryProduct
+  );
+
   const onSubmit = async (values: ProductFormValues) => {
     try {
       setIsSubmitting(true);
 
-      // Get brand and product type details
-      const brand = brands.find((b) => b.id.toString() === values.brand);
+      // Convert numeric IDs to strings as required by API
+      const inventoryData: CreateInventoryData = {
+        brand_id: formData.brand_id,
+        brand_code: formData.brand_code || "",
+        brand_name: formData.brand_name || "",
+        product_type_id: formData.product_type_id,
+        product_type_code: formData.product_type_code || "",
+        product_type_name: formData.product_type_name || "",
+        unique_code: formData.unique_code || "",
+        sku: formData.sku || "",
+        product_name: formData.product_name || "",
+        full_product_name: formData.full_product_name || "",
+        unit: formData.unit || "",
+        slug: formData.slug || "",
+        categories:
+          formData.categories.map((cat) => ({
+            product_category_id: cat.product_category_id,
+            product_category_parent: cat.product_category_parent
+              ? cat.product_category_parent
+              : null,
+            product_category_name: cat.product_category_name,
+            category_hierarchy: cat.category_hierarchy,
+          })) || [],
+        variants:
+          formData.variants.map((variant) => ({
+            variant_id: variant.variant_id,
+            variant_name: variant.variant_name,
+            variant_values: variant.variant_values.map((value) => ({
+              variant_value_id: value.variant_value_id,
+              variant_value_name: value.variant_value_name,
+            })),
+          })) || [],
+        product_by_variant:
+          formData.product_by_variant.map((variant) => ({
+            full_product_name: variant.full_product_name,
+            sku: variant.sku,
+            sku_product_unique_code: variant.sku_product_unique_code,
+          })) || [],
+        // Optional fields
+        ...(formData.vendor_sku && { vendor_sku: formData.vendor_sku }),
+        ...(formData.description && { description: formData.description }),
+      };
 
-      console.log("Form values:", values);
-      console.log("Available product types:", productTypes);
-
-      // Add type checking and logging
-      if (!values.productTypeId) {
-        throw new Error("Product type ID is required");
-      }
-
-      const productType = productTypes.find((pt) => {
-        console.log(
-          `Comparing pt.id: ${pt.id} with values.productTypeId: ${values.productTypeId}`
-        );
-        return pt.id.toString() === values.productTypeId;
-      });
-
-      console.log("Selected product type:", productType);
-
-      if (!brand || !productType) {
-        const error = !brand ? "Invalid brand" : "Invalid product type";
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: error,
-        });
-        return;
-      }
-
-      // Generate SKU if not provided
-      if (!values.sku) {
-        values.sku = generateSKU(brand, productType, values.uniqueCode);
-      }
-
-      // Get existing products from localStorage
-      const existingProducts = JSON.parse(
-        localStorage.getItem("products") ?? "[]"
-      );
-
-      // Add new product to existing products
-      existingProducts.push(values);
-
-      // Save updated products to localStorage
-      localStorage.setItem("products", JSON.stringify(existingProducts));
+      const response = await createInventoryProduct(inventoryData);
 
       toast({
         variant: "default",
         title: "Success",
-        description: "Product added successfully",
+        description: "Product has been created successfully",
       });
 
-      if (onSuccess) onSuccess(values);
+      router.push("/dashboard/inventory");
     } catch (error) {
-      console.error("Error submitting form:", error);
+      console.error("Error creating product:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description:
-          error instanceof Error ? error.message : "An error occurred",
+          error instanceof Error ? error.message : "Failed to create product",
       });
     } finally {
       setIsSubmitting(false);

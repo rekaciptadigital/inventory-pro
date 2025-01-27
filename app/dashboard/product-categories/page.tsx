@@ -134,7 +134,6 @@ export default function ProductCategoriesPage() {
   const handleEdit = async (category: ProductCategory) => {
     try {
       const detailData = await getCategory(category.id);
-      console.log("Category detail:", detailData); // Tambahkan log untuk debugging
       if (detailData?.data) {
         setSelectedCategory(detailData.data);
         setIsUpdateDialogOpen(true);

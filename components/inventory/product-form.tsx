@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -12,27 +12,29 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
+} from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
 
 const formSchema = z.object({
-  brand: z.string().min(1, 'Brand is required'),
-  sku: z.string().min(1, 'SKU is required'),
-  productName: z.string().min(1, 'Product name is required'),
-  unit: z.enum(['PC', 'PACK', 'SET']),
-  hbReal: z.number().min(0, 'HB Real must be greater than 0'),
-  adjustmentPercentage: z.number().min(0, 'Adjustment percentage must be greater than or equal to 0'),
+  brand: z.string().min(1, "Brand is required"),
+  sku: z.string().min(1, "SKU is required"),
+  productName: z.string().min(1, "Product name is required"),
+  unit: z.enum(["PC", "PACK", "SET"]),
+  hbReal: z.number().min(0, "HB Real must be greater than 0"),
+  adjustmentPercentage: z
+    .number()
+    .min(0, "Adjustment percentage must be greater than or equal to 0"),
   hbNaik: z.number(),
-  usdPrice: z.number().min(0, 'USD Price must be greater than 0'),
-  exchangeRate: z.number().min(0, 'Exchange rate must be greater than 0'),
+  usdPrice: z.number().min(0, "USD Price must be greater than 0"),
+  exchangeRate: z.number().min(0, "Exchange rate must be greater than 0"),
   quantities: z.object({
     min15: z.number(),
     min10: z.number(),
@@ -57,10 +59,10 @@ export function ProductForm() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      brand: '',
-      sku: '',
-      productName: '',
-      unit: 'PC',
+      brand: "",
+      sku: "",
+      productName: "",
+      unit: "PC",
       hbReal: 0,
       adjustmentPercentage: 0,
       hbNaik: 0,
@@ -90,59 +92,57 @@ export function ProductForm() {
     }
   ) => {
     const value = e.target.value;
-    const numberValue = value === '' ? 0 : parseFloat(value);
+    const numberValue = value === "" ? 0 : parseFloat(value);
     field.onChange(numberValue);
   };
 
   // Calculate HB Naik and other prices when base values change
   useEffect(() => {
-    const hbReal = form.watch('hbReal');
-    const adjustmentPercentage = form.watch('adjustmentPercentage');
+    const hbReal = form.watch("hbReal");
+    const adjustmentPercentage = form.watch("adjustmentPercentage");
 
     if (hbReal > 0) {
       // Calculate HB Naik
       const hbNaik = Math.round(hbReal * (1 + adjustmentPercentage / 100));
-      form.setValue('hbNaik', hbNaik);
+      form.setValue("hbNaik", hbNaik);
 
       // Calculate quantity-based prices
       const quantities = {
         min15: Math.round(hbNaik * 1.45), // 45% markup
         min10: Math.round(hbNaik * 1.49), // 49% markup
-        min5: Math.round(hbNaik * 1.57),  // 57% markup
+        min5: Math.round(hbNaik * 1.57), // 57% markup
         single: Math.round(hbNaik * 1.65), // 65% markup
         retail: Math.round(hbNaik * 1.81), // 81% markup
       };
-      form.setValue('quantities', quantities);
+      form.setValue("quantities", quantities);
 
       // Calculate customer category prices
       const platinum = Math.round(hbNaik * 1.45); // 45% markup from HB Naik
-      const gold = Math.round(platinum * 1.03);    // 3% markup from Platinum
-      const silver = Math.round(gold * 1.05);      // 5% markup from Gold
-      const bronze = Math.round(silver * 1.05);    // 5% markup from Silver
+      const gold = Math.round(platinum * 1.03); // 3% markup from Platinum
+      const silver = Math.round(gold * 1.05); // 5% markup from Gold
+      const bronze = Math.round(silver * 1.05); // 5% markup from Silver
 
-      form.setValue('customerPrices', {
+      form.setValue("customerPrices", {
         platinum,
         gold,
         silver,
         bronze,
       });
     }
-  }, [form.watch('hbReal'), form.watch('adjustmentPercentage')]);
+  }, [form.watch("hbReal"), form.watch("adjustmentPercentage")]);
 
   const onSubmit = async (values: FormValues) => {
     try {
       setIsSubmitting(true);
-      console.log('Saving product:', values);
-      
       toast({
-        title: 'Success',
-        description: 'Product has been added successfully',
+        title: "Success",
+        description: "Product has been added successfully",
       });
     } catch (error) {
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to add product. Please try again.',
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to add product. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -205,7 +205,10 @@ export function ProductForm() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Unit</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select unit" />
@@ -237,7 +240,7 @@ export function ProductForm() {
                     <Input
                       type="number"
                       placeholder="Enter base price"
-                      value={field.value || ''}
+                      value={field.value || ""}
                       onChange={(e) => handleNumericChange(e, field)}
                       onBlur={field.onBlur}
                     />
@@ -257,7 +260,7 @@ export function ProductForm() {
                     <Input
                       type="number"
                       placeholder="Enter adjustment percentage"
-                      value={field.value || ''}
+                      value={field.value || ""}
                       onChange={(e) => handleNumericChange(e, field)}
                       onBlur={field.onBlur}
                     />
@@ -271,7 +274,7 @@ export function ProductForm() {
           <div className="bg-muted/50 p-4 rounded-lg">
             <FormLabel>HB Naik (Adjusted Base Price)</FormLabel>
             <div className="text-2xl font-bold mt-1">
-              Rp {form.watch('hbNaik').toLocaleString()}
+              Rp {form.watch("hbNaik").toLocaleString()}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
               Automatically calculated: HB Real × (1 + ADJ/100)
@@ -289,7 +292,7 @@ export function ProductForm() {
                     <Input
                       type="number"
                       placeholder="Enter USD price"
-                      value={field.value || ''}
+                      value={field.value || ""}
                       onChange={(e) => handleNumericChange(e, field)}
                       onBlur={field.onBlur}
                     />
@@ -309,7 +312,7 @@ export function ProductForm() {
                     <Input
                       type="number"
                       placeholder="Enter exchange rate"
-                      value={field.value || ''}
+                      value={field.value || ""}
                       onChange={(e) => handleNumericChange(e, field)}
                       onBlur={field.onBlur}
                     />
@@ -339,7 +342,9 @@ export function ProductForm() {
                       disabled
                     />
                   </FormControl>
-                  <p className="text-sm text-muted-foreground">45% markup from HB Naik</p>
+                  <p className="text-sm text-muted-foreground">
+                    45% markup from HB Naik
+                  </p>
                 </FormItem>
               )}
             />
@@ -358,7 +363,9 @@ export function ProductForm() {
                       disabled
                     />
                   </FormControl>
-                  <p className="text-sm text-muted-foreground">49% markup from HB Naik</p>
+                  <p className="text-sm text-muted-foreground">
+                    49% markup from HB Naik
+                  </p>
                 </FormItem>
               )}
             />
@@ -377,7 +384,9 @@ export function ProductForm() {
                       disabled
                     />
                   </FormControl>
-                  <p className="text-sm text-muted-foreground">57% markup from HB Naik</p>
+                  <p className="text-sm text-muted-foreground">
+                    57% markup from HB Naik
+                  </p>
                 </FormItem>
               )}
             />
@@ -396,7 +405,9 @@ export function ProductForm() {
                       disabled
                     />
                   </FormControl>
-                  <p className="text-sm text-muted-foreground">65% markup from HB Naik</p>
+                  <p className="text-sm text-muted-foreground">
+                    65% markup from HB Naik
+                  </p>
                 </FormItem>
               )}
             />
@@ -415,7 +426,9 @@ export function ProductForm() {
                       disabled
                     />
                   </FormControl>
-                  <p className="text-sm text-muted-foreground">81% markup from HB Naik</p>
+                  <p className="text-sm text-muted-foreground">
+                    81% markup from HB Naik
+                  </p>
                 </FormItem>
               )}
             />
@@ -440,7 +453,9 @@ export function ProductForm() {
                       disabled
                     />
                   </FormControl>
-                  <p className="text-sm text-muted-foreground">45% markup from HB Naik</p>
+                  <p className="text-sm text-muted-foreground">
+                    45% markup from HB Naik
+                  </p>
                 </FormItem>
               )}
             />
@@ -459,7 +474,9 @@ export function ProductForm() {
                       disabled
                     />
                   </FormControl>
-                  <p className="text-sm text-muted-foreground">3% markup from Platinum</p>
+                  <p className="text-sm text-muted-foreground">
+                    3% markup from Platinum
+                  </p>
                 </FormItem>
               )}
             />
@@ -478,7 +495,9 @@ export function ProductForm() {
                       disabled
                     />
                   </FormControl>
-                  <p className="text-sm text-muted-foreground">5% markup from Gold</p>
+                  <p className="text-sm text-muted-foreground">
+                    5% markup from Gold
+                  </p>
                 </FormItem>
               )}
             />
@@ -497,7 +516,9 @@ export function ProductForm() {
                       disabled
                     />
                   </FormControl>
-                  <p className="text-sm text-muted-foreground">5% markup from Silver</p>
+                  <p className="text-sm text-muted-foreground">
+                    5% markup from Silver
+                  </p>
                 </FormItem>
               )}
             />
@@ -509,7 +530,7 @@ export function ProductForm() {
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Adding Product...' : 'Add Product'}
+            {isSubmitting ? "Adding Product..." : "Add Product"}
           </Button>
         </div>
       </form>

@@ -50,7 +50,6 @@ export function useProductTypes() {
       const savedProductTypes = localStorage.getItem("productTypes");
       if (savedProductTypes) {
         const parsed = JSON.parse(savedProductTypes);
-        console.log("Loaded product types:", parsed); // Debug log
         setProductTypes(parsed);
       } else {
         // Initialize with default product types if none exist
@@ -77,7 +76,6 @@ export function useProductTypes() {
             updatedAt: new Date().toISOString(),
           },
         ];
-        console.log("Setting default types:", defaultTypes); // Debug log
         setProductTypes(defaultTypes);
         localStorage.setItem("productTypes", JSON.stringify(defaultTypes));
       }
