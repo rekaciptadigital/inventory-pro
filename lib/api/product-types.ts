@@ -66,3 +66,42 @@ export const getProductTypes = async ({
     throw error;
   }
 };
+
+export type ProductTypeFormData = {
+  name: string;
+  description?: string;
+  status?: boolean;
+};
+
+export type ProductType = ProductTypeFormData & {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function createProductType(
+  data: ProductTypeFormData
+): Promise<ProductType> {
+  // Implement your create logic here
+  return {} as ProductType;
+}
+
+export async function updateProductType(
+  id: string,
+  data: ProductTypeFormData
+): Promise<ProductType> {
+  // Implement your update logic here
+  return {} as ProductType;
+}
+
+export async function deleteProductType(id: string): Promise<void> {
+  // Implement your delete logic here
+}
+
+export async function updateProductTypeStatus(
+  id: string,
+  status: boolean
+): Promise<ProductType> {
+  // Implement your status update logic here
+  return {} as ProductType;
+}
