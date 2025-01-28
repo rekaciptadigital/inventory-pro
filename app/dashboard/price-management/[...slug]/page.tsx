@@ -1,19 +1,25 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { PricingInfo } from "@/components/price-management/pricing-info";
 import { CustomerPrices } from "@/components/price-management/customer-prices";
 import { useProducts } from "@/lib/hooks/use-products";
 
-export default function EditProductPricePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function EditProductPricePage() {
+  const { id } = useParams();
+  console.log(id);
   const router = useRouter();
-  const { getProductById } = useProducts();
-  const product = getProductById(params.id);
+  // const { getProductById } = useProducts();
+  // const product = getProductById(params.id);
+
+  // if (!product) {
+  //   return (
+  //     <div className="p-8 text-center text-muted-foreground">
+  //       Product not found
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="space-y-6">
@@ -21,7 +27,8 @@ export default function EditProductPricePage({
         <div>
           <h1 className="text-3xl font-bold">Edit Product Price</h1>
           <p className="text-muted-foreground">
-            Update pricing information for {product?.productName || params.id}
+            lala
+            {/* Update pricing information for {product.productName} */}
           </p>
         </div>
         <Button variant="outline" onClick={() => router.back()}>
@@ -30,12 +37,8 @@ export default function EditProductPricePage({
       </div>
 
       <div className="space-y-6">
-        {product && (
-          <>
-            <PricingInfo product={product} />
-            <CustomerPrices product={product} />
-          </>
-        )}
+        {/* <PricingInfo product={product} />
+        <CustomerPrices product={product} /> */}
       </div>
     </div>
   );
