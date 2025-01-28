@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Table,
@@ -10,65 +11,159 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Edit } from 'lucide-react';
+import { Edit, ChevronDown, ChevronRight } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/utils/format';
-import type { Product } from '@/types/inventory';
+import { formatDate } from '@/lib/utils/format';
+import type { InventoryProduct } from '@/types/inventory';
 
 interface PriceManagementListProps {
-  products: Product[];
+  products: InventoryProduct[];
+  isLoading?: boolean;
 }
 
-export function PriceManagementList({ products }: PriceManagementListProps) {
+export function PriceManagementList({ products, isLoading }: PriceManagementListProps) {
   const router = useRouter();
+  const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
 
-  const handleEdit = (product: Product) => {
-    router.push(`/dashboard/price-management/${product.id}`);
+  const toggleExpand = (productId: number) => {
+    const newExpanded = new Set(expandedProducts);
+    if (newExpanded.has(productId)) {
+      newExpanded.delete(productId);
+    } else {
+      newExpanded.add(productId);
+    }
+    setExpandedProducts(newExpanded);
   };
 
-  if (products.length === 0) {
+  if (isLoading) {
     return (
-      <div className="border rounded-lg p-8 text-center text-muted-foreground">
-        No products found.
-      </div>
-    );
-  }
-
-  return (
-    <>
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Product Name</TableHead>
               <TableHead>SKU</TableHead>
-              <TableHead>Base Price</TableHead>
-              <TableHead>Retail Price</TableHead>
+              <TableHead>Product Name</TableHead>
+              <TableHead>Brand</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Created At</TableHead>
+              <TableHead>Updated At</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell className="font-medium">{product.productName}</TableCell>
-                <TableCell>{product.sku}</TableCell>
-                <TableCell>{formatCurrency(product.hbNaik || 0)}</TableCell>
-                <TableCell>
-                  {formatCurrency(product.customerPrices?.retail?.taxInclusivePrice || 0)}
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(product)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+            {Array.from({ length: 5 }).map((_, index) => (
+              <TableRow key={index}>
+                {Array.from({ length: 8 }).map((_, cellIndex) => (
+                  <TableCell key={cellIndex}>
+                    <Skeleton className="h-6 w-full" />
+                  </TableCell>
+                ))}
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
-    </>
+    );
+  }
+
+  if (!products?.length) {
+    return (
+      <div className="border rounded-lg p-8 text-center text-muted-foreground">
+        No products found. Add your first product to manage prices.
+      </div>
+    );
+  }
+
+  return (
+    <div className="border rounded-lg">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>SKU</TableHead>
+            <TableHead>Product Name</TableHead>
+            <TableHead>Brand</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead>Created At</TableHead>
+            <TableHead>Updated At</TableHead>
+            <TableHead className="w-[100px]">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {products.map((product) => (
+            <React.Fragment key={product.id}>
+              <TableRow className="group hover:bg-muted/50 transition-colors">
+                <TableCell className="font-medium">{product.sku}</TableCell>
+                <TableCell>{product.full_product_name}</TableCell>
+                <TableCell>{product.brand_name}</TableCell>
+                <TableCell>{product.product_type_name}</TableCell>
+                <TableCell>
+                  {product.categories.map((cat) => (
+                    <Badge key={cat.id} variant="secondary" className="mr-1">
+                      {cat.product_category_name}
+                    </Badge>
+                  ))}
+                </TableCell>
+                <TableCell>{formatDate(product.created_at)}</TableCell>
+                <TableCell>{formatDate(product.updated_at)}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => router.push(`/dashboard/price-management/${product.id}`)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    {product.product_by_variant.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleExpand(product.id)}
+                      >
+                        {expandedProducts.has(product.id) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+              {/* Variant Rows */}
+              {expandedProducts.has(product.id) && product.product_by_variant.map((variant) => (
+                <TableRow 
+                  key={variant.id}
+                  className="bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <TableCell className="pl-10 font-mono text-sm">
+                    {variant.sku_product_variant}
+                  </TableCell>
+                  <TableCell className="pl-10">
+                    {variant.full_product_name}
+                  </TableCell>
+                  <TableCell colSpan={4}>
+                    {product.variants.map((v) => (
+                      <div key={v.id} className="text-sm text-muted-foreground">
+                        {v.variant_name}:{' '}
+                        {v.values
+                          .map((val) => val.variant_value_name)
+                          .join(', ')}
+                      </div>
+                    ))}
+                  </TableCell>
+                  <TableCell>{formatDate(variant.created_at)}</TableCell>
+                  <TableCell />
+                </TableRow>
+              ))}
+            </React.Fragment>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

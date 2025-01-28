@@ -1,26 +1,30 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { PriceManagementList } from "@/components/price-management/price-management-list";
-import { useProducts } from "@/lib/hooks/use-products";
+import { useState } from 'react';
+import { Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { PriceManagementList } from '@/components/price-management/price-management-list';
+import { usePriceManagement } from '@/lib/hooks/price-management/use-price-management';
+import { usePagination } from '@/lib/hooks/use-pagination';
+import { PaginationControls } from '@/components/ui/pagination/pagination-controls';
+import { PaginationInfo } from '@/components/ui/pagination/pagination-info';
 
 export default function PriceManagementPage() {
-  const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
-  const { products } = useProducts();
+  const [searchTerm, setSearchTerm] = useState('');
+  const { currentPage, pageSize, handlePageChange, handlePageSizeChange } = usePagination();
 
-  const handleEdit = (productId: string) => {
-    router.push(`/dashboard/price-management/${productId}`);
+  const { products, pagination, isLoading } = usePriceManagement({
+    search: searchTerm,
+    page: currentPage,
+    limit: pageSize,
+    sort: 'created_at',
+    order: 'DESC',
+  });
+
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    handlePageChange(1); // Reset to first page on search
   };
-
-  const filteredProducts = products.filter(
-    (product) =>
-      product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <div className="space-y-6">
@@ -33,15 +37,36 @@ export default function PriceManagementPage() {
 
       <div className="flex gap-4">
         <div className="relative flex-1">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by product name or SKU..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="pl-8"
           />
         </div>
       </div>
 
-      <PriceManagementList products={filteredProducts} onEdit={handleEdit} />
+      <PriceManagementList 
+        products={products}
+        isLoading={isLoading}
+      />
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <PaginationInfo
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={pagination?.totalItems || 0}
+        />
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={pagination?.totalPages || 1}
+          pageSize={pageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          isLoading={isLoading}
+        />
+      </div>
     </div>
   );
 }
