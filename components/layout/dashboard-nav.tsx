@@ -214,7 +214,7 @@ export function DashboardNav() {
                   !isOpen && "hidden group-hover:block"
                 )}
               >
-                Archery Pro
+                PRO Archery
               </span>
             </Link>
             <Button

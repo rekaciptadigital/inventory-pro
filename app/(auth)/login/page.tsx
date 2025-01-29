@@ -71,7 +71,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-8 p-8">
         <div className="flex flex-col items-center space-y-2">
           <Target className="h-12 w-12 text-primary" />
-          <h1 className="text-2xl font-bold">Welcome to Archery Pro</h1>
+          <h1 className="text-2xl font-bold">Welcome to PRO Archery</h1>
           <p className="text-sm text-muted-foreground">
             Sign in to manage your inventory
           </p>
