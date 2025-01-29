@@ -16,7 +16,9 @@ import { Edit, ChevronDown, ChevronRight, Barcode, Pencil } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BarcodeModal } from '@/components/ui/barcode-modal';
 import { formatDate } from '@/lib/utils/format';
-import type { InventoryProduct } from '@/types/inventory';
+import type { InventoryProduct, InventoryProductVariant } from '@/types/inventory';
+import { VariantBarcodeModal } from '@/components/ui/variant-barcode-modal';
+import { useToast } from '@/components/ui/use-toast';
 
 interface ProductListProps {
   products: InventoryProduct[];
@@ -25,9 +27,12 @@ interface ProductListProps {
 
 export function ProductList({ products, isLoading }: ProductListProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
+  const [variantBarcodeModalOpen, setVariantBarcodeModalOpen] = useState(false);
   const [selectedBarcodes, setSelectedBarcodes] = useState<Array<{ sku: string; name: string }>>([]);
+  const [selectedVariantBarcode, setSelectedVariantBarcode] = useState<{ sku: string; name: string } | null>(null);
 
   const toggleExpand = (productId: number) => {
     const newExpanded = new Set(expandedProducts);
@@ -42,13 +47,30 @@ export function ProductList({ products, isLoading }: ProductListProps) {
   const handleShowBarcode = (product: InventoryProduct) => {
     const barcodes = [
       { sku: product.sku, name: product.full_product_name },
-      ...product.product_by_variant.map(variant => ({
+      ...(product.product_by_variant || []).map(variant => ({
         sku: variant.sku_product_variant,
         name: variant.full_product_name
       }))
     ];
     setSelectedBarcodes(barcodes);
     setBarcodeModalOpen(true);
+  };
+
+  const handleShowVariantBarcode = (variant: InventoryProductVariant) => {
+    if (!variant.sku_product_variant || !variant.full_product_name) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Invalid variant data"
+      });
+      return;
+    }
+    
+    setSelectedVariantBarcode({
+      sku: variant.sku_product_variant,
+      name: variant.full_product_name
+    });
+    setVariantBarcodeModalOpen(true);
   };
 
   if (isLoading) {
@@ -180,7 +202,17 @@ export function ProductList({ products, isLoading }: ProductListProps) {
                     ))}
                   </TableCell>
                   <TableCell>{formatDate(variant.created_at)}</TableCell>
-                  <TableCell />
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleShowVariantBarcode(variant)}
+                      >
+                        <Barcode className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </React.Fragment>
@@ -192,6 +224,14 @@ export function ProductList({ products, isLoading }: ProductListProps) {
         onOpenChange={setBarcodeModalOpen}
         skus={selectedBarcodes}
       />
+      {selectedVariantBarcode && (
+        <VariantBarcodeModal
+          open={variantBarcodeModalOpen}
+          onOpenChange={setVariantBarcodeModalOpen}
+          sku={selectedVariantBarcode.sku}
+          name={selectedVariantBarcode.name}
+        />
+      )}
     </div>
   );
 }
