@@ -12,8 +12,9 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, ChevronDown, ChevronRight } from 'lucide-react';
+import { Edit, ChevronDown, ChevronRight, Barcode } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BarcodeModal } from '@/components/ui/barcode-modal';
 import { formatDate } from '@/lib/utils/format';
 import type { InventoryProduct } from '@/types/inventory';
 
@@ -25,6 +26,8 @@ interface ProductListProps {
 export function ProductList({ products, isLoading }: ProductListProps) {
   const router = useRouter();
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
+  const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
+  const [selectedBarcodes, setSelectedBarcodes] = useState<Array<{ sku: string; name: string }>>([]);
 
   const toggleExpand = (productId: number) => {
     const newExpanded = new Set(expandedProducts);
@@ -34,6 +37,18 @@ export function ProductList({ products, isLoading }: ProductListProps) {
       newExpanded.add(productId);
     }
     setExpandedProducts(newExpanded);
+  };
+
+  const handleShowBarcode = (product: InventoryProduct) => {
+    const barcodes = [
+      { sku: product.sku, name: product.full_product_name },
+      ...product.product_by_variant.map(variant => ({
+        sku: variant.sku_product_variant,
+        name: variant.full_product_name
+      }))
+    ];
+    setSelectedBarcodes(barcodes);
+    setBarcodeModalOpen(true);
   };
 
   if (isLoading) {
@@ -115,6 +130,13 @@ export function ProductList({ products, isLoading }: ProductListProps) {
                     <Button
                       variant="ghost"
                       size="icon"
+                      onClick={() => handleShowBarcode(product)}
+                    >
+                      <Barcode className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => router.push(`/dashboard/inventory/${product.id}`)}
                     >
                       <Edit className="h-4 w-4" />
@@ -165,6 +187,11 @@ export function ProductList({ products, isLoading }: ProductListProps) {
           ))}
         </TableBody>
       </Table>
+      <BarcodeModal
+        open={barcodeModalOpen}
+        onOpenChange={setBarcodeModalOpen}
+        skus={selectedBarcodes}
+      />
     </div>
   );
 }
