@@ -28,7 +28,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-  DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { LogoutButton } from "@/components/auth/logout-button";
 import {
@@ -37,6 +36,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Target },
@@ -105,84 +106,130 @@ export function DashboardNav() {
     const Icon = item.icon;
 
     if (item.children) {
-      return (
+      return isOpen ? (
+        // Expanded state - use Accordion
         <Accordion type="single" collapsible key={item.name}>
           <AccordionItem value={item.name} className="border-none">
             <AccordionTrigger
               className={cn(
-                "flex items-center space-x-2 px-3 py-2 text-sm rounded-lg text-muted-foreground", // Changed from text-base to text-sm
+                "flex items-center space-x-2 px-3 py-2 text-sm rounded-lg text-muted-foreground",
                 "hover:bg-accent hover:text-accent-foreground transition-colors",
-                "hover:no-underline",
-                !isOpen &&
-                  "lg:justify-center lg:px-2 group-hover:justify-start group-hover:px-3"
+                "hover:no-underline"
               )}
             >
-              <div
-                className={cn(
-                  "flex items-center",
-                  isOpen ? "space-x-2" : "lg:space-x-0 group-hover:space-x-2"
-                )}
-              >
+              <div className="flex items-center space-x-2">
                 <Icon className="h-5 w-5 flex-shrink-0" />
-                <span
-                  className={cn(
-                    "transition-opacity duration-200 whitespace-nowrap",
-                    !isOpen && "hidden group-hover:block"
-                  )}
-                >
+                <span className="transition-opacity duration-200">
                   {item.name}
                 </span>
               </div>
             </AccordionTrigger>
-            <AccordionContent
-              className={cn("pb-0 pt-1", !isOpen && "hidden group-hover:block")}
-            >
-              <div className="pl-4">
+            <AccordionContent className="pb-0 pt-1">
+              <div className="pl-4 space-y-1">
                 {item.children.map((child: any) => (
-                  <Link
-                    key={child.name}
-                    href={child.href}
-                    className={cn(
-                      "flex items-center space-x-2 px-3 py-2 text-sm rounded-lg text-muted-foreground",
-                      "hover:bg-accent hover:text-accent-foreground transition-colors",
-                      pathname === child.href &&
-                        "bg-accent text-accent-foreground"
-                    )}
-                  >
-                    <child.icon className="h-4 w-4 flex-shrink-0" />
-                    <span>{child.name}</span>
-                  </Link>
+                  <div key={child.name}>
+                    {renderNavItem(child, depth + 1)}
+                  </div>
                 ))}
               </div>
             </AccordionContent>
           </AccordionItem>
         </Accordion>
+      ) : (
+        // Minimized state - use Popover with Tooltip
+        <div className="relative">
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      className={cn(
+                        "w-full flex items-center justify-center p-2 rounded-lg",
+                        "hover:bg-accent hover:text-accent-foreground transition-colors",
+                        "text-muted-foreground"
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="right"
+                    className="w-56 p-2 ml-2"
+                    sideOffset={-5}
+                  >
+                    <div className="space-y-1">
+                      <div className="px-2 py-1.5 text-sm font-medium">{item.name}</div>
+                      {item.children.map((child: any) => (
+                        <Link
+                          key={child.href || child.name}
+                          href={child.href}
+                          className={cn(
+                            "flex items-center space-x-2 px-2 py-1.5 text-sm rounded-lg",
+                            "hover:bg-accent hover:text-accent-foreground transition-colors",
+                            pathname === child.href && "bg-accent text-accent-foreground"
+                          )}
+                        >
+                          <child.icon className="h-4 w-4 flex-shrink-0" />
+                          <span>{child.name}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent 
+              side="right" 
+              className="animate-in fade-in-50 duration-200"
+            >
+              {item.name}
+            </TooltipContent>
+          </Tooltip>
+        </div>
       );
     }
 
-    return (
+    // Regular menu item with Tooltip when minimized
+    return isOpen ? (
       <Link
         href={item.href}
         className={cn(
-          "flex items-center px-3 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors",
+          "flex items-center px-3 py-2 rounded-lg",
+          "hover:bg-accent hover:text-accent-foreground transition-colors",
           pathname === item.href
             ? "bg-accent text-accent-foreground"
             : "text-muted-foreground",
-          !isOpen &&
-            "lg:justify-center lg:px-2 group-hover:justify-start group-hover:px-3",
-          "text-sm" // Changed from "text-base lg:text-sm"
+          "text-sm"
         )}
       >
         <Icon className="h-5 w-5 flex-shrink-0" />
-        <span
-          className={cn(
-            "ml-2 whitespace-nowrap",
-            !isOpen && "hidden group-hover:block" // Show text on hover when minimized
-          )}
+        <span className="ml-2">{item.name}</span>
+      </Link>
+    ) : (
+      <Tooltip delayDuration={0}>
+        <TooltipTrigger asChild>
+          <Link
+            href={item.href}
+            className={cn(
+              "flex items-center justify-center p-2 rounded-lg",
+              "hover:bg-accent hover:text-accent-foreground transition-colors",
+              pathname === item.href
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground",
+              "text-sm"
+            )}
+          >
+            <Icon className="h-5 w-5 flex-shrink-0" />
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent 
+          side="right"
+          className="animate-in fade-in-50 duration-200"
         >
           {item.name}
-        </span>
-      </Link>
+        </TooltipContent>
+      </Tooltip>
     );
   };
 
@@ -193,15 +240,15 @@ export function DashboardNav() {
   }, []);
 
   return (
-    <>
+    <TooltipProvider>
       {/* Desktop Sidebar */}
       <aside
         className={cn(
           "hidden lg:block",
           "bg-background border-r",
           "transition-all duration-300 ease-in-out",
-          "group", // Add group class for hover effects
-          isOpen ? "w-64" : "w-20 hover:w-64" // Add hover width
+          "group",
+          isOpen ? "w-64" : "w-20"
         )}
       >
         <div className="flex h-full flex-col">
@@ -210,8 +257,8 @@ export function DashboardNav() {
               <Target className="h-6 w-6 text-primary" />
               <span
                 className={cn(
-                  "font-semibold text-lg whitespace-nowrap",  // Changed from font-bold to font-semibold
-                  !isOpen && "hidden group-hover:block"
+                  "font-semibold text-lg whitespace-nowrap",
+                  !isOpen && "hidden"
                 )}
               >
                 PRO Archery
@@ -221,10 +268,7 @@ export function DashboardNav() {
               variant="ghost"
               size="icon"
               onClick={toggleSidebar}
-              className={cn(
-                "transition-opacity",
-                !isOpen && "opacity-0 group-hover:opacity-100" // Show button on hover when minimized
-              )}
+              className="transition-opacity hover:opacity-100"
             >
               <Menu className="h-5 w-5" />
             </Button>
@@ -232,7 +276,7 @@ export function DashboardNav() {
 
           <nav className="flex-1 space-y-1 px-3 py-4">
             {navigation.map((item) => (
-              <div key={item.name}>{renderNavItem(item)}</div>
+              <div key={item.href || item.name}>{renderNavItem(item)}</div>
             ))}
           </nav>
 
@@ -242,7 +286,7 @@ export function DashboardNav() {
                 "flex items-center",
                 isOpen
                   ? "justify-between"
-                  : "justify-center group-hover:justify-between" // Adjust on hover
+                  : "justify-center"
               )}
             >
               <Button
@@ -262,7 +306,7 @@ export function DashboardNav() {
                     variant="ghost"
                     size="icon"
                     className={cn(
-                      !isOpen && "hidden group-hover:block" // Show on hover when minimized
+                      !isOpen && "hidden"
                     )}
                   >
                     <User className="h-5 w-5" />
@@ -280,9 +324,16 @@ export function DashboardNav() {
       {/* Mobile Sidebar */}
       <div className="lg:hidden">
         {isOpen && (
-          <div
+          <button
+            type="button"
             className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
             onClick={() => setIsOpen(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                setIsOpen(false)
+              }
+            }}
+            aria-label="Close navigation menu"
           />
         )}
 
@@ -311,7 +362,7 @@ export function DashboardNav() {
 
             <nav className="flex-1 space-y-2 px-3 py-4">
               {navigation.map((item) => (
-                <div key={item.name} className="text-sm"> {/* Changed from text-base */}
+                <div key={item.href || item.name} className="text-sm">
                   {renderNavItem(item)}
                 </div>
               ))}
@@ -345,6 +396,6 @@ export function DashboardNav() {
           </div>
         </aside>
       </div>
-    </>
+    </TooltipProvider>
   );
 }
