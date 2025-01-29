@@ -11,13 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { VariantList } from '@/components/variants/variant-list';
 import { VariantForm } from '@/components/variants/variant-form';
+import { VariantList } from '@/components/variants/variant-list';
 import { useVariants } from '@/lib/hooks/variants/use-variants';
 import { usePagination } from '@/lib/hooks/use-pagination';
 import { PaginationControls } from '@/components/ui/pagination/pagination-controls';
 import { PaginationInfo } from '@/components/ui/pagination/pagination-info';
-import type { Variant } from '@/types/variant';
 
 export default function VariantsPage() {
   const [search, setSearch] = useState('');

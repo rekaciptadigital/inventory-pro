@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, ChevronDown, ChevronRight, Barcode } from 'lucide-react';
+import { Edit, ChevronDown, ChevronRight, Barcode, Pencil } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BarcodeModal } from '@/components/ui/barcode-modal';
 import { formatDate } from '@/lib/utils/format';
@@ -130,16 +130,16 @@ export function ProductList({ products, isLoading }: ProductListProps) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleShowBarcode(product)}
+                      onClick={() => router.push(`/dashboard/inventory/${product.id}/edit`)}
                     >
-                      <Barcode className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => router.push(`/dashboard/inventory/${product.id}`)}
+                      onClick={() => handleShowBarcode(product)}
                     >
-                      <Edit className="h-4 w-4" />
+                      <Barcode className="h-4 w-4" />
                     </Button>
                     {product.product_by_variant.length > 0 && (
                       <Button

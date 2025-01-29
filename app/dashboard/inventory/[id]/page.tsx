@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { EditPriceForm } from './edit-price-form';
+import { ProductDetail } from './product-detail';
 import Loading from './loading';
 
 export function generateStaticParams() {
@@ -11,10 +11,10 @@ export function generateStaticParams() {
 
 export const dynamicParams = false;
 
-export default function EditProductPricePage() {
+export default function ProductDetailPage() {
   return (
     <Suspense fallback={<Loading />}>
-      <EditPriceForm />
+      <ProductDetail />
     </Suspense>
   );
 }

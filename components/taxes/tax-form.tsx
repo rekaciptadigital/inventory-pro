@@ -126,6 +126,7 @@ export function TaxForm({ onSuccess, initialData }: TaxFormProps) {
               <FormControl>
                 <Textarea 
                   placeholder="Enter tax description (optional)"
+                  value={field.value || ''}
                   className="resize-none"
                   {...field}
                 />

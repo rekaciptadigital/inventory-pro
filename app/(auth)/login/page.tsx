@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -60,92 +60,89 @@ export default function LoginPage() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error?.status?.messsage,
+        description: error?.status?.message,
       });
-      // Error is handled by the auth slice
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-md space-y-8 p-8">
-        <div className="flex flex-col items-center space-y-2">
-          <Target className="h-12 w-12 text-primary" />
-          <h1 className="text-2xl font-bold">Welcome to PRO Archery</h1>
-          <p className="text-sm text-muted-foreground">
-            Sign in to manage your inventory
-          </p>
-        </div>
+    <div className="w-full max-w-md space-y-8 p-8">
+      <div className="flex flex-col items-center space-y-2">
+        <Target className="h-12 w-12 text-primary" />
+        <h1 className="text-2xl font-bold">Welcome to PRO Archery</h1>
+        <p className="text-sm text-muted-foreground">
+          Sign in to manage your inventory
+        </p>
+      </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    type="email"
+                    placeholder="Enter your email"
+                    disabled={isLoading}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <div className="relative">
                     <Input
-                      type="email"
-                      placeholder="Enter your email"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
                       disabled={isLoading}
                       {...field}
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Enter your password"
-                        disabled={isLoading}
-                        {...field}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowPassword(!showPassword)}
-                        tabIndex={-1}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <div className="flex items-center space-x-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  <span>Signing in...</span>
-                </div>
-              ) : (
-                "Sign in"
-              )}
-            </Button>
-          </form>
-        </Form>
-      </div>
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <div className="flex items-center space-x-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <span>Signing in...</span>
+              </div>
+            ) : (
+              "Sign in"
+            )}
+          </Button>
+        </form>
+      </Form>
     </div>
   );
 }

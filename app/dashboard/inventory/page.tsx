@@ -1,17 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ProductActions } from '@/components/inventory/product-actions';
 import { ProductList } from '@/components/inventory/product-list';
-import { useInventory } from '@/lib/hooks/inventory/use-inventory';
 import { usePagination } from '@/lib/hooks/use-pagination';
+import { useInventory } from '@/lib/hooks/inventory/use-inventory';
 import { PaginationControls } from '@/components/ui/pagination/pagination-controls';
 import { PaginationInfo } from '@/components/ui/pagination/pagination-info';
 
 export default function InventoryPage() {
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState('');
   const { currentPage, pageSize, handlePageChange, handlePageSizeChange } = usePagination();
   
   const { products, pagination, isLoading } = useInventory({
@@ -22,11 +24,6 @@ export default function InventoryPage() {
     order: 'DESC',
   });
 
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
-    handlePageChange(1); // Reset to first page on search
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -36,16 +33,21 @@ export default function InventoryPage() {
             Manage your archery equipment inventory
           </p>
         </div>
-        <ProductActions />
+        <Button onClick={() => router.push('/dashboard/inventory/new')}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add New Product
+        </Button>
       </div>
 
       <div className="flex gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by brand, SKU, or product name..."
             value={searchTerm}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              handlePageChange(1);
+            }}
             className="pl-8"
           />
         </div>

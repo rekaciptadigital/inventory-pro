@@ -1,6 +1,3 @@
-// Komponen untuk menampilkan dan mengelola form informasi dasar produk
-// Mencakup data utama seperti brand, tipe produk, kategori, dan informasi produk lainnya
-
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -382,14 +379,14 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
           <FormItem>
             <FormLabel>Description</FormLabel>
             <FormControl>
-              <Textarea
-                {...field}
+              <Textarea 
+                placeholder="Enter product description (optional)"
+                value={field.value || ''}
                 onChange={handleDescriptionChange}
                 onBlur={(e) => {
                   field.onBlur();
                   dispatch(updateForm({ description: e.target.value }));
                 }}
-                placeholder="Enter product description (optional)"
                 className="min-h-[100px] resize-none"
               />
             </FormControl>

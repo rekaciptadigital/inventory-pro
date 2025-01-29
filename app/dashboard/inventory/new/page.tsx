@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
-import { SingleProductForm } from "@/components/inventory/product-form/single-product-form";
+import { useRouter } from 'next/navigation';
+import { SingleProductForm } from '@/components/inventory/product-form/single-product-form';
 
 export default function NewProductPage() {
   const router = useRouter();
 
   const handleSuccess = () => {
-    router.push("/dashboard/inventory");
+    router.push('/dashboard/inventory');
   };
 
   return (

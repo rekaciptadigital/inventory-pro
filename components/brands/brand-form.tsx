@@ -122,6 +122,7 @@ export const BrandForm: React.FC<Readonly<BrandFormProps>> = ({
               <FormControl>
                 <Textarea
                   placeholder="Enter brand description (optional)"
+                  value={field.value || ''}
                   className="resize-none"
                   {...field}
                 />

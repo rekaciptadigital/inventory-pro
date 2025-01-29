@@ -81,6 +81,7 @@ export function VariantForm({ onSubmit, initialData, isSubmitting }: VariantForm
               <FormControl>
                 <Textarea
                   placeholder="Enter values separated by commas (e.g., Red, Blue, Green)"
+                  value={field.value || ''}
                   className="min-h-[100px]"
                   {...field}
                 />

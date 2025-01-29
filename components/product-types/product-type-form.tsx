@@ -89,6 +89,7 @@ export function ProductTypeForm({ onSubmit, initialData, isSubmitting }: Product
               <FormControl>
                 <Textarea 
                   placeholder="Enter product type description (optional)"
+                  value={field.value || ''}
                   className="resize-none"
                   {...field}
                 />

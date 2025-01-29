@@ -1,15 +1,21 @@
+'use client';
+
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface DashboardShellProps {
   children: React.ReactNode;
-  onToggleSidebar?: () => void;
 }
 
 export function DashboardShell({
   children,
-  onToggleSidebar,
 }: DashboardShellProps) {
+  const handleToggleSidebar = () => {
+    if (typeof window !== "undefined" && (window as any).toggleSidebar) {
+      (window as any).toggleSidebar();
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-screen">
       <header className="shrink-0 border-b bg-background">
@@ -18,7 +24,7 @@ export function DashboardShell({
             variant="ghost"
             size="icon"
             className="lg:hidden"
-            onClick={onToggleSidebar}
+            onClick={handleToggleSidebar}
           >
             <Menu className="h-5 w-5" />
           </Button>

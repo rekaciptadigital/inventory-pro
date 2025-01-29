@@ -1,24 +1,30 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { PaginationControls } from "@/components/ui/pagination/pagination-controls";
-import { PaginationInfo } from "@/components/ui/pagination/pagination-info";
-import { BrandList } from "@/components/brands/brand-list";
-import { usePagination } from "@/lib/hooks/use-pagination";
-import { useBrands } from "@/lib/hooks/use-brands";
-import { BrandFormDialog } from "@/components/brands/brand-form-dialog";
-import type { Brand } from "@/types/brand";
+import { useState } from 'react';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { BrandForm } from '@/components/brands/brand-form';
+import { BrandList } from '@/components/brands/brand-list';
+import { usePagination } from '@/lib/hooks/use-pagination';
+import { useBrands } from '@/lib/hooks/use-brands';
+import { PaginationControls } from '@/components/ui/pagination/pagination-controls';
+import { PaginationInfo } from '@/components/ui/pagination/pagination-info';
+import type { Brand } from '@/types/brand';
 
 export default function BrandsPage() {
-  const [search, setSearch] = useState("");
-  const [openFormDialog, setOpenFormDialog] = useState(false);
+  const [search, setSearch] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | undefined>();
-  const { currentPage, pageSize, handlePageChange, handlePageSizeChange } =
-    usePagination();
-
+  const { currentPage, pageSize, handlePageChange, handlePageSizeChange } = usePagination();
+  
   const {
     brands,
     pagination,
@@ -34,14 +40,9 @@ export default function BrandsPage() {
     limit: pageSize,
   });
 
-  const handleEdit = (brand: Brand) => {
-    setSelectedBrand(brand);
-    setOpenFormDialog(true);
-  };
-
-  const handleCloseDialog = () => {
+  const handleSuccess = () => {
+    setIsDialogOpen(false);
     setSelectedBrand(undefined);
-    setOpenFormDialog(false);
   };
 
   if (error) {
@@ -57,9 +58,11 @@ export default function BrandsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Brands</h1>
-          <p className="text-muted-foreground">Manage your product brands</p>
+          <p className="text-muted-foreground">
+            Manage your product brands
+          </p>
         </div>
-        <Button onClick={() => setOpenFormDialog(true)}>
+        <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add New Brand
         </Button>
@@ -80,26 +83,50 @@ export default function BrandsPage() {
 
       <BrandList
         brands={brands}
-        onEdit={handleEdit}
+        onEdit={(brand) => {
+          setSelectedBrand(brand);
+          setIsDialogOpen(true);
+        }}
         onDelete={deleteBrand}
         onStatusChange={updateBrandStatus}
       />
 
-      <BrandFormDialog
-        open={openFormDialog}
-        onOpenChange={handleCloseDialog}
-        onSubmit={
-          selectedBrand
-            ? async (data) => {
-                await updateBrand({ id: selectedBrand.id, data });
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) setSelectedBrand(undefined);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedBrand ? 'Edit Brand' : 'Add New Brand'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedBrand 
+                ? 'Edit brand details below'
+                : 'Add a new brand to your catalog'
               }
-            : async (data) => {
+            </DialogDescription>
+          </DialogHeader>
+          <BrandForm
+            onSubmit={async (data) => {
+              if (selectedBrand) {
+                await updateBrand({
+                  id: selectedBrand.id,
+                  data,
+                });
+              } else {
                 await createBrand(data);
               }
-        }
-        initialData={selectedBrand}
-        mode={selectedBrand ? "edit" : "create"}
-      />
+              handleSuccess();
+            }}
+            initialData={selectedBrand}
+            mode={selectedBrand ? "edit" : "create"}
+          />
+        </DialogContent>
+      </Dialog>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <PaginationInfo

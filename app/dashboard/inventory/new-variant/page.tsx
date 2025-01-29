@@ -1,6 +1,14 @@
 'use client';
 
+'use client';
+
 import { VariantForm } from '@/components/inventory/variant-form/variant-form';
+
+export function generateStaticParams() {
+  return [];
+}
+
+export const dynamicParams = false;
 
 export default function NewVariantPage() {
   return (

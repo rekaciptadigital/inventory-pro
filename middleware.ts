@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { STORAGE_KEYS } from "@/lib/config/constants";
 
 export function middleware(request: NextRequest) {
-  const isAuthenticated = request.cookies.has("auth"); // You'll need to implement proper auth
+  const isAuthenticated = request.cookies.has(STORAGE_KEYS.TOKENS);
   const isAuthPage = request.nextUrl.pathname.startsWith("/login");
 
   if (!isAuthenticated && !isAuthPage) {
