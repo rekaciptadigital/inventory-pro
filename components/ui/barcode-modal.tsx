@@ -1,5 +1,8 @@
-import { useEffect, useRef, useLayoutEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
+import { jsPDF } from "jspdf";
+// @ts-ignore
+import "svg2pdf.js";
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -9,6 +12,28 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+interface PageSize {
+  name: string;
+  width: number;
+  height: number;
+  unit: 'mm';
+}
+
+const PAGE_SIZES: Record<string, PageSize> = {
+  'a4': { name: 'A4', width: 210, height: 297, unit: 'mm' },
+  'letter': { name: 'Letter', width: 216, height: 279, unit: 'mm' },
+  'label-small': { name: '50 x 25mm Label', width: 50, height: 25, unit: 'mm' },
+  'label-medium': { name: '100 x 30mm Label', width: 100, height: 30, unit: 'mm' },
+  'label-large': { name: '100 x 50mm Label', width: 100, height: 50, unit: 'mm' },
+};
 
 interface BarcodeModalProps {
   open: boolean;
@@ -21,10 +46,11 @@ interface BarcodeModalProps {
 
 export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
   const barcodeRefs = useRef<(SVGSVGElement | null)[]>([]);
+  const [selectedPageSize, setSelectedPageSize] = useState<string>('a4');
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (open) {
-      // Small delay to ensure DOM is ready
       setTimeout(() => {
         barcodeRefs.current.forEach((ref, index) => {
           if (ref) {
@@ -47,54 +73,106 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
     }
   }, [open, skus]);
 
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    
-    const style = `
-      @page { size: auto; margin: 0mm; }
-      @media print {
-        body { margin: 10mm; }
-        .barcode-container { 
-          page-break-inside: avoid;
-          margin-bottom: 10mm;
+  const generatePDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      // Create PDF document with selected page size
+      const pageSize = PAGE_SIZES[selectedPageSize];
+      const doc = new jsPDF({
+        orientation: pageSize.height > pageSize.width ? 'portrait' : 'landscape',
+        unit: pageSize.unit,
+        format: [pageSize.width, pageSize.height],
+        compress: true
+      });
+
+      // Calculate layout based on page size
+      const margin = 10; // mm
+      const barcodeWidth = Math.min(pageSize.width - (margin * 2), 60); // mm
+      const barcodeHeight = 30; // mm
+      const textHeight = 5; // mm
+      const itemHeight = barcodeHeight + textHeight + 15; // Including margins and text
+      const itemsPerPage = Math.floor((pageSize.height - (margin * 2)) / itemHeight);
+
+      for (let index = 0; index < skus.length; index++) {
+        const sku = skus[index];
+        
+        if (index > 0 && index % itemsPerPage === 0) {
+          doc.addPage();
         }
-        .product-name {
-          font-size: 14px;
-          margin-bottom: 5mm;
+
+        const pageIndex = index % itemsPerPage;
+        const yPos = margin + pageIndex * itemHeight;
+        
+        // Add product name with word wrap
+        doc.setFontSize(10);
+        const maxWidth = pageSize.width - (margin * 2);
+        const splitName = doc.splitTextToSize(sku.name || '', maxWidth);
+        doc.text(splitName, margin, yPos + 5, { baseline: 'top' });
+
+        // Generate barcode as SVG
+        const tempSvg = document.createElement('svg');
+        JsBarcode(tempSvg, sku.sku, {
+          format: 'CODE128',
+          width: 1.5,
+          height: 30,
+          displayValue: true,
+          fontSize: 8,
+          margin: 2,
+          background: '#FFFFFF',
+          lineColor: '#000000'
+        });
+
+        try {
+          // Convert SVG to PDF
+          await doc.svg(tempSvg, {
+            x: margin,
+            y: yPos + textHeight + 8,
+            width: barcodeWidth,
+            height: barcodeHeight
+          });
+        } catch (svgError) {
+          console.error('Error adding SVG to PDF:', svgError);
+          throw new Error('Failed to add barcode to PDF');
         }
+        
+        // Add SKU number
+        doc.setFontSize(8);
+        const skuText = sku.sku || '';
+        doc.text(skuText, margin, yPos + textHeight + barcodeHeight + 10, { 
+          baseline: 'top'
+        });
       }
-    `;
 
-    const barcodeHtml = skus.map(({ sku, name }) => `
-      <div class="barcode-container" style="text-align: center; margin: 20px;">
-        <h3 class="product-name">${name}</h3>
-        <svg class="barcode" jsbarcode-format="CODE128" jsbarcode-value="${sku}" jsbarcode-width="2" jsbarcode-height="100" jsbarcode-fontSize="14"></svg>
-        <div style="margin-top: 5px; font-size: 12px;">${sku}</div>
-      </div>
-    `).join('');
+      // Save and open PDF
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      
+      try {
+        // Download PDF
+        const link = document.createElement('a');
+        link.href = pdfUrl;
+        link.download = `barcodes-${Date.now()}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Print Barcodes</title>
-          <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-          <style>${style}</style>
-        </head>
-        <body>
-          ${barcodeHtml}
-          <script>
-            window.onload = () => {
-              JsBarcode('.barcode').init();
-              setTimeout(() => window.print(), 500);
-            };
-          </script>
-        </body>
-      </html>
-    `);
+        // Open in new tab
+        window.open(pdfUrl, '_blank');
+      } finally {
+        URL.revokeObjectURL(pdfUrl);
+      }
 
-    printWindow.document.close();
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      // Show error to user
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   return (
@@ -107,6 +185,26 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
           </DialogDescription>
         </DialogHeader>
         
+        <div className="flex items-center gap-4 mb-4">
+          <div className="flex-1">
+            <Select
+              value={selectedPageSize}
+              onValueChange={setSelectedPageSize}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select page size" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="a4">A4 (210 x 297 mm)</SelectItem>
+                <SelectItem value="letter">Letter (216 x 279 mm)</SelectItem>
+                <SelectItem value="label-small">Label (50 x 25 mm)</SelectItem>
+                <SelectItem value="label-medium">Label (100 x 30 mm)</SelectItem>
+                <SelectItem value="label-large">Label (100 x 50 mm)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         <ScrollArea className="h-[60vh] w-full rounded-md border p-4">
           <div className="space-y-6">
             {skus.map(({ sku, name }, index) => (
@@ -127,8 +225,11 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          <Button onClick={handlePrint}>
-            Print Barcodes
+          <Button 
+            onClick={generatePDF}
+            disabled={isGeneratingPDF}
+          >
+            {isGeneratingPDF ? 'Generating PDF...' : 'Generate PDF'}
           </Button>
         </div>
       </DialogContent>
