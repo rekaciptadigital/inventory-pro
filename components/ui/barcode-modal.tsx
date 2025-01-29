@@ -155,15 +155,6 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
       const pdfUrl = URL.createObjectURL(pdfBlob);
       
       try {
-        // Download PDF
-        const link = document.createElement('a');
-        link.href = pdfUrl;
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        link.download = `barcodes-${timestamp}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
         // Open in new tab
         window.open(pdfUrl, '_blank');
       } finally {
