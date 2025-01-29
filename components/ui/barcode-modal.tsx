@@ -85,48 +85,54 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
         compress: true
       });
 
-      // Calculate layout based on page size
+      // Calculate dimensions for centered barcode
       const margin = 10; // mm
-      const barcodeWidth = Math.min(pageSize.width - (margin * 2), 60); // mm
-      const barcodeHeight = 30; // mm
-      const textHeight = 5; // mm
-      const itemHeight = barcodeHeight + textHeight + 15; // Including margins and text
-      const itemsPerPage = Math.floor((pageSize.height - (margin * 2)) / itemHeight);
+      const barcodeWidth = Math.min(pageSize.width - (margin * 4), 80); // mm
+      const barcodeHeight = 40; // mm
+      const nameHeight = 10; // mm for product name
+      const skuHeight = 8; // mm for SKU text
+
+      // Center positions
+      const centerX = pageSize.width / 2;
+      const startY = (pageSize.height - (barcodeHeight + nameHeight + skuHeight)) / 2;
 
       for (let index = 0; index < skus.length; index++) {
         const sku = skus[index];
         
-        if (index > 0 && index % itemsPerPage === 0) {
+        // Add new page for each barcode except first
+        if (index > 0) {
           doc.addPage();
         }
 
-        const pageIndex = index % itemsPerPage;
-        const yPos = margin + pageIndex * itemHeight;
-        
         // Add product name with word wrap
         doc.setFontSize(10);
-        const maxWidth = pageSize.width - (margin * 2);
+        const maxWidth = pageSize.width - (margin * 4);
         const splitName = doc.splitTextToSize(sku.name || '', maxWidth);
-        doc.text(splitName, margin, yPos + 5, { baseline: 'top' });
+        doc.text(splitName, centerX, startY, { 
+          align: 'center',
+          baseline: 'top'
+        });
 
         // Generate barcode as SVG
         const tempSvg = document.createElement('svg');
         JsBarcode(tempSvg, sku.sku, {
           format: 'CODE128',
-          width: 1.5,
-          height: 30,
+          width: 2,
+          height: 40,
           displayValue: true,
-          fontSize: 8,
-          margin: 2,
+          fontSize: 12,
+          margin: 5,
           background: '#FFFFFF',
           lineColor: '#000000'
         });
 
         try {
           // Convert SVG to PDF
+          const barcodeX = centerX - (barcodeWidth / 2);
+          const barcodeY = startY + nameHeight + 5;
           await doc.svg(tempSvg, {
-            x: margin,
-            y: yPos + textHeight + 8,
+            x: barcodeX,
+            y: barcodeY,
             width: barcodeWidth,
             height: barcodeHeight
           });
@@ -136,9 +142,10 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
         }
         
         // Add SKU number
-        doc.setFontSize(8);
+        doc.setFontSize(10);
         const skuText = sku.sku || '';
-        doc.text(skuText, margin, yPos + textHeight + barcodeHeight + 10, { 
+        doc.text(skuText, centerX, startY + nameHeight + barcodeHeight + 15, {
+          align: 'center',
           baseline: 'top'
         });
       }
@@ -151,7 +158,8 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
         // Download PDF
         const link = document.createElement('a');
         link.href = pdfUrl;
-        link.download = `barcodes-${Date.now()}.pdf`;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        link.download = `barcodes-${timestamp}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
