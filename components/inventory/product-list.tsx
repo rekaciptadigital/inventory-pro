@@ -130,16 +130,16 @@ export function ProductList({ products, isLoading }: ProductListProps) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => router.push(`/dashboard/inventory/${product.id}/edit`)}
+                      onClick={() => handleShowBarcode(product)}
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Barcode className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleShowBarcode(product)}
+                      onClick={() => router.push(`/dashboard/inventory/${product.id}/edit`)}
                     >
-                      <Barcode className="h-4 w-4" />
+                      <Edit className="h-4 w-4" />
                     </Button>
                     {product.product_by_variant.length > 0 && (
                       <Button
