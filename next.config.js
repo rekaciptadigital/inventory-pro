@@ -5,7 +5,6 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  optimizeFonts: true,
   images: { unoptimized: true },
   reactStrictMode: true,
 };

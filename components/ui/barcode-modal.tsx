@@ -1,9 +1,12 @@
+'use client';
+
 import { useEffect, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import { jsPDF } from "jspdf";
 // @ts-ignore
 import "svg2pdf.js";
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import {
   Dialog,
   DialogContent,
@@ -36,16 +39,23 @@ const PAGE_SIZES: Record<string, PageSize> = {
 };
 
 interface BarcodeModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  skus: Array<{
-    sku: string;
-    name: string;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly skus: ReadonlyArray<{
+    readonly sku: string;
+    readonly name: string;
   }>;
 }
 
 export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
+  const { toast } = useToast();
   const barcodeRefs = useRef<(SVGSVGElement | null)[]>([]);
+  
+  // Callback untuk menangani ref
+  const setRef = (index: number) => (el: SVGSVGElement | null) => {
+    barcodeRefs.current[index] = el;
+  };
+
   const [selectedPageSize, setSelectedPageSize] = useState<string>('a4');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
@@ -210,7 +220,7 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
               <div key={sku} className="flex flex-col items-center space-y-2 p-4 border rounded-lg bg-white">
                 <h3 className="font-medium">{name}</h3>
                 <svg
-                  ref={el => barcodeRefs.current[index] = el}
+                  ref={setRef(index)}
                   className="w-full"
                   xmlns="http://www.w3.org/2000/svg"
                 />

@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import { jsPDF } from "jspdf";
@@ -51,10 +53,10 @@ const BARCODE_CONFIG = {
 };
 
 interface VariantBarcodeModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  sku: string;
-  name: string;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly sku: string;
+  readonly name: string;
 }
 
 export function VariantBarcodeModal({ 
@@ -69,23 +71,34 @@ export function VariantBarcodeModal({
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   useEffect(() => {
-    if (open && barcodeRef.current) {
-      try {
-        // Clear existing content
-        while (barcodeRef.current.firstChild) {
-          barcodeRef.current.removeChild(barcodeRef.current.firstChild);
+    if (open) {
+      // Tunggu DOM selesai render dengan setTimeout
+      setTimeout(() => {
+        if (barcodeRef.current) {
+          try {
+            // Clear existing content
+            barcodeRef.current.innerHTML = '';
+            
+            // Generate barcode dengan konfigurasi yang sama dengan main product
+            JsBarcode(barcodeRef.current, sku, {
+              format: 'CODE128',
+              width: 2,
+              height: 100,
+              displayValue: true,
+              fontSize: 14,
+              margin: 10,
+              background: '#ffffff',
+            });
+          } catch (error) {
+            console.error(`Error generating barcode for SKU ${sku}:`, error);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to generate barcode preview",
+            });
+          }
         }
-
-        // Generate new barcode
-        JsBarcode(barcodeRef.current, sku, BARCODE_CONFIG);
-      } catch (error) {
-        console.error(`Error generating barcode for SKU ${sku}:`, error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to generate barcode preview",
-        });
-      }
+      }, 100); // Delay 100ms sama seperti main product
     }
   }, [open, sku, toast]);
 
@@ -187,12 +200,17 @@ export function VariantBarcodeModal({
           <div className="p-8 border rounded-lg bg-white w-full shadow-sm">
             <div className="flex flex-col items-center space-y-4">
               <h3 className="text-lg font-medium text-center">{name}</h3>
-              <svg
-                ref={barcodeRef}
-                className="w-full"
-                xmlns="http://www.w3.org/2000/svg"
-                style={{ minHeight: '120px' }}
-              />
+              <div className="w-full flex justify-center"> {/* Wrap SVG in centered container */}
+                <svg
+                  ref={barcodeRef}
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{ 
+                    minHeight: '120px',
+                    maxWidth: '400px', // Constrain maximum width
+                    width: '100%'
+                  }}
+                />
+              </div>
               <span className="text-sm font-mono text-muted-foreground mt-2">{sku}</span>
             </div>
           </div>
