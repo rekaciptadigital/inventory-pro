@@ -2,6 +2,11 @@ import axiosInstance from "./axios";
 import type { ApiResponse } from "@/types/api";
 import type { InventoryProduct } from "@/types/inventory";
 
+export async function getInventoryProduct(id: string): Promise<ApiResponse<InventoryProduct>> {
+  const response = await axiosInstance.get(`/inventory/${id}`);
+  return response.data;
+}
+
 export interface CreateInventoryData {
   brand_id: string;
   brand_code: string;

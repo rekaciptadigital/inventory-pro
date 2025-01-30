@@ -1,20 +1,45 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation'; 
 import { SingleProductForm } from '@/components/inventory/product-form/single-product-form';
 import { useInventory } from '@/lib/hooks/inventory/use-inventory';
 import { useToast } from '@/components/ui/use-toast';
-import type { Product } from '@/types/inventory';
+import type { InventoryProduct } from '@/types/inventory';
 
 export function EditProductForm() {
   const { id } = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { products } = useInventory();
+  const { getProduct } = useInventory();
+  const [product, setProduct] = useState<InventoryProduct | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const product = products.find(p => p.id === Number(id));
+  useEffect(() => {
+    const loadProduct = async () => {
+      try {
+        const data = await getProduct(id as string);
+        setProduct(data);
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load product details",
+        });
+        router.push('/dashboard/inventory');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  if (!product) {
+    loadProduct();
+  }, [id, getProduct, toast, router]);
+
+  if (isLoading) {
+    return <div className="p-8 text-center">Loading product details...</div>;
+  }
+
+  if (!product && !isLoading) {
     return (
       <div className="p-8 text-center text-muted-foreground">
         Product not found
@@ -22,7 +47,7 @@ export function EditProductForm() {
     );
   }
 
-  const handleSuccess = (updatedProduct: Product) => {
+  const handleSuccess = (updatedProduct: InventoryProduct) => {
     toast({
       title: 'Success',
       description: 'Product has been updated successfully',

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -13,12 +13,18 @@ import { productFormSchema, type ProductFormValues } from "./form-schema";
 import { generateSKU } from "@/lib/utils/sku-generator";
 import { useBrands } from "@/lib/hooks/use-brands";
 import { useProductTypeList } from "@/lib/hooks/product-types/use-product-type-list";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState } from "@/lib/store/store";
 import {
   createInventoryProduct,
   CreateInventoryData,
 } from "@/lib/api/inventory";
+import { 
+  setBrand, 
+  setProductType, 
+  updateProductCategories, 
+  setVariants 
+} from "@/lib/store/slices/formInventoryProductSlice";
 
 interface SingleProductFormProps {
   onSuccess?: (product: ProductFormValues) => void;
@@ -45,6 +51,7 @@ export function SingleProductForm({
 }: Readonly<SingleProductFormProps>) {
   const { toast } = useToast();
   const router = useRouter();
+  const dispatch = useDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { brands } = useBrands();
   const { data: productTypesData, isLoading: isLoadingProductTypes } =
@@ -53,9 +60,76 @@ export function SingleProductForm({
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
-    defaultValues: initialData ?? defaultValues,
+    defaultValues: {
+      brand: initialData?.brand_id?.toString() || '',
+      productTypeId: initialData?.product_type_id?.toString() || '',
+      sku: initialData?.sku || '',
+      uniqueCode: initialData?.unique_code || '',
+      fullProductName: initialData?.full_product_name || '',
+      productName: initialData?.product_name || '',
+      description: initialData?.description || '',
+      vendorSku: initialData?.vendor_sku || '',
+      unit: initialData?.unit || 'PC',
+      categoryId: initialData?.categories?.[0]?.product_category_id?.toString() || '',
+    },
     mode: "onChange",
   });
+
+  // Effect to initialize form data when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      // Dispatch initial data to Redux store
+      dispatch(setBrand({
+        id: parseInt(initialData.brand_id),
+        code: initialData.brand_code,
+        name: initialData.brand_name,
+      }));
+      
+      dispatch(setProductType({
+        id: parseInt(initialData.product_type_id),
+        code: initialData.product_type_code,
+        name: initialData.product_type_name,
+      }));
+
+      // Set categories
+      if (initialData.categories?.length > 0) {
+        dispatch(updateProductCategories(
+          initialData.categories.map(cat => ({
+            product_category_id: parseInt(cat.product_category_id),
+            product_category_parent: cat.product_category_parent ? parseInt(cat.product_category_parent) : null,
+            product_category_name: cat.product_category_name,
+            category_hierarchy: cat.category_hierarchy,
+          }))
+        ));
+      }
+
+      // Set variants if any
+      if (initialData.variants?.length > 0) {
+        dispatch(setVariants(initialData.variants.map(variant => ({
+          variant_id: parseInt(variant.variant_id),
+          variant_name: variant.variant_name,
+          variant_values: variant.values.map(value => ({
+            variant_value_id: parseInt(value.variant_value_id),
+            variant_value_name: value.variant_value_name,
+          })),
+        }))));
+      }
+
+      // Update form values
+      form.reset({
+        brand: initialData.brand_id?.toString(),
+        productTypeId: initialData.product_type_id?.toString(),
+        sku: initialData.sku,
+        uniqueCode: initialData.unique_code,
+        fullProductName: initialData.full_product_name,
+        productName: initialData.product_name,
+        description: initialData.description,
+        vendorSku: initialData.vendor_sku,
+        unit: initialData.unit,
+        categoryId: initialData.categories?.[0]?.product_category_id?.toString(),
+      });
+    }
+  }, [initialData, dispatch, form]);
 
   // Add selector for form data from Redux
   const formData = useSelector(
