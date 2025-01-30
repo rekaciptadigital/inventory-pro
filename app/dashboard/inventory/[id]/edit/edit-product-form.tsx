@@ -18,9 +18,12 @@ export function EditProductForm() {
   useEffect(() => {
     const loadProduct = async () => {
       try {
+        setIsLoading(true);
         const data = await getProduct(id as string);
+        console.log('Loaded product data:', data);
         setProduct(data);
       } catch (error) {
+        console.error('Error loading product:', error);
         toast({
           variant: "destructive",
           title: "Error",

@@ -42,14 +42,16 @@ export function BrandSelector() {
   useEffect(() => {
     const loadInitialBrand = async () => {
       if (initialBrandId) {
+        console.log('Loading initial brand:', initialBrandId);
         try {
           const response = await getBrands({
             search: '',
             page: 1,
-            limit: 1
+            limit: 100 // Increased limit to ensure we find the brand
           });
           const brand = response.data.find(b => b.id.toString() === initialBrandId);
           if (brand) {
+            console.log('Found initial brand:', brand);
             setSelectedBrand({
               value: brand.id.toString(),
               label: brand.name,
@@ -61,6 +63,8 @@ export function BrandSelector() {
               code: brand.code,
               name: brand.name,
             }));
+          } else {
+            console.warn('Initial brand not found:', initialBrandId);
           }
         } catch (error) {
           console.error('Error loading initial brand:', error);
