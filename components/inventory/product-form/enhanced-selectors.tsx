@@ -29,12 +29,46 @@ interface CategorySelectorState {
 export function BrandSelector() {
   const {
     control,
+    getValues,
     formState: { errors },
     setValue,
   } = useFormContext<ProductFormValues>();
   const { getBrands } = useBrands();
   const dispatch = useDispatch();
   const [selectedBrand, setSelectedBrand] = useState<SelectOption | null>(null);
+  const initialBrandId = getValues('brand');
+
+  // Load initial brand data
+  useEffect(() => {
+    const loadInitialBrand = async () => {
+      if (initialBrandId) {
+        try {
+          const response = await getBrands({
+            search: '',
+            page: 1,
+            limit: 1
+          });
+          const brand = response.data.find(b => b.id.toString() === initialBrandId);
+          if (brand) {
+            setSelectedBrand({
+              value: brand.id.toString(),
+              label: brand.name,
+              subLabel: brand.code,
+              data: brand
+            });
+            dispatch(setBrand({
+              id: brand.id,
+              code: brand.code,
+              name: brand.name,
+            }));
+          }
+        } catch (error) {
+          console.error('Error loading initial brand:', error);
+        }
+      }
+    };
+    loadInitialBrand();
+  }, [initialBrandId, getBrands, dispatch]);
 
   const loadBrandOptions = async (
     search: string,
@@ -118,12 +152,50 @@ export function BrandSelector() {
 export function ProductTypeSelector() {
   const {
     control,
+    getValues,
     formState: { errors },
     setValue,
   } = useFormContext<ProductFormValues>();
   const dispatch = useDispatch();
   const [selectedProductType, setSelectedProductType] =
     useState<SelectOption | null>(null);
+  const initialProductTypeId = getValues('productTypeId');
+
+  // Load initial product type data
+  useEffect(() => {
+    const loadInitialProductType = async () => {
+      if (initialProductTypeId) {
+        try {
+          const response = await getProductTypes({
+            search: '',
+            page: 1,
+            limit: 1
+          });
+          const productType = response.data.find(pt => pt.id.toString() === initialProductTypeId);
+          if (productType) {
+            setSelectedProductType({
+              value: productType.id.toString(),
+              label: productType.name,
+              subLabel: productType.code,
+              data: {
+                id: productType.id,
+                code: productType.code,
+                name: productType.name,
+              }
+            });
+            dispatch(setProductType({
+              id: productType.id,
+              code: productType.code,
+              name: productType.name,
+            }));
+          }
+        } catch (error) {
+          console.error('Error loading initial product type:', error);
+        }
+      }
+    };
+    loadInitialProductType();
+  }, [initialProductTypeId, dispatch]);
 
   const loadProductTypeOptions = async (
     search: string,

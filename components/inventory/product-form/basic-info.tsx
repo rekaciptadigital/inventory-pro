@@ -39,9 +39,10 @@ import {
 
 interface BasicInfoProps {
   form: UseFormReturn<ProductFormValues>; // Menerima instance form dari react-hook-form
+  initialData?: any;
 }
 
-export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
+export function BasicInfo({ form, initialData }: Readonly<BasicInfoProps>) {
   const dispatch = useDispatch();
   const [sku, setSku] = useState(form.getValues("sku") || "");
   const [lastUpdate, setLastUpdate] = useState<string>("");
@@ -219,6 +220,29 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
       );
     }
   }, []);
+
+  // New effect to set initial brand and product type data
+  useEffect(() => {
+    if (initialData) {
+      // Set initial brand data
+      if (initialData.brand_id) {
+        dispatch(setBrand({
+          id: parseInt(initialData.brand_id),
+          code: initialData.brand_code,
+          name: initialData.brand_name,
+        }));
+      }
+
+      // Set initial product type data
+      if (initialData.product_type_id) {
+        dispatch(setProductType({
+          id: parseInt(initialData.product_type_id),
+          code: initialData.product_type_code,
+          name: initialData.product_type_name,
+        }));
+      }
+    }
+  }, [initialData, dispatch]);
 
   return (
     <div className="space-y-4">
@@ -404,12 +428,12 @@ export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Unit</FormLabel>
-            <Select
+            <Select 
               onValueChange={(value) => {
                 field.onChange(value);
                 handleUnitChange(value);
-              }}
-              defaultValue={field.value}
+              }} 
+              value={field.value || initialData?.unit || 'PC'}
             >
               <FormControl>
                 <SelectTrigger>

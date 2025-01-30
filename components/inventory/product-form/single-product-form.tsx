@@ -61,15 +61,15 @@ export function SingleProductForm({
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
-      brand: initialData?.brand_id?.toString() || '',
-      productTypeId: initialData?.product_type_id?.toString() || '',
+      brand: initialData?.brand_id?.toString(),
+      productTypeId: initialData?.product_type_id?.toString(),
       sku: initialData?.sku || '',
       uniqueCode: initialData?.unique_code || '',
       fullProductName: initialData?.full_product_name || '',
       productName: initialData?.product_name || '',
       description: initialData?.description || '',
       vendorSku: initialData?.vendor_sku || '',
-      unit: initialData?.unit || 'PC',
+      unit: initialData?.unit,
       categoryId: initialData?.categories?.[0]?.product_category_id?.toString() || '',
     },
     mode: "onChange",
@@ -237,7 +237,7 @@ export function SingleProductForm({
                 description, and other essential information.
               </p>
               <div className="space-y-4">
-                <BasicInfo form={form} />
+                <BasicInfo form={form} initialData={initialData} />
               </div>
             </div>
 
