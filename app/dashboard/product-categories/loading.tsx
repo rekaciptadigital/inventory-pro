@@ -1,6 +1,13 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
+const generateLoadingId = () => {
+  return `loading_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+};
+
 export default function Loading() {
+  const mainItems = Array.from({ length: 5 }, () => generateLoadingId());
+  const subItems = Array.from({ length: 2 }, () => generateLoadingId());
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -12,8 +19,8 @@ export default function Loading() {
       </div>
 
       <div className="border rounded-lg p-4">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <div key={index} className="space-y-4 py-4 border-b last:border-0">
+        {mainItems.map((id) => (
+          <div key={id} className="space-y-4 py-4 border-b last:border-0">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
                 <Skeleton className="h-6 w-[200px]" />
@@ -26,8 +33,8 @@ export default function Loading() {
               </div>
             </div>
             <div className="pl-8">
-              {Array.from({ length: 2 }).map((_, subIndex) => (
-                <div key={subIndex} className="flex items-center justify-between py-2">
+              {subItems.map((subId) => (
+                <div key={subId} className="flex items-center justify-between py-2">
                   <div className="space-y-2">
                     <Skeleton className="h-5 w-[180px]" />
                     <Skeleton className="h-4 w-[250px]" />

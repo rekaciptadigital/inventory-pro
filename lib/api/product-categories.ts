@@ -1,6 +1,4 @@
 import axiosInstance from "./axios";
-import type { ApiResponse } from "@/types/api";
-import type { ProductCategory } from "@/types/product-category";
 
 export interface ProductCategoryFilters {
   search?: string;
@@ -20,8 +18,9 @@ export interface ProductCategoryFormData {
 
 export interface UpdateProductCategoryData {
   name: string;
-  description: string;
+  description?: string;
   status: boolean;
+  parent_id?: number | null;
 }
 
 export const getProductCategories = async (

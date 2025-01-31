@@ -3,13 +3,15 @@
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
-export default function Error({
+interface CategoryErrorProps {
+  readonly error: Error & { digest?: string };
+  readonly reset: () => void;
+}
+
+export default function CategoryError({
   error,
   reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+}: CategoryErrorProps) {
   useEffect(() => {
     console.error(error);
   }, [error]);

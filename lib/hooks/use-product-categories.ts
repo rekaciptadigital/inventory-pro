@@ -1,3 +1,5 @@
+'use client';
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -9,7 +11,13 @@ import {
   getProductCategory,
   type ProductCategoryFilters,
   type ProductCategoryFormData,
+  type UpdateProductCategoryData,
 } from "@/lib/api/product-categories";
+import type { ProductCategory } from "@/types/product-category";
+
+interface CategoryWithParent extends ProductCategory {
+  parent?: CategoryWithParent;
+}
 
 export function useProductCategories(filters: ProductCategoryFilters = {}) {
   const queryClient = useQueryClient();
@@ -40,13 +48,8 @@ export function useProductCategories(filters: ProductCategoryFilters = {}) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: ProductCategoryFormData }) =>
-      updateProductCategory(id, {
-        name: data.name,
-        description: data.description || "",
-        parent_id: data.parent_id,
-        status: data.status,
-      }),
+    mutationFn: ({ id, data }: { id: number; data: UpdateProductCategoryData }) =>
+      updateProductCategory(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["productCategories"] });
       toast({
@@ -103,7 +106,7 @@ export function useProductCategories(filters: ProductCategoryFilters = {}) {
     },
   });
 
-  const getParentHierarchy = (category: ProductCategory): ProductCategory[] => {
+  const getParentHierarchy = (category: CategoryWithParent): ProductCategory[] => {
     const hierarchy: ProductCategory[] = [];
     let current = category.parent;
 

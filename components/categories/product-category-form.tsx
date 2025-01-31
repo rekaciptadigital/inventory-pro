@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,11 +34,55 @@ const formSchema = z.object({
 });
 
 interface ProductCategoryFormProps {
-  onSubmit: (data: z.infer<typeof formSchema>) => Promise<void>;
-  categories: ProductCategory[];
-  onClose: () => void;
-  isSubmitting?: boolean;
-  initialData?: ProductCategory; // Add this
+  readonly onSubmit: (data: z.infer<typeof formSchema>) => Promise<void>;
+  readonly categories: ProductCategory[];
+  readonly onClose: () => void;
+  readonly isSubmitting?: boolean;
+  readonly initialData?: ProductCategory;
+  readonly buttonText: string;
+}
+
+interface ParentInfoProps {
+  readonly parent: ProductCategory & { parents?: ProductCategory[] };
+}
+
+function ParentInfo({ parent }: Readonly<ParentInfoProps>) {
+  if (!parent.parents?.length) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-4">
+      <h4 className="text-sm font-medium text-muted-foreground">
+        Parent Information
+      </h4>
+      <div className="bg-muted/50 rounded-lg p-4 max-h-[200px] overflow-y-auto">
+        <div className="space-y-4">
+          {parent.parents.map((p, index) => (
+            <div key={p.id} className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Level {parent.parents!.length - index}
+                </span>
+                <span className="font-medium">{p.name}</span>
+              </div>
+              {p.description && (
+                <p className="text-sm text-muted-foreground">
+                  {p.description}
+                </p>
+              )}
+            </div>
+          ))}
+          <div className="pt-2 mt-2 border-t border-border">
+            <p className="text-xs font-medium text-muted-foreground">
+              Current Category
+            </p>
+            <p className="font-medium text-primary">{parent.name}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ProductCategoryForm({
@@ -47,13 +90,14 @@ export function ProductCategoryForm({
   categories,
   onClose,
   isSubmitting = false,
-  initialData, // Add this
+  initialData,
+  buttonText,
 }: ProductCategoryFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: initialData?.name || "",
-      description: initialData?.description || "",
+      name: initialData?.name ?? "",
+      description: initialData?.description ?? "",
       parent_id: initialData ? undefined : null, // Only set parent_id for new categories
       status: initialData?.status ?? true,
     },
@@ -85,6 +129,53 @@ export function ProductCategoryForm({
 
   const flatCategories = flattenCategories(categories);
 
+  const hasParents = initialData?.parents && Array.isArray(initialData.parents) && initialData.parents.length > 0;
+
+  const renderCategoryPath = () => {
+    if (!hasParents || !initialData?.parents) {
+      return null;
+    }
+
+    const reversedParents = [...initialData.parents].reverse();
+
+    return (
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-col gap-2">
+          <h4 className="text-sm font-medium text-muted-foreground">
+            Category Path
+          </h4>
+          <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+            {reversedParents.map((parent, index, array) => (
+              <div key={parent.id} className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    Level {array.length - index}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-semibold">{parent.name}</span>
+                </div>
+                {parent.description && (
+                  <p className="text-sm text-muted-foreground ml-6">
+                    {parent.description}
+                  </p>
+                )}
+              </div>
+            ))}
+            <div className="space-y-1 border-t pt-2 mt-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Current</span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <span className="font-semibold text-primary">
+                  {initialData.name}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Form {...form}>
       <div className="relative">
@@ -93,84 +184,8 @@ export function ProductCategoryForm({
             {" "}
             {/* Add padding bottom for footer space */}
             {/* Parent Information Section */}
-            {initialData?.parent_id && (
-              <div className="space-y-4">
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Parent Information
-                </h4>
-                <div className="bg-muted/50 rounded-lg p-4 max-h-[200px] overflow-y-auto">
-                  {initialData.parents && initialData.parents.length > 0 ? (
-                    <div className="space-y-4">
-                      {initialData.parents.map((parent, index) => (
-                        <div key={parent.id} className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-muted-foreground">
-                              Level {initialData.parents.length - index}
-                            </span>
-                            <span className="font-medium">{parent.name}</span>
-                          </div>
-                          {parent.description && (
-                            <p className="text-sm text-muted-foreground">
-                              {parent.description}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                      <div className="pt-2 mt-2 border-t border-border">
-                        <p className="text-xs font-medium text-muted-foreground">
-                          Current Category
-                        </p>
-                        <p className="font-medium text-primary">
-                          {initialData.name}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Parent information not available
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-            {initialData?.parents && initialData.parents.length > 0 ? (
-              <div className="mb-6 space-y-4">
-                <div className="flex flex-col gap-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">
-                    Category Path
-                  </h4>
-                  <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-                    {[...initialData.parents]
-                      .reverse()
-                      .map((parent, index, array) => (
-                        <div key={parent.id} className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">
-                              Level {array.length - index}
-                            </span>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-semibold">{parent.name}</span>
-                          </div>
-                          {parent.description && (
-                            <p className="text-sm text-muted-foreground ml-6">
-                              {parent.description}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    <div className="space-y-1 border-t pt-2 mt-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Current</span>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-semibold text-primary">
-                          {initialData.name}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
+            {initialData?.parent_id && <ParentInfo parent={initialData} />}
+            {renderCategoryPath()}
             <FormField
               control={form.control}
               name="name"
@@ -212,7 +227,7 @@ export function ProductCategoryForm({
                       onValueChange={(value) =>
                         field.onChange(value === "null" ? null : Number(value))
                       }
-                      value={field.value?.toString() || "null"}
+                      value={field.value?.toString() ?? "null"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -280,13 +295,7 @@ export function ProductCategoryForm({
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting
-                ? initialData
-                  ? "Updating..."
-                  : "Creating..."
-                : initialData
-                ? "Update Category"
-                : "Create Category"}
+              {buttonText}
             </Button>
           </div>
         </form>
