@@ -56,6 +56,7 @@ export function VariantCombinations() {
   >({});
   const { full_product_name } = useSelector(selectProductNames);
   const { sku: baseSku } = useSelector(selectSkuInfo);
+  const existingVariants = useSelector((state: RootState) => state.formInventoryProduct.variants);
 
   const usedTypeIds = useMemo(
     () => selectedVariants.map((variant) => variant.typeId).filter(Boolean),
@@ -120,9 +121,61 @@ export function VariantCombinations() {
     }
   }, [selectedVariants, dispatch]);
 
+  // Add initialization flag to prevent infinite loop
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Replace the existing initialization useEffect with this one
+  useEffect(() => {
+    if (!isInitialized && existingVariants && existingVariants.length > 0) {
+      const initialVariants = existingVariants.map((variant) => ({
+        id: generateVariantId(),
+        typeId: variant.variant_id,
+        values: variant.variant_values.map((v) => v.variant_value_name),
+        availableValues: variant.variant_values.map((v) => v.variant_value_name),
+      }));
+
+      setSelectedVariants(initialVariants);
+
+      // Initialize variant selectors
+      const variantSelectors = existingVariants.map((variant) => {
+        const variantValues = variant.variant_values.map((v) => v.variant_value_name);
+        return {
+          id: variant.variant_id,
+          name: variant.variant_name,
+          values: variantValues,
+          selected_values: variantValues,
+        };
+      });
+
+      // Batch update Redux store
+      dispatch(updateForm({
+        variants: existingVariants,
+        variant_selectors: variantSelectors,
+      }));
+
+      // Initialize variant unique codes if product_by_variant exists
+      const productByVariant = form.getValues()?.product_by_variant;
+      if (productByVariant && productByVariant.length > 0) {
+        const initialUniqueCodes: Record<string, string> = {};
+        productByVariant.forEach((variant) => {
+          if (variant.originalSkuKey && variant.sku_product_unique_code) {
+            initialUniqueCodes[variant.originalSkuKey] = variant.sku_product_unique_code;
+          }
+        });
+        setVariantUniqueCodes(initialUniqueCodes);
+      }
+
+      setIsInitialized(true);
+    }
+  }, [existingVariants, isInitialized, generateVariantId, dispatch, form]);
+
   const handleTypeChange = useCallback(
     (variantId: string, selected: SelectOption | null) => {
       if (!selected?.data) return;
+
+      const existingVariant = existingVariants.find(
+        (v) => v.variant_id === parseInt(selected.value)
+      );
 
       setSelectedVariants((prev) => {
         const newVariants = prev.map((v) =>
@@ -130,24 +183,30 @@ export function VariantCombinations() {
             ? {
                 ...v,
                 typeId: parseInt(selected.value),
-                values: [], // Reset values when type changes
+                values: existingVariant?.variant_values.map((v) => v.variant_value_name) || [],
               }
             : v
         );
         return newVariants;
       });
 
-      // Update Redux store
-      dispatch(
-        addVariantSelector({
-          id: parseInt(selected.value),
-          name: selected.data.name,
-          values: selected.data.values || [],
-          selected_values: [],
-        })
+      // Only add variant selector if it doesn't exist
+      const existingSelector = variantSelectors.find(
+        (selector) => selector.id === parseInt(selected.value)
       );
+
+      if (!existingSelector) {
+        dispatch(
+          addVariantSelector({
+            id: parseInt(selected.value),
+            name: selected.data.name,
+            values: selected.data.values || [],
+            selected_values: existingVariant?.variant_values.map((v) => v.variant_value_name) || [],
+          })
+        );
+      }
     },
-    [dispatch]
+    [dispatch, existingVariants, variantSelectors]
   );
 
   const handleValuesChange = useCallback(
