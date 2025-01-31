@@ -126,55 +126,52 @@ export function VariantCombinations() {
 
   // Replace the existing initialization useEffect with this one
   useEffect(() => {
-    if (!isInitialized && existingVariants && existingVariants.length > 0 && variantTypes) {
-      const initialVariants = existingVariants.map((variant) => {
-        // Find the corresponding variant type from variantTypes
-        const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
-        
-        return {
-          id: `variant-${variant.variant_id}`, // Use a deterministic ID
-          typeId: variant.variant_id,
-          values: variant.variant_values.map((v) => v.variant_value_name),
-          availableValues: variantType?.values || [], // Add available values from variantType
-        };
-      });
+    if (!isInitialized && existingVariants?.length > 0 && variantTypes?.length > 0) {
+      try {
+        setIsInitialized(true); // Set this first to prevent multiple initializations
 
-      setSelectedVariants(initialVariants);
-
-      // Initialize variant selectors with complete data from variantTypes
-      const variantSelectors = existingVariants.map((variant) => {
-        const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
-        const variantValues = variant.variant_values.map((v) => v.variant_value_name);
-        
-        return {
-          id: variant.variant_id,
-          name: variantType?.name || variant.variant_name,
-          values: variantType?.values || [],
-          selected_values: variantValues,
-        };
-      });
-
-      // Batch update Redux store
-      dispatch(updateForm({
-        variants: existingVariants,
-        variant_selectors: variantSelectors,
-      }));
-
-      // Initialize variant unique codes if product_by_variant exists
-      const productByVariant = form.getValues()?.product_by_variant;
-      if (productByVariant && productByVariant.length > 0) {
-        const initialUniqueCodes: Record<string, string> = {};
-        productByVariant.forEach((variant) => {
-          if (variant.originalSkuKey && variant.sku_product_unique_code) {
-            initialUniqueCodes[variant.originalSkuKey] = variant.sku_product_unique_code;
-          }
+        const initialVariants = existingVariants.map((variant) => {
+          const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
+          return {
+            id: `variant-${variant.variant_id}`,
+            typeId: variant.variant_id,
+            values: variant.variant_values.map((v) => v.variant_value_name),
+            availableValues: variantType?.values || [],
+          };
         });
-        setVariantUniqueCodes(initialUniqueCodes);
-      }
 
-      setIsInitialized(true);
+        const variantSelectors = existingVariants.map((variant) => {
+          const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
+          return {
+            id: variant.variant_id,
+            name: variantType?.name || variant.variant_name,
+            values: variantType?.values || [],
+            selected_values: variant.variant_values.map((v) => v.variant_value_name),
+          };
+        });
+
+        // Batch all updates together
+        Promise.resolve().then(() => {
+          setSelectedVariants(initialVariants);
+          dispatch(updateForm({
+            variants: existingVariants,
+            variant_selectors: variantSelectors,
+          }));
+        });
+
+      } catch (error) {
+        console.error('Error initializing variants:', error);
+        setIsInitialized(false); // Reset on error
+      }
     }
-  }, [existingVariants, isInitialized, dispatch, form, variantTypes]);
+  }, [existingVariants, variantTypes, isInitialized, dispatch]);
+
+  // Add reset effect
+  useEffect(() => {
+    return () => {
+      setIsInitialized(false);
+    };
+  }, []);
 
   const handleTypeChange = useCallback(
     (variantId: string, selected: SelectOption | null) => {

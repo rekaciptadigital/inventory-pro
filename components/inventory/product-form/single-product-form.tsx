@@ -76,73 +76,97 @@ export function SingleProductForm({
     mode: "onChange",
   });
 
-  // Effect to initialize form data when initialData changes
+  // Add initialization tracker
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Modify initialization effect
   useEffect(() => {
-    if (initialData) {
+    if (!isInitialized && initialData) {
       try {
-        console.log('Initializing form with data:', initialData);
+        setIsInitialized(true); // Set this first to prevent multiple initializations
         
-        // Dispatch initial data to Redux store
+        // Create a batch of updates
+        const updates: Array<() => void> = [];
+
         if (initialData.brand_id && initialData.brand_code && initialData.brand_name) {
-          dispatch(setBrand({
-            id: parseInt(initialData.brand_id),
-            code: initialData.brand_code,
-            name: initialData.brand_name,
-          }));
-          form.setValue('brand', initialData.brand_id.toString());
+          updates.push(() => {
+            dispatch(setBrand({
+              id: parseInt(initialData.brand_id),
+              code: initialData.brand_code,
+              name: initialData.brand_name,
+            }));
+            form.setValue('brand', initialData.brand_id.toString(), { shouldValidate: true });
+          });
         }
         
         if (initialData.product_type_id && initialData.product_type_code && initialData.product_type_name) {
-          dispatch(setProductType({
-            id: parseInt(initialData.product_type_id),
-            code: initialData.product_type_code,
-            name: initialData.product_type_name,
-          }));
-          form.setValue('productTypeId', initialData.product_type_id.toString());
+          updates.push(() => {
+            dispatch(setProductType({
+              id: parseInt(initialData.product_type_id),
+              code: initialData.product_type_code,
+              name: initialData.product_type_name,
+            }));
+            form.setValue('productTypeId', initialData.product_type_id.toString(), { shouldValidate: true });
+          });
         }
 
-        // Set categories
         if (initialData.categories?.length > 0) {
-          dispatch(updateProductCategories(
-            initialData.categories.map(cat => ({
-              product_category_id: parseInt(cat.product_category_id),
-              product_category_parent: cat.product_category_parent ? parseInt(cat.product_category_parent) : null,
-              product_category_name: cat.product_category_name,
-              category_hierarchy: cat.category_hierarchy,
-            }))
-          ));
-          
-          form.setValue('categoryId', initialData.categories[0].product_category_id.toString());
+          updates.push(() => {
+            dispatch(updateProductCategories(
+              initialData.categories.map(cat => ({
+                product_category_id: parseInt(cat.product_category_id),
+                product_category_parent: cat.product_category_parent ? parseInt(cat.product_category_parent) : null,
+                product_category_name: cat.product_category_name,
+                category_hierarchy: cat.category_hierarchy,
+              }))
+            ));
+            form.setValue('categoryId', initialData.categories[0].product_category_id.toString(), { shouldValidate: true });
+          });
         }
 
-        // Set variants if any
         if (initialData.variants?.length > 0) {
-          dispatch(setVariants(initialData.variants.map(variant => ({
-            variant_id: parseInt(variant.variant_id),
-            variant_name: variant.variant_name,
-            variant_values: variant.values.map(value => ({
-              variant_value_id: parseInt(value.variant_value_id),
-              variant_value_name: value.variant_value_name,
-            })),
-          }))));
+          updates.push(() => {
+            dispatch(setVariants(initialData.variants.map(variant => ({
+              variant_id: parseInt(variant.variant_id),
+              variant_name: variant.variant_name,
+              variant_values: variant.values.map(value => ({
+                variant_value_id: parseInt(value.variant_value_id),
+                variant_value_name: value.variant_value_name,
+              })),
+            }))));
+          });
         }
 
-        // Set unit value
-        form.setValue('unit', initialData.unit || 'PC');
+        // Execute all updates in one batch
+        updates.forEach(update => update());
+
+        // Set other form values
+        form.reset({
+          ...form.getValues(),
+          sku: initialData.sku || '',
+          uniqueCode: initialData.unique_code || '',
+          fullProductName: initialData.full_product_name || '',
+          productName: initialData.product_name || '',
+          description: initialData.description || '',
+          vendorSku: initialData.vendor_sku || '',
+          unit: initialData.unit || 'PC',
+        }, { keepDefaultValues: true });
+
       } catch (error) {
         console.error('Error initializing form data:', error);
+        setIsInitialized(false); // Reset on error
       }
     }
-  }, [initialData, dispatch, form]);
+  }, [dispatch, form, initialData, isInitialized]);
 
-  // Modify cleanup effect to preserve data during edit
+  // Modify cleanup effect
   useEffect(() => {
     return () => {
-      // Only reset if not in edit mode
       if (!initialData) {
         dispatch(resetFormState());
         form.reset(defaultValues);
       }
+      setIsInitialized(false); // Reset initialization state on unmount
     };
   }, [dispatch, form, initialData]);
 
