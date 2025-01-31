@@ -40,6 +40,9 @@ export default function ProductTypesPage() {
     limit: pageSize,
   });
 
+  // Get existing codes for validation
+  const existingCodes = productTypes.map(type => type.code);
+
   const handleSuccess = () => {
     setIsDialogOpen(false);
     setSelectedProductType(undefined);
@@ -127,6 +130,7 @@ export default function ProductTypesPage() {
             }}
             initialData={selectedProductType}
             isSubmitting={isLoading}
+            existingCodes={existingCodes}
           />
         </DialogContent>
       </Dialog>

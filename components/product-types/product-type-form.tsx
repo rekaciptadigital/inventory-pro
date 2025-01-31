@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import {
   Form,
   FormControl,
@@ -16,11 +17,16 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { generateProductTypeCode, validateProductTypeCode, formatProductTypeCode } from '@/lib/utils/product-type-code';
 import type { ProductType, ProductTypeFormData } from '@/types/product-type';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Product type name is required'),
-  code: z.string().min(1, 'Product type code is required'),
+  code: z.string()
+    .refine(
+      (val) => val === '' || validateProductTypeCode(val),
+      'Code must be 2 alphanumeric characters'
+    ),
   description: z.string().optional(),
   status: z.boolean().default(true),
 });
@@ -29,9 +35,16 @@ interface ProductTypeFormProps {
   onSubmit: (data: ProductTypeFormData) => Promise<void>;
   initialData?: ProductType;
   isSubmitting?: boolean;
+  existingCodes?: string[];
 }
 
-export function ProductTypeForm({ onSubmit, initialData, isSubmitting }: ProductTypeFormProps) {
+export function ProductTypeForm({ 
+  onSubmit, 
+  initialData, 
+  isSubmitting,
+  existingCodes = []
+}: ProductTypeFormProps) {
+  const { toast } = useToast();
   const form = useForm<ProductTypeFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -42,9 +55,44 @@ export function ProductTypeForm({ onSubmit, initialData, isSubmitting }: Product
     },
   });
 
+  const handleSubmit = async (values: ProductTypeFormData) => {
+    try {
+      let code = values.code;
+      
+      // If code is empty, generate a unique code
+      if (!code) {
+        code = generateProductTypeCode(existingCodes);
+      } else {
+        code = formatProductTypeCode(code);
+        
+        // Check if code is unique (when editing, exclude current code)
+        if (existingCodes.includes(code) && code !== initialData?.code) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "This code is already in use"
+          });
+          return;
+        }
+      }
+
+      await onSubmit({
+        ...values,
+        code,
+      });
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save product type"
+      });
+    }
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="name"
@@ -67,13 +115,18 @@ export function ProductTypeForm({ onSubmit, initialData, isSubmitting }: Product
               <FormLabel>Product Type Code</FormLabel>
               <FormControl>
                 <Input 
-                  placeholder="Enter product type code" 
+                  placeholder="Leave empty for auto-generation" 
                   {...field}
                   className="uppercase"
+                  maxLength={2}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^A-Za-z0-9]/g, '');
+                    field.onChange(value);
+                  }}
                 />
               </FormControl>
               <FormDescription>
-                Enter a unique code using letters and numbers
+                2 characters code - will be auto-generated if left empty
               </FormDescription>
               <FormMessage />
             </FormItem>
