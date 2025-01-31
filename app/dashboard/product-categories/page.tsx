@@ -1,5 +1,12 @@
 'use client';
 
+// Halaman utama manajemen kategori produk
+// Menampilkan daftar kategori dalam bentuk tabel dengan fitur:
+// - Hierarki kategori (expand/collapse)
+// - Pencarian dan filter
+// - Pagination
+// - CRUD operations
+
 import React, { useState } from "react";
 import {
   ChevronDown,
@@ -53,21 +60,38 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+// Fungsi untuk menghasilkan unique key yang digunakan pada rendering list
+// Menggabungkan timestamp dan random string untuk menghindari duplikasi
 const generateUniqueKey = (prefix: string) => {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 };
 
 export default function ProductCategoriesPage() {
+  // State untuk pencarian kategori
   const [search, setSearch] = useState("");
+  
+  // State untuk filter status aktif/nonaktif kategori
   const [status, setStatus] = useState<string>("all");
+  
+  // State untuk mengontrol dialog form kategori
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  // State untuk menyimpan kategori yang sedang diedit
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | undefined>();
+  
+  // State untuk pengurutan data (ascending/descending)
   const [sort, setSort] = useState<"ASC" | "DESC">("DESC");
+  
+  // State untuk tracking kategori yang sedang di-expand
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
+  
+  // State untuk tracking proses penghapusan kategori
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
 
+  // Hook untuk mengatur pagination
   const { currentPage, pageSize, handlePageChange, handlePageSizeChange } = usePagination();
 
+  // Hook untuk operasi CRUD kategori dan loading state
   const {
     categories,
     pagination,
@@ -86,6 +110,8 @@ export default function ProductCategoriesPage() {
     order: sort,
   });
 
+  // Fungsi untuk menangani edit kategori
+  // Mengambil detail kategori dan menampilkan form edit
   const handleEdit = async (category: ProductCategory) => {
     try {
       const detailData = await getCategory(category.id);
@@ -99,6 +125,8 @@ export default function ProductCategoriesPage() {
     }
   };
 
+  // Fungsi untuk menangani penghapusan kategori
+  // Menampilkan loading state selama proses
   const handleDelete = async (categoryId: number) => {
     setIsDeleting(categoryId);
     try {
@@ -110,6 +138,8 @@ export default function ProductCategoriesPage() {
     }
   };
 
+  // Fungsi untuk mengatur expand/collapse kategori
+  // Menggunakan Set untuk tracking status expanded
   const toggleExpand = (categoryId: number) => {
     setExpandedCategories((prev) => {
       const newSet = new Set(prev);
@@ -122,6 +152,8 @@ export default function ProductCategoriesPage() {
     });
   };
 
+  // Fungsi untuk merender satu baris kategori
+  // Menangani hierarki dengan level indentasi
   const renderCategory = (category: ProductCategory, level: number = 0): JSX.Element => {
     const hasChildren = Array.isArray(category.children) && category.children.length > 0;
     const isExpanded = expandedCategories.has(category.id);
@@ -202,6 +234,8 @@ export default function ProductCategoriesPage() {
     );
   };
 
+  // Fungsi untuk menghasilkan teks tombol submit yang dinamis
+  // Menyesuaikan dengan mode create/update dan loading state
   const getButtonText = (isSubmitting: boolean, selectedCategory?: ProductCategory) => {
     if (isSubmitting) {
       return selectedCategory?.id ? "Updating..." : "Creating...";
@@ -209,6 +243,8 @@ export default function ProductCategoriesPage() {
     return selectedCategory?.id ? "Update Category" : "Create Category";
   };
 
+  // Fungsi untuk merender konten tabel
+  // Menangani loading state, empty state, dan data state
   const renderTableContent = () => {
     if (isLoading) {
       return Array.from({ length: 5 }).map((_, index) => (

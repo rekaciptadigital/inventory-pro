@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,6 +26,11 @@ import { Switch } from "@/components/ui/switch";
 import type { ProductCategory } from "@/types/product-category";
 import { ChevronRight } from "lucide-react";
 
+// Komponen form untuk membuat dan mengedit kategori produk
+// Menggunakan React Hook Form untuk validasi dan state management
+// Mendukung operasi create dan update dengan tampilan yang berbeda
+
+// Skema validasi form menggunakan Zod
 const formSchema = z.object({
   name: z.string().min(1, "Category name is required"),
   description: z.string().optional(),
@@ -46,6 +51,7 @@ interface ParentInfoProps {
   readonly parent: ProductCategory & { parents?: ProductCategory[] };
 }
 
+// Komponen untuk menampilkan informasi parent kategori
 function ParentInfo({ parent }: Readonly<ParentInfoProps>) {
   if (!parent.parents?.length) {
     return null;
@@ -131,6 +137,10 @@ export function ProductCategoryForm({
 
   const hasParents = initialData?.parents && Array.isArray(initialData.parents) && initialData.parents.length > 0;
 
+  // Fungsi-fungsi utama:
+  // - handleSubmit: Menangani submit form
+  // - flattenCategories: Mengubah struktur hierarki menjadi flat untuk select input
+  // - renderCategoryPath: Menampilkan path kategori untuk mode edit
   const renderCategoryPath = () => {
     if (!hasParents || !initialData?.parents) {
       return null;

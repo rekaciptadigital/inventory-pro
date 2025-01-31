@@ -1,5 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Komponen loading state untuk halaman kategori
+// Menampilkan skeleton loader saat data sedang dimuat
+// Menggunakan struktur yang mirip dengan halaman utama
+
+// Helper function untuk generate ID unik untuk skeleton items
 const generateLoadingId = () => {
   return `loading_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 };
