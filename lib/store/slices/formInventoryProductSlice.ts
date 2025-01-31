@@ -3,56 +3,13 @@ import type { RootState } from "../store";
 import type {
   InventoryProductForm,
   ProductCategory,
-  ProductVariant,
   ProductByVariant,
+  VariantSelectorData,
+  ProductVariant,
 } from "../types/inventory";
 
-interface ProductCategory {
-  product_category_id: number;
-  product_category_parent: number | null;
-  product_category_name: string;
-  category_hierarchy: number;
-}
-
-interface VariantValue {
-  variant_value_id: number;
-  variant_value_name: string;
-}
-
-interface Variant {
-  variant_id: number;
-  variant_name: string;
-  variant_values: VariantValue[];
-}
-
-// Add new interface for variant selector
-interface VariantSelectorData {
-  id: number;
-  name: string;
-  values: string[];
-  selected_values?: string[];
-}
-
-export interface InventoryProductForm {
-  brand_id: number | null;
-  brand_code: string;
-  brand_name: string;
-  product_type_id: number | null;
-  product_type_code: string;
-  product_type_name: string;
-  unique_code: string;
-  sku: string;
-  product_name: string;
-  full_product_name: string;
-  vendor_sku: string;
-  description: string;
-  unit: string;
-  slug: string; // Make sure slug is included in the interface
-  categories: ProductCategory[];
-  variants: Variant[];
-  product_by_variant: ProductByVariant[];
-  variant_selectors: VariantSelectorData[]; // Add new property
-}
+// Define the VariantValue type based on ProductVariant interface
+type VariantValue = ProductVariant['variant_values'][number];
 
 const initialState: InventoryProductForm = {
   brand_id: null,
@@ -72,7 +29,7 @@ const initialState: InventoryProductForm = {
   categories: [],
   variants: [],
   product_by_variant: [],
-  variant_selectors: [], // Add new initial state
+  variant_selectors: [], // Make sure this matches the imported type
 };
 
 const formInventoryProductSlice = createSlice({
@@ -105,24 +62,33 @@ const formInventoryProductSlice = createSlice({
       state.categories = action.payload;
     },
     addCategory: (state, action: PayloadAction<ProductCategory>) => {
+      // Ensure we're working with numbers for comparison
+      const hierarchyToMatch = Number(action.payload.category_hierarchy);
+      
       // Remove any existing category with the same hierarchy
-      state.categories = state.categories.filter(
-        (cat) => cat.category_hierarchy !== action.payload.category_hierarchy
+      const filteredCategories = state.categories.filter(
+        (cat) => Number(cat.category_hierarchy) !== hierarchyToMatch
       );
+      
       // Add the new category
-      state.categories.push(action.payload);
-      // Sort by hierarchy
-      state.categories.sort(
-        (a, b) => a.category_hierarchy - b.category_hierarchy
+      filteredCategories.push({
+        ...action.payload,
+        category_hierarchy: hierarchyToMatch
+      });
+      
+      // Sort categories by hierarchy in a separate operation
+      state.categories = filteredCategories.toSorted(
+        (a, b) => Number(a.category_hierarchy) - Number(b.category_hierarchy)
       );
     },
     removeCategory: (state, action: PayloadAction<number>) => {
-      // Remove the category and all its children (higher hierarchy levels)
+      // Convert action payload to number and compare with category hierarchy
+      const hierarchyThreshold = Number(action.payload);
       state.categories = state.categories.filter(
-        (cat) => cat.category_hierarchy < action.payload
+        (cat) => Number(cat.category_hierarchy) < hierarchyThreshold
       );
     },
-    setVariants: (state, action: PayloadAction<Variant[]>) => {
+    setVariants: (state, action: PayloadAction<ProductVariant[]>) => {  // Change Variant to ProductVariant
       state.variants = action.payload;
     },
     setProductByVariant: (state, action: PayloadAction<ProductByVariant[]>) => {
@@ -133,8 +99,11 @@ const formInventoryProductSlice = createSlice({
       state,
       action: PayloadAction<ProductCategory[]>
     ) => {
-      // Replace all categories with the new array
-      state.categories = action.payload.sort(
+      // First update the categories array
+      state.categories = action.payload;
+      
+      // Sort them in a separate operation using toSorted
+      state.categories = state.categories.toSorted(
         (a, b) => a.category_hierarchy - b.category_hierarchy
       );
     },
@@ -153,7 +122,7 @@ const formInventoryProductSlice = createSlice({
       }>
     ) => {
       const variantIndex = state.variants.findIndex(
-        (v) => v.variant_id === action.payload.variantId
+        (v) => Number(v.variant_id) === action.payload.variantId  // Convert to number for comparison
       );
       if (variantIndex !== -1) {
         state.variants[variantIndex].variant_values = action.payload.values;

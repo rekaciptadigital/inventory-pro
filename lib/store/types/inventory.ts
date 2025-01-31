@@ -2,11 +2,11 @@ export interface ProductCategory {
   product_category_id: number;
   product_category_parent: number | null;
   product_category_name: string;
-  category_hierarchy: number;
+  category_hierarchy: number; // Ensure this is explicitly typed as number
 }
 
 export interface ProductVariant {
-  variant_id: string;
+  variant_id: number;  // Change from string to number
   variant_name: string;
   variant_values: Array<{
     variant_value_id: string;
@@ -18,6 +18,13 @@ export interface ProductByVariant {
   full_product_name: string;
   sku: string;
   sku_product_unique_code: string;
+}
+
+export interface VariantSelectorData {
+  id: number;
+  name: string;
+  values: string[];
+  selected_values?: string[];
 }
 
 export interface InventoryProductForm {
@@ -38,4 +45,5 @@ export interface InventoryProductForm {
   categories: ProductCategory[];
   variants: ProductVariant[];
   product_by_variant: ProductByVariant[];
+  variant_selectors: VariantSelectorData[];
 }
