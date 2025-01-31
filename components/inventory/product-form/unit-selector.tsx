@@ -1,10 +1,22 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
+import { useController, useFormContext } from "react-hook-form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { selectUnit } from "@/lib/store/slices/formInventoryProductSlice";
 
 export function UnitSelector() {
   const selectedUnit = useSelector(selectUnit);
-  const { field } = useControllerProps();
+  const form = useFormContext();
+  const { field } = useController({
+    name: "unit",
+    control: form.control,
+  });
 
   // Sync field value with Redux state
   useEffect(() => {
@@ -19,7 +31,14 @@ export function UnitSelector() {
       onValueChange={field.onChange}
       defaultValue={selectedUnit || "PC"}
     >
-      {/* ...existing Select content... */}
+      <SelectTrigger>
+        <SelectValue placeholder="Select unit" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="PC">PC</SelectItem>
+        <SelectItem value="SET">SET</SelectItem>
+        <SelectItem value="DOZEN">DOZEN</SelectItem>
+      </SelectContent>
     </Select>
   );
 }

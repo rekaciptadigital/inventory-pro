@@ -27,6 +27,33 @@ import {
   resetFormState
 } from "@/lib/store/slices/formInventoryProductSlice";
 
+// Update interfaces at the top
+interface FormattedVariant {
+  variant_id: string;
+  variant_name: string;
+  variant_values: {
+    variant_value_id: string;
+    variant_value_name: string;
+  }[];
+}
+
+// Update to match ProductVariant type exactly
+interface ReduxVariant {
+  variant_id: number;
+  variant_name: string;
+  variant_values: {
+    variant_value_id: string; // Keep as string to match ProductVariant
+    variant_value_name: string;
+  }[];
+}
+
+interface FormattedCategory {
+  product_category_id: string;
+  product_category_parent: string | null;
+  product_category_name: string;
+  category_hierarchy: number;
+}
+
 interface SingleProductFormProps {
   onSuccess?: (product: ProductFormValues) => void;
   onClose?: () => void;
@@ -36,6 +63,7 @@ interface SingleProductFormProps {
 const defaultValues: ProductFormValues = {
   brand: "",
   productTypeId: "",
+  categoryId: "", // Add missing required field
   sku: "",
   uniqueCode: "",
   fullProductName: "",
@@ -43,7 +71,19 @@ const defaultValues: ProductFormValues = {
   description: "",
   vendorSku: "",
   unit: "PC",
+  variants: [], // Add missing required field
+  variantCount: 0,
+  variantOptions: [],
+  variantValues: {},
+  variantPrices: {},
+  product_by_variant: [] // Add if it's required in ProductFormValues
 };
+
+// Add this interface at the top with other interfaces
+interface SubmissionData extends Omit<CreateInventoryData, 'product_type_id' | 'brand_id'> {
+  product_type_id: string;
+  brand_id: string;
+}
 
 export function SingleProductForm({
   onSuccess,
@@ -62,16 +102,16 @@ export function SingleProductForm({
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
-      brand: initialData?.brand_id?.toString() || '',
-      productTypeId: initialData?.product_type_id?.toString() || '',
-      sku: initialData?.sku || '',
-      uniqueCode: initialData?.unique_code || '',
-      fullProductName: initialData?.full_product_name || '',
-      productName: initialData?.product_name || '',
-      description: initialData?.description || '',
+      brand: initialData?.brand_id?.toString() ?? '',
+      productTypeId: initialData?.product_type_id?.toString() ?? '',
+      sku: initialData?.sku ?? '',
+      uniqueCode: initialData?.unique_code ?? '',
+      fullProductName: initialData?.full_product_name ?? '',
+      productName: initialData?.product_name ?? '',
+      description: initialData?.description ?? '',
       vendorSku: initialData?.vendor_sku || '',
-      unit: initialData?.unit || 'PC',
-      categoryId: initialData?.categories?.[0]?.product_category_id?.toString() || '',
+      unit: initialData?.unit ?? 'PC',
+      categoryId: initialData?.categories?.[0]?.product_category_id?.toString() ?? '',
     },
     mode: "onChange",
   });
@@ -114,26 +154,29 @@ export function SingleProductForm({
           updates.push(() => {
             dispatch(updateProductCategories(
               initialData.categories.map(cat => ({
-                product_category_id: parseInt(cat.product_category_id),
-                product_category_parent: cat.product_category_parent ? parseInt(cat.product_category_parent) : null,
+                product_category_id: String(cat.product_category_id),
+                product_category_parent: cat.product_category_parent ? String(cat.product_category_parent) : null,
                 product_category_name: cat.product_category_name,
                 category_hierarchy: cat.category_hierarchy,
               }))
             ));
-            form.setValue('categoryId', initialData.categories[0].product_category_id.toString(), { shouldValidate: true });
+            form.setValue('categoryId', String(initialData.categories[0].product_category_id), { shouldValidate: true });
           });
         }
 
         if (initialData.variants?.length > 0) {
           updates.push(() => {
-            dispatch(setVariants(initialData.variants.map(variant => ({
-              variant_id: parseInt(variant.variant_id),
+            // Convert to Redux format (keep variant_value_id as string)
+            const reduxVariants: ReduxVariant[] = initialData.variants.map(variant => ({
+              variant_id: parseInt(variant.variant_id.toString()),
               variant_name: variant.variant_name,
               variant_values: variant.values.map(value => ({
-                variant_value_id: parseInt(value.variant_value_id),
+                variant_value_id: value.variant_value_id.toString(), // Keep as string
                 variant_value_name: value.variant_value_name,
               })),
-            }))));
+            }));
+
+            dispatch(setVariants(reduxVariants));
           });
         }
 
@@ -143,13 +186,13 @@ export function SingleProductForm({
         // Set other form values
         form.reset({
           ...form.getValues(),
-          sku: initialData.sku || '',
-          uniqueCode: initialData.unique_code || '',
-          fullProductName: initialData.full_product_name || '',
-          productName: initialData.product_name || '',
-          description: initialData.description || '',
-          vendorSku: initialData.vendor_sku || '',
-          unit: initialData.unit || 'PC',
+          sku: initialData.sku ?? '',
+          uniqueCode: initialData.unique_code ?? '',
+          fullProductName: initialData.full_product_name ?? '',
+          productName: initialData.product_name ?? '',
+          description: initialData.description ?? '',
+          vendorSku: initialData.vendor_sku ?? '',
+          unit: initialData.unit ?? 'PC',
         }, { keepDefaultValues: true });
 
       } catch (error) {
@@ -180,11 +223,11 @@ export function SingleProductForm({
       setIsSubmitting(true);
 
       // Convert numeric IDs to strings as required by API
-      const inventoryData: CreateInventoryData = {
-        brand_id: formData.brand_id,
+      const inventoryData: SubmissionData = {
+        brand_id: formData.brand_id?.toString() ?? "",
         brand_code: formData.brand_code || "",
         brand_name: formData.brand_name || "",
-        product_type_id: formData.product_type_id,
+        product_type_id: formData.product_type_id?.toString() ?? "",
         product_type_code: formData.product_type_code || "",
         product_type_name: formData.product_type_name || "",
         unique_code: formData.unique_code || "",
@@ -195,19 +238,19 @@ export function SingleProductForm({
         slug: formData.slug || "",
         categories:
           formData.categories.map((cat) => ({
-            product_category_id: cat.product_category_id,
+            product_category_id: String(cat.product_category_id),
             product_category_parent: cat.product_category_parent
-              ? cat.product_category_parent
+              ? String(cat.product_category_parent)
               : null,
             product_category_name: cat.product_category_name,
             category_hierarchy: cat.category_hierarchy,
-          })) || [],
+          })) as FormattedCategory[],
         variants:
           formData.variants.map((variant) => ({
-            variant_id: variant.variant_id,
+            variant_id: variant.variant_id.toString(), // Ensure string type
             variant_name: variant.variant_name,
             variant_values: variant.variant_values.map((value) => ({
-              variant_value_id: value.variant_value_id,
+              variant_value_id: value.variant_value_id, // Already a string
               variant_value_name: value.variant_value_name,
             })),
           })) || [],

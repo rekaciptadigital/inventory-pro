@@ -11,7 +11,6 @@ import {
   selectSkuInfo,
   selectVariantSelectors,
   addVariantSelector,
-  updateVariantSelector,
   removeVariantSelector,
   updateVariantSelectorValues,
 } from "@/lib/store/slices/formInventoryProductSlice";
@@ -29,10 +28,8 @@ import {
   VariantValueSelector as VariantValue,
 } from "./enhanced-selectors";
 import type { ProductFormValues } from "./form-schema";
-import type { Variant, VariantValue } from "@/types/variant";
+import type { VariantValue } from "@/types/variant";
 import type { SelectOption } from "@/components/ui/enhanced-select";
-import { useBrands } from "@/lib/hooks/use-brands";
-import { useProductTypes } from "@/lib/hooks/use-product-types";
 import { Input } from "@/components/ui/input";
 import { RootState } from "@/lib/store";
 
@@ -41,6 +38,38 @@ interface SelectedVariant {
   typeId: number;
   values: string[];
   availableValues?: string[];
+}
+
+interface VariantTableData {
+  originalSkuKey: string;
+  skuKey: string;
+  productName: string;
+  uniqueCode: string;
+  combo: string[];
+}
+
+interface CurrentSelector {
+  id: number;
+  name: string;
+  values: string[];
+  selected_values: string[];
+}
+
+// Update the ExistingVariant interface to match the expected types
+interface ExistingVariant {
+  variant_id: number;
+  variant_name: string;
+  variant_values: Array<{
+    variant_value_id: string; // Changed from number to string
+    variant_value_name: string;
+  }>;
+}
+
+interface VariantSelectorData {
+  id: number;
+  name: string;
+  values: string[];
+  selected_values?: string[];
 }
 
 export function VariantCombinations() {
@@ -130,7 +159,7 @@ export function VariantCombinations() {
       try {
         setIsInitialized(true); // Set this first to prevent multiple initializations
 
-        const initialVariants = existingVariants.map((variant) => {
+        const initialVariants = existingVariants.map((variant: ExistingVariant) => {
           const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
           return {
             id: `variant-${variant.variant_id}`,
@@ -140,11 +169,11 @@ export function VariantCombinations() {
           };
         });
 
-        const variantSelectors = existingVariants.map((variant) => {
+        const variantSelectors = existingVariants.map((variant: ExistingVariant) => {
           const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
           return {
             id: variant.variant_id,
-            name: variantType?.name || variant.variant_name,
+            name: variantType?.name ?? variant.variant_name,
             values: variantType?.values || [],
             selected_values: variant.variant_values.map((v) => v.variant_value_name),
           };
@@ -300,9 +329,9 @@ export function VariantCombinations() {
         );
         return {
           variant_id: variant.typeId,
-          variant_name: variantType?.name || "",
+          variant_name: variantType?.name ?? "",
           variant_values: variant.values.map((value) => ({
-            variant_value_id: 0,
+            variant_value_id: "0", // Convert to string
             variant_value_name: value,
           })),
         };
@@ -490,7 +519,7 @@ export function VariantCombinations() {
   );
 
   const renderVariantValue = useCallback(
-    (variant: SelectedVariant, currentSelector?: any) => {
+    (variant: SelectedVariant, currentSelector?: CurrentSelector) => {
       const valueOptions = variant.values.map((value) => ({
         value: value,
         label: value,
@@ -517,9 +546,17 @@ export function VariantCombinations() {
     <div className="space-y-6">
       <div className="space-y-4">
         {selectedVariants.map((variant) => {
-          const currentSelector = variantSelectors.find(
+          const selector = variantSelectors.find(
             (selector) => selector.id === variant.typeId
           );
+          
+          // Transform VariantSelectorData to CurrentSelector
+          const currentSelector: CurrentSelector | undefined = selector ? {
+            id: selector.id,
+            name: selector.name,
+            values: selector.values,
+            selected_values: selector.selected_values || [], // Provide default empty array
+          } : undefined;
           
           const variantType = variantTypes?.find(
             (vt) => vt.id === variant.typeId
@@ -532,11 +569,11 @@ export function VariantCombinations() {
                   key={`type-${variant.id}`}
                   value={variant.typeId ? {
                     value: variant.typeId.toString(),
-                    label: variantType?.name || currentSelector?.name || "",
+                    label: variantType?.name ?? currentSelector?.name ?? "",
                     data: {
                       id: variant.typeId,
-                      name: variantType?.name || currentSelector?.name || "",
-                      values: variantType?.values || currentSelector?.values || [],
+                      name: variantType?.name ?? currentSelector?.name ?? "",
+                      values: variantType?.values ?? currentSelector?.values ?? [],
                     },
                   } : null}
                   onChange={(selected) => handleTypeChange(variant.id, selected)}
@@ -596,7 +633,7 @@ export function VariantCombinations() {
                   </TableHeader>
                   <TableBody>
                     {variantData.map(
-                      ({ originalSkuKey, skuKey, productName, uniqueCode }) => (
+                      ({ originalSkuKey, skuKey, productName, uniqueCode }: VariantTableData) => (
                         <TableRow key={skuKey}>
                           <TableCell>{productName}</TableCell>
                           <TableCell className="font-medium">

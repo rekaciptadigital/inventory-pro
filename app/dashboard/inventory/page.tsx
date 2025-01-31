@@ -70,11 +70,11 @@ export default function InventoryPage() {
         <PaginationInfo
           currentPage={currentPage}
           pageSize={pageSize}
-          totalItems={pagination?.totalItems || 0}
+          totalItems={pagination?.totalItems ?? 0}
         />
         <PaginationControls
           currentPage={currentPage}
-          totalPages={pagination?.totalPages || 1}
+          totalPages={pagination?.totalPages ?? 1}
           pageSize={pageSize}
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}
