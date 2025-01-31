@@ -126,23 +126,30 @@ export function VariantCombinations() {
 
   // Replace the existing initialization useEffect with this one
   useEffect(() => {
-    if (!isInitialized && existingVariants && existingVariants.length > 0) {
-      const initialVariants = existingVariants.map((variant) => ({
-        id: generateVariantId(),
-        typeId: variant.variant_id,
-        values: variant.variant_values.map((v) => v.variant_value_name),
-        availableValues: variant.variant_values.map((v) => v.variant_value_name),
-      }));
+    if (!isInitialized && existingVariants && existingVariants.length > 0 && variantTypes) {
+      const initialVariants = existingVariants.map((variant) => {
+        // Find the corresponding variant type from variantTypes
+        const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
+        
+        return {
+          id: generateVariantId(),
+          typeId: variant.variant_id,
+          values: variant.variant_values.map((v) => v.variant_value_name),
+          availableValues: variantType?.values || [], // Add available values from variantType
+        };
+      });
 
       setSelectedVariants(initialVariants);
 
-      // Initialize variant selectors
+      // Initialize variant selectors with complete data from variantTypes
       const variantSelectors = existingVariants.map((variant) => {
+        const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
         const variantValues = variant.variant_values.map((v) => v.variant_value_name);
+        
         return {
           id: variant.variant_id,
-          name: variant.variant_name,
-          values: variantValues,
+          name: variantType?.name || variant.variant_name,
+          values: variantType?.values || [],
           selected_values: variantValues,
         };
       });
@@ -167,7 +174,7 @@ export function VariantCombinations() {
 
       setIsInitialized(true);
     }
-  }, [existingVariants, isInitialized, generateVariantId, dispatch, form]);
+  }, [existingVariants, isInitialized, generateVariantId, dispatch, form, variantTypes]);
 
   const handleTypeChange = useCallback(
     (variantId: string, selected: SelectOption | null) => {
@@ -516,31 +523,26 @@ export function VariantCombinations() {
           const currentSelector = variantSelectors.find(
             (selector) => selector.id === variant.typeId
           );
+          
+          const variantType = variantTypes?.find(
+            (vt) => vt.id === variant.typeId
+          );
 
           return (
-            <div
-              key={variant.id}
-              className="flex flex-col md:grid md:grid-cols-[2fr,3fr,auto] gap-3 items-start"
-            >
+            <div key={variant.id} className="flex flex-col md:grid md:grid-cols-[2fr,3fr,auto] gap-3 items-start">
               <div className="w-full min-w-[180px]">
                 <VariantType
                   key={`type-${variant.id}`}
-                  value={
-                    variant.typeId
-                      ? {
-                          value: variant.typeId.toString(),
-                          label: currentSelector?.name || "",
-                          data: {
-                            id: variant.typeId,
-                            name: currentSelector?.name || "",
-                            values: currentSelector?.values || [],
-                          },
-                        }
-                      : null
-                  }
-                  onChange={(selected) =>
-                    handleTypeChange(variant.id, selected)
-                  }
+                  value={variant.typeId ? {
+                    value: variant.typeId.toString(),
+                    label: variantType?.name || currentSelector?.name || "",
+                    data: {
+                      id: variant.typeId,
+                      name: variantType?.name || currentSelector?.name || "",
+                      values: variantType?.values || currentSelector?.values || [],
+                    },
+                  } : null}
+                  onChange={(selected) => handleTypeChange(variant.id, selected)}
                   excludeIds={usedTypeIds.filter((id) => id !== variant.typeId)}
                 />
               </div>
