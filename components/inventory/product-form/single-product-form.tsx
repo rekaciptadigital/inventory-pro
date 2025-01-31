@@ -23,7 +23,8 @@ import {
   setBrand, 
   setProductType, 
   updateProductCategories, 
-  setVariants 
+  setVariants,
+  resetFormState
 } from "@/lib/store/slices/formInventoryProductSlice";
 
 interface SingleProductFormProps {
@@ -133,6 +134,18 @@ export function SingleProductForm({
       }
     }
   }, [initialData, dispatch, form]);
+
+  // Modify cleanup effect to preserve data during edit
+  useEffect(() => {
+    return () => {
+      // Only reset if not in edit mode
+      if (!initialData) {
+        dispatch(resetFormState());
+        form.reset(defaultValues);
+      }
+    };
+  }, [dispatch, form, initialData]);
+
   // Add selector for form data from Redux
   const formData = useSelector(
     (state: RootState) => state.formInventoryProduct
@@ -208,6 +221,10 @@ export function SingleProductForm({
   };
 
   const handleCancel = () => {
+    // Only reset if not in edit mode
+    if (!initialData) {
+      dispatch(resetFormState());
+    }
     form.reset(defaultValues);
     if (onClose) {
       onClose();

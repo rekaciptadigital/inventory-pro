@@ -132,7 +132,7 @@ export function VariantCombinations() {
         const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
         
         return {
-          id: generateVariantId(),
+          id: `variant-${variant.variant_id}`, // Use a deterministic ID
           typeId: variant.variant_id,
           values: variant.variant_values.map((v) => v.variant_value_name),
           availableValues: variantType?.values || [], // Add available values from variantType
@@ -174,7 +174,7 @@ export function VariantCombinations() {
 
       setIsInitialized(true);
     }
-  }, [existingVariants, isInitialized, generateVariantId, dispatch, form, variantTypes]);
+  }, [existingVariants, isInitialized, dispatch, form, variantTypes]);
 
   const handleTypeChange = useCallback(
     (variantId: string, selected: SelectOption | null) => {

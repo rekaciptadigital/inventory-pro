@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useDispatch } from 'react-redux';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,9 +11,11 @@ import { usePagination } from '@/lib/hooks/use-pagination';
 import { useInventory } from '@/lib/hooks/inventory/use-inventory';
 import { PaginationControls } from '@/components/ui/pagination/pagination-controls';
 import { PaginationInfo } from '@/components/ui/pagination/pagination-info';
+import { resetFormState } from '@/lib/store/slices/formInventoryProductSlice';
 
 export default function InventoryPage() {
   const router = useRouter();
+  const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState('');
   const { currentPage, pageSize, handlePageChange, handlePageSizeChange } = usePagination();
   
@@ -23,6 +26,11 @@ export default function InventoryPage() {
     sort: 'created_at',
     order: 'DESC',
   });
+
+  useEffect(() => {
+    // Reset form state when inventory list page mounts
+    dispatch(resetFormState());
+  }, [dispatch]);
 
   return (
     <div className="space-y-6">

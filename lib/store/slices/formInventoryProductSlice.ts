@@ -172,6 +172,9 @@ const formInventoryProductSlice = createSlice({
     clearVariantSelectors: (state) => {
       state.variant_selectors = [];
     },
+    resetFormState: () => {
+      return initialState;
+    },
   },
 });
 
@@ -195,6 +198,7 @@ export const {
   setVariantSelectors,
   updateVariantSelectorValues,
   clearVariantSelectors,
+  resetFormState,
 } = formInventoryProductSlice.actions;
 
 // Memoized selectors
