@@ -18,21 +18,17 @@ export function EditPriceForm() {
         <div>
           <h1 className="text-3xl font-bold">Edit Product Price</h1>
           <p className="text-muted-foreground">
-            Update pricing information for {product?.productName || id}
+            Update pricing information for lalala jos
           </p>
         </div>
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" onClick={() => console.log("back")}>
           Back to List
         </Button>
       </div>
 
       <div className="space-y-6">
-        {product && (
-          <>
-            <PricingInfo product={product} />
-            <CustomerPrices product={product} />
-          </>
-        )}
+        <PricingInfo product={product} />
+        <CustomerPrices product={product} />
       </div>
     </div>
   );

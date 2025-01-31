@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -9,16 +9,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Edit, ChevronDown, ChevronRight } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { formatDate } from '@/lib/utils/format';
-import type { InventoryProduct } from '@/types/inventory';
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Edit, ChevronDown, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatDate } from "@/lib/utils/format";
+import type { InventoryProduct } from "@/types/inventory";
 
 const LoadingSkeleton = () => {
-  const skeletonRows = ['sk1', 'sk2', 'sk3', 'sk4', 'sk5'];
+  const skeletonRows = ["sk1", "sk2", "sk3", "sk4", "sk5"];
   return (
     <div className="border rounded-lg">
       <Table>
@@ -49,22 +49,26 @@ const LoadingSkeleton = () => {
   );
 };
 
-const ProductVariantRow = ({ variant, product }: { variant: any; product: InventoryProduct }) => (
-  <TableRow 
+const ProductVariantRow = ({
+  variant,
+  product,
+}: {
+  variant: any;
+  product: InventoryProduct;
+}) => (
+  <TableRow
     key={variant.id}
     className="bg-muted/30 hover:bg-muted/50 transition-colors"
   >
     <TableCell className="pl-10 font-mono text-sm">
       {variant.sku_product_variant}
     </TableCell>
-    <TableCell className="pl-10">
-      {variant.full_product_name}
-    </TableCell>
+    <TableCell className="pl-10">{variant.full_product_name}</TableCell>
     <TableCell colSpan={4}>
       {product.variants.map((v) => (
         <div key={v.id} className="text-sm text-muted-foreground">
-          {v.variant_name}:{' '}
-          {v.values.map((val) => val.variant_value_name).join(', ')}
+          {v.variant_name}:{" "}
+          {v.values.map((val) => val.variant_value_name).join(", ")}
         </div>
       ))}
     </TableCell>
@@ -73,16 +77,18 @@ const ProductVariantRow = ({ variant, product }: { variant: any; product: Invent
   </TableRow>
 );
 
-const ProductRow = ({ 
-  product, 
-  isExpanded, 
+const ProductRow = ({
+  product,
+  isExpanded,
   onToggleExpand,
-  onEdit 
-}: { 
+  onEdit,
+  onEditOld,
+}: {
   product: InventoryProduct;
   isExpanded: boolean;
   onToggleExpand: () => void;
   onEdit: () => void;
+  onEditOld: () => void;
 }) => (
   <TableRow className="group hover:bg-muted/50 transition-colors">
     <TableCell className="font-medium">{product.sku}</TableCell>
@@ -101,6 +107,14 @@ const ProductRow = ({
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" onClick={onEdit}>
           <Edit className="h-4 w-4" />
+        </Button>
+        <Button
+          className="px-10"
+          variant="ghost"
+          size="icon"
+          onClick={onEditOld}
+        >
+          old edit
         </Button>
         {product.product_by_variant.length > 0 && (
           <Button variant="ghost" size="icon" onClick={onToggleExpand}>
@@ -121,9 +135,14 @@ interface PriceManagementListProps {
   readonly isLoading?: boolean;
 }
 
-export function PriceManagementList({ products, isLoading }: PriceManagementListProps) {
+export function PriceManagementList({
+  products,
+  isLoading,
+}: PriceManagementListProps) {
   const router = useRouter();
-  const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
+  const [expandedProducts, setExpandedProducts] = useState<Set<number>>(
+    new Set()
+  );
 
   const toggleExpand = (productId: number) => {
     const newExpanded = new Set(expandedProducts);
@@ -164,15 +183,20 @@ export function PriceManagementList({ products, isLoading }: PriceManagementList
         <TableBody>
           {products.map((product) => (
             <React.Fragment key={product.id}>
-              <ProductRow 
+              <ProductRow
                 product={product}
                 isExpanded={expandedProducts.has(product.id)}
                 onToggleExpand={() => toggleExpand(product.id)}
-                onEdit={() => router.push(`/dashboard/price-management/${product.id}`)}
+                onEdit={() =>
+                  router.push(`/dashboard/price-management/${product.id}`)
+                }
+                onEditOld={() =>
+                  router.push(`/dashboard/price-management/${product.id}`)
+                }
               />
-              {expandedProducts.has(product.id) && 
+              {expandedProducts.has(product.id) &&
                 product.product_by_variant.map((variant) => (
-                  <ProductVariantRow 
+                  <ProductVariantRow
                     key={variant.id}
                     variant={variant}
                     product={product}

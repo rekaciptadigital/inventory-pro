@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { usePriceCategories } from '@/lib/hooks/use-price-categories';
-import { useTaxes } from '@/lib/hooks/use-taxes';
-import { formatCurrency } from '@/lib/utils/format';
-import type { Product } from '@/types/inventory';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { usePriceCategories } from "@/lib/hooks/use-price-categories";
+import { useTaxes } from "@/lib/hooks/use-taxes";
+import { formatCurrency } from "@/lib/utils/format";
+import type { Product } from "@/types/inventory";
 
 interface CustomerPricesProps {
   product: Product;
@@ -25,42 +25,54 @@ interface CustomerPricesProps {
   onSetDefault?: (categoryId: string) => void;
 }
 
-export function CustomerPrices({ product, defaultCategory, onSetDefault }: CustomerPricesProps) {
+export function CustomerPrices({
+  product,
+  defaultCategory,
+  onSetDefault,
+}: CustomerPricesProps) {
   const { categories } = usePriceCategories();
   const { taxes } = useTaxes();
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const form = useForm({
     defaultValues: {
-      customerPrices: product.customerPrices || {},
-      percentages: product.percentages || {},
+      customerPrices: {},
+      percentages: {},
     },
   });
 
-  const activeTaxes = taxes.filter(tax => tax.status === 'active');
-  const totalTaxPercentage = activeTaxes.reduce((sum, tax) => sum + tax.percentage, 0);
+  const activeTaxes = taxes.filter((tax) => tax.status === "active");
+  const totalTaxPercentage = activeTaxes.reduce(
+    (sum, tax) => sum + tax.percentage,
+    0
+  );
 
   return (
     <Form {...form}>
       <form className="space-y-6">
         <div className="rounded-lg border p-4">
           <h3 className="text-lg font-medium mb-4">Customer Category Prices</h3>
-          
+
           <div className="grid grid-cols-2 gap-4">
             {categories.map((category) => {
               const categoryKey = category.name.toLowerCase();
-              const price = product.customerPrices?.[categoryKey] || {
-                basePrice: 0,
-                taxAmount: 0,
-                taxInclusivePrice: 0,
+              const price = {
+                basePrice: 10,
+                taxAmount: 20,
+                taxInclusivePrice: 20,
               };
 
               return (
-                <div key={category.id} className="space-y-4 p-4 rounded-lg border">
+                <div
+                  key={category.id}
+                  className="space-y-4 p-4 rounded-lg border"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <FormLabel>{category.name} Price Settings</FormLabel>
                       {defaultCategory === category.id && (
-                        <span className="text-xs text-muted-foreground">(Default)</span>
+                        <span className="text-xs text-muted-foreground">
+                          (Default)
+                        </span>
                       )}
                     </div>
                     {onSetDefault && defaultCategory !== category.id && (
@@ -115,7 +127,8 @@ export function CustomerPrices({ product, defaultCategory, onSetDefault }: Custo
                             />
                           </FormControl>
                           <p className="text-sm text-muted-foreground">
-                            Including {totalTaxPercentage}% tax ({formatCurrency(price.taxAmount)})
+                            Including {totalTaxPercentage}% tax (
+                            {formatCurrency(price.taxAmount)})
                           </p>
                         </FormItem>
                       )}
@@ -126,8 +139,10 @@ export function CustomerPrices({ product, defaultCategory, onSetDefault }: Custo
                     <div className="mt-2 text-sm text-muted-foreground">
                       <Separator className="my-2" />
                       <p>Applied Taxes:</p>
-                      {activeTaxes.map(tax => (
-                        <p key={tax.id}>• {tax.name}: {tax.percentage}%</p>
+                      {activeTaxes.map((tax) => (
+                        <p key={tax.id}>
+                          • {tax.name}: {tax.percentage}%
+                        </p>
                       ))}
                     </div>
                   )}
