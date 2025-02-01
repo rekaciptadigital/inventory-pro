@@ -1,5 +1,3 @@
-'use client';
-
 import { Suspense } from 'react';
 import { EditPriceForm } from './edit-price-form';
 import Loading from './loading';

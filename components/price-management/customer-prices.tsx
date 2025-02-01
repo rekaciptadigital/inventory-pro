@@ -33,6 +33,7 @@ export function CustomerPrices({
   const { categories } = usePriceCategories();
   const { taxes } = useTaxes();
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+  const [manualModes, setManualModes] = useState<Record<string, boolean>>({});
   const form = useForm({
     defaultValues: {
       customerPrices: {},
@@ -46,11 +47,18 @@ export function CustomerPrices({
     0
   );
 
+  const hbNaik = product?.hbNaik || 0;
+
   return (
     <Form {...form}>
       <form className="space-y-6">
         <div className="rounded-lg border p-4">
-          <h3 className="text-lg font-medium mb-4">Customer Category Prices</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium">Customer Category Prices</h3>
+            <div className="text-sm text-muted-foreground">
+              Base Price (HB Naik): {formatCurrency(hbNaik)}
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             {categories.map((category) => {
@@ -60,6 +68,7 @@ export function CustomerPrices({
                 taxAmount: 20,
                 taxInclusivePrice: 20,
               };
+              const isManual = manualModes[categoryKey] || false;
 
               return (
                 <div
@@ -90,6 +99,19 @@ export function CustomerPrices({
                     )}
                   </div>
 
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Manual Edit</span>
+                    <Switch
+                      checked={isManual}
+                      onCheckedChange={(checked) => {
+                        setManualModes(prev => ({
+                          ...prev,
+                          [categoryKey]: checked
+                        }));
+                      }}
+                    />
+                  </div>
+
                   <div className="space-y-4">
                     <FormField
                       control={form.control}
@@ -99,10 +121,16 @@ export function CustomerPrices({
                           <FormLabel>Pre-tax Price</FormLabel>
                           <FormControl>
                             <Input
-                              type="text"
-                              value={formatCurrency(price.basePrice)}
-                              className="bg-muted"
-                              disabled
+                              type="number"
+                              value={price.basePrice}
+                              className={!isManual ? "bg-muted" : ""}
+                              disabled={!isManual}
+                              onChange={(e) => {
+                                if (isManual) {
+                                  const value = parseFloat(e.target.value) || 0;
+                                  form.setValue(`customerPrices.${categoryKey}.basePrice`, value);
+                                }
+                              }}
                             />
                           </FormControl>
                           <p className="text-sm text-muted-foreground">

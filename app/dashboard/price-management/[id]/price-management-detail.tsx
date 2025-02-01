@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { PriceHistory } from '@/components/price-management/price-history';
 import { PriceEditForm } from '@/components/price-management/price-edit-form';
 import { useInventory } from '@/lib/hooks/inventory/use-inventory';
+import { PencilIcon } from 'lucide-react';
 
 export function PriceManagementDetail() {
   const { id } = useParams();

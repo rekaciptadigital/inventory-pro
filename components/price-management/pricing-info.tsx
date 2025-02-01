@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { useProductPrices } from "@/lib/hooks/use-product-prices";
 import { productPriceSchema } from "@/lib/validations/product-price";
 import { formatCurrency } from "@/lib/utils/format";
 import type { Product } from "@/types/inventory";
+import { Switch } from "@/components/ui/switch";
 
 interface PricingInfoProps {
   product: Product;
@@ -136,9 +137,16 @@ export function PricingInfo({ product }: PricingInfoProps) {
 
             <div className="bg-muted/50 p-4 rounded-lg">
               <FormLabel>HB Real (Base Price)</FormLabel>
-              <div className="text-2xl font-bold mt-1">
-                {formatCurrency(form.watch("hbReal"))}
-              </div>
+              <FormControl>
+                <Input
+                  type="number"
+                  value={form.watch('hbReal') || 0}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    form.setValue('hbReal', value);
+                  }}
+                />
+              </FormControl>
               <p className="text-sm text-muted-foreground mt-1">
                 Automatically calculated: USD Price × Exchange Rate
               </p>
@@ -177,12 +185,6 @@ export function PricingInfo({ product }: PricingInfoProps) {
                 Automatically calculated: HB Real × (1 + Adjustment/100)
               </p>
             </div>
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <Button type="submit" disabled={isUpdating}>
-              {isUpdating ? "Updating Prices..." : "Update Prices"}
-            </Button>
           </div>
         </div>
       </form>

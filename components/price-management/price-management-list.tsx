@@ -114,7 +114,7 @@ const ProductRow = ({
           size="icon"
           onClick={onEditOld}
         >
-          old edit
+          History
         </Button>
         {product.product_by_variant.length > 0 && (
           <Button variant="ghost" size="icon" onClick={onToggleExpand}>
@@ -188,7 +188,7 @@ export function PriceManagementList({
                 isExpanded={expandedProducts.has(product.id)}
                 onToggleExpand={() => toggleExpand(product.id)}
                 onEdit={() =>
-                  router.push(`/dashboard/price-management/${product.id}`)
+                  router.push(`/dashboard/price-management/${product.id}/edit`)
                 }
                 onEditOld={() =>
                   router.push(`/dashboard/price-management/${product.id}`)
