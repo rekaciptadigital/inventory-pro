@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { UseFormReturn } from "react-hook-form";
+import { PriceFormFields } from '@/types/form';
 import {
   Form,
   FormControl,
@@ -17,37 +16,45 @@ import { Separator } from "@/components/ui/separator";
 import { usePriceCategories } from "@/lib/hooks/use-price-categories";
 import { useTaxes } from "@/lib/hooks/use-taxes";
 import { formatCurrency } from "@/lib/utils/format";
-import type { Product } from "@/types/inventory";
 
 interface CustomerPricesProps {
-  product: Product;
-  defaultCategory?: string;
-  onSetDefault?: (categoryId: string) => void;
+  readonly form: UseFormReturn<PriceFormFields>;
 }
 
-export function CustomerPrices({
-  product,
-  defaultCategory,
-  onSetDefault,
-}: CustomerPricesProps) {
+export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
   const { categories } = usePriceCategories();
   const { taxes } = useTaxes();
-  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const [manualModes, setManualModes] = useState<Record<string, boolean>>({});
-  const form = useForm({
-    defaultValues: {
-      customerPrices: {},
-      percentages: {},
-    },
-  });
+  
+  // Get form values with proper defaults
+  const formValues = form.watch();
+  const hbNaik = formValues.hbNaik || 0;
+  const percentages = formValues.percentages || {};
+
+  const calculatePrices = (category: any) => {
+    const categoryKey = category.name.toLowerCase();
+    const markup = percentages[categoryKey] ?? category.percentage;
+    const basePrice = hbNaik * (1 + (markup / 100));
+    const taxAmount = basePrice * 0.11;
+
+    return {
+      basePrice: Number(basePrice.toFixed(2)),
+      taxAmount: Number(taxAmount.toFixed(2)),
+      taxInclusivePrice: Number((basePrice + taxAmount).toFixed(2))
+    };
+  };
+
+  // Update prices whenever hbNaik changes
+  useEffect(() => {
+    categories.forEach(category => {
+      const categoryKey = category.name.toLowerCase();
+      const prices = calculatePrices(category);
+      
+      form.setValue(`customerPrices.${categoryKey}`, prices);
+    });
+  }, [hbNaik, categories, form]);
 
   const activeTaxes = taxes.filter((tax) => tax.status === "active");
-  const totalTaxPercentage = activeTaxes.reduce(
-    (sum, tax) => sum + tax.percentage,
-    0
-  );
-
-  const hbNaik = product?.hbNaik || 0;
 
   return (
     <Form {...form}>
@@ -63,12 +70,9 @@ export function CustomerPrices({
           <div className="grid grid-cols-2 gap-4">
             {categories.map((category) => {
               const categoryKey = category.name.toLowerCase();
-              const price = {
-                basePrice: 10,
-                taxAmount: 20,
-                taxInclusivePrice: 20,
-              };
               const isManual = manualModes[categoryKey] || false;
+              const prices = calculatePrices(category);
+              const currentPercentage = percentages[categoryKey] ?? category.percentage;
 
               return (
                 <div
@@ -78,25 +82,7 @@ export function CustomerPrices({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <FormLabel>{category.name} Price Settings</FormLabel>
-                      {defaultCategory === category.id && (
-                        <span className="text-xs text-muted-foreground">
-                          (Default)
-                        </span>
-                      )}
                     </div>
-                    {onSetDefault && defaultCategory !== category.id && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                          "opacity-0 transition-opacity",
-                          hoveredCategory === category.id && "opacity-100"
-                        )}
-                        onClick={() => onSetDefault(category.id)}
-                      >
-                        Set Default
-                      </Button>
-                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -121,20 +107,14 @@ export function CustomerPrices({
                           <FormLabel>Pre-tax Price</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
-                              value={price.basePrice}
-                              className={!isManual ? "bg-muted" : ""}
-                              disabled={!isManual}
-                              onChange={(e) => {
-                                if (isManual) {
-                                  const value = parseFloat(e.target.value) || 0;
-                                  form.setValue(`customerPrices.${categoryKey}.basePrice`, value);
-                                }
-                              }}
+                              type="text"
+                              value={formatCurrency(prices.basePrice)}
+                              className="bg-muted"
+                              disabled
                             />
                           </FormControl>
                           <p className="text-sm text-muted-foreground">
-                            {category.percentage}% markup from HB Naik
+                            {currentPercentage}% markup from HB Naik ({formatCurrency(hbNaik)})
                           </p>
                         </FormItem>
                       )}
@@ -149,14 +129,13 @@ export function CustomerPrices({
                           <FormControl>
                             <Input
                               type="text"
-                              value={formatCurrency(price.taxInclusivePrice)}
+                              value={formatCurrency(prices.taxInclusivePrice)}
                               className="bg-muted font-medium"
                               disabled
                             />
                           </FormControl>
                           <p className="text-sm text-muted-foreground">
-                            Including {totalTaxPercentage}% tax (
-                            {formatCurrency(price.taxAmount)})
+                            Including 11% tax ({formatCurrency(prices.taxAmount)})
                           </p>
                         </FormItem>
                       )}

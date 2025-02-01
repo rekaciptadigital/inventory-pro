@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
+import { Form } from "@/components/ui/form";
 import { PricingInfo } from "@/components/price-management/pricing-info";
 import { CustomerPrices } from "@/components/price-management/customer-prices";
 import { useProducts } from "@/lib/hooks/use-products";
@@ -14,10 +16,23 @@ export function EditPriceForm() {
   const product = getProductById(id as string);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async () => {
+  const form = useForm({
+    defaultValues: {
+      usdPrice: product?.usdPrice || 0,
+      exchangeRate: product?.exchangeRate || 0,
+      hbReal: product?.hbReal || 0,
+      adjustmentPercentage: product?.adjustmentPercentage || 0,
+      hbNaik: product?.hbNaik || 0,
+      customerPrices: product?.customerPrices || {},
+      percentages: product?.percentages || {},
+    },
+  });
+
+  const handleSubmit = async (values: any) => {
     setIsSubmitting(true);
     try {
       // Add your update logic here
+      console.log('Submitting values:', values);
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
       router.push('/dashboard/price-management');
     } catch (error) {
@@ -33,7 +48,7 @@ export function EditPriceForm() {
         <div>
           <h1 className="text-3xl font-bold">Edit Product Price</h1>
           <p className="text-muted-foreground">
-            Update pricing information for lalala jos
+            Update pricing information for {product?.productName || 'Loading...'}
           </p>
         </div>
         <Button variant="outline" onClick={() => router.push('/dashboard/price-management')}>
@@ -41,23 +56,30 @@ export function EditPriceForm() {
         </Button>
       </div>
 
-      <div className="space-y-6">
-        <PricingInfo product={product} />
-        <CustomerPrices product={product} />
+      <Form {...form}>
+        <div className="space-y-6">
+          <PricingInfo form={form} product={product} />
+          <CustomerPrices form={form} />
 
-        <div className="flex justify-end space-x-4">
-          <Button
-            variant="outline"
-            onClick={() => router.push('/dashboard/price-management')}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Updating...' : 'Update Prices'}
-          </Button>
+          <div className="flex justify-end space-x-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push('/dashboard/price-management')}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              onClick={form.handleSubmit(handleSubmit)}
+            >
+              {isSubmitting ? 'Updating...' : 'Update Prices'}
+            </Button>
+          </div>
         </div>
-      </div>
+      </Form>
     </div>
   );
 }

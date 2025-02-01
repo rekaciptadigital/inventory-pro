@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
+import { UseFormReturn } from "react-hook-form";
+import { PriceFormFields } from '@/types/form';
 import {
   Form,
   FormControl,
@@ -15,55 +14,39 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useProductPrices } from "@/lib/hooks/use-product-prices";
-import { productPriceSchema } from "@/lib/validations/product-price";
 import { formatCurrency } from "@/lib/utils/format";
-import type { Product } from "@/types/inventory";
-import { Switch } from "@/components/ui/switch";
+import { usePriceCalculations } from '@/lib/hooks/use-price-calculations';
 
 interface PricingInfoProps {
-  product: Product;
+  readonly form: UseFormReturn<PriceFormFields>;
+  readonly product?: any; // Add product prop
 }
 
-export function PricingInfo({ product }: PricingInfoProps) {
+export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
   const { toast } = useToast();
-  const { updateProductPrices, isUpdating } = useProductPrices();
+  const { updateProductPrices } = useProductPrices();
 
-  const form = useForm({
-    resolver: zodResolver(productPriceSchema),
-    defaultValues: {
-      usdPrice: 10,
-      exchangeRate: 10000,
-      hbReal: 10000,
-      adjustmentPercentage: 1000000,
-      hbNaik: 1000000,
-    },
-  });
+  const { updateHBNaik, updateHBReal } = usePriceCalculations(form);
 
   // Calculate HB Real when USD Price or Exchange Rate changes
   useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
+    const unsubscribe = form.watch((value, { name }) => {
       if (name === "usdPrice" || name === "exchangeRate") {
-        const usdPrice = form.getValues("usdPrice");
-        const exchangeRate = form.getValues("exchangeRate");
-        const hbReal = Math.round(usdPrice * exchangeRate);
-        form.setValue("hbReal", hbReal);
+        updateHBReal();
       }
     });
-    return () => subscription.unsubscribe();
-  }, [form]);
+    return () => unsubscribe.unsubscribe();
+  }, [form, updateHBReal]);
 
   // Calculate HB Naik when HB Real or Adjustment Percentage changes
   useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
+    const unsubscribe = form.watch((value, { name }) => {
       if (name === "hbReal" || name === "adjustmentPercentage") {
-        const hbReal = form.getValues("hbReal");
-        const adjustmentPercentage = form.getValues("adjustmentPercentage");
-        const hbNaik = Math.round(hbReal * (1 + adjustmentPercentage / 100));
-        form.setValue("hbNaik", hbNaik);
+        updateHBNaik();
       }
     });
-    return () => subscription.unsubscribe();
-  }, [form]);
+    return () => unsubscribe.unsubscribe();
+  }, [form, updateHBNaik]);
 
   const onSubmit = async (values: any) => {
     try {

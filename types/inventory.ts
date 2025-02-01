@@ -59,3 +59,9 @@ export interface InventoryProductVariant {
   sku_product_unique_code: number;
   deleted_at: string | null;
 }
+
+export interface CustomerCategory {
+  id: number;
+  name: string;
+  percentage: number;
+}

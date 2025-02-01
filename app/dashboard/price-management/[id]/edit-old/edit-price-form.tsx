@@ -1,14 +1,13 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { PricingInfo } from "@/components/price-management/pricing-info";
 import { CustomerPrices } from "@/components/price-management/customer-prices";
 import { useProducts } from "@/lib/hooks/use-products";
+import { useParams } from "next/navigation";
 
 export function EditPriceForm() {
   const { id } = useParams();
-  const router = useRouter();
   const { getProductById } = useProducts();
   const product = getProductById(id as string);
 
