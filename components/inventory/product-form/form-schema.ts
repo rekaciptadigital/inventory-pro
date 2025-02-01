@@ -3,6 +3,26 @@
 
 import * as z from "zod";
 
+// Schema for API data format
+const apiFieldsSchema = z.object({
+  brand_id: z.string().optional(),
+  brand_code: z.string().optional(),
+  brand_name: z.string().optional(),
+  product_type_id: z.string().optional(),
+  product_type_code: z.string().optional(),
+  product_type_name: z.string().optional(),
+  unique_code: z.string().optional(),
+  product_name: z.string().optional(),
+  full_product_name: z.string().optional(),
+  vendor_sku: z.string().optional(),
+  categories: z.array(z.object({
+    product_category_id: z.string(),
+    product_category_parent: z.string().nullable(),
+    product_category_name: z.string(),
+    category_hierarchy: z.number(),
+  })).optional(),
+});
+
 // Definisi schema untuk form produk
 // Menentukan tipe data dan aturan validasi untuk setiap field
 export const productFormSchema = z.object({
@@ -45,8 +65,8 @@ export const productFormSchema = z.object({
   variantPrices: z.record(z.number()).optional(),
 });
 
-// Tipe data untuk nilai form
-// Menambahkan field usdPrice yang tidak ada di schema
-export type ProductFormValues = z.infer<typeof productFormSchema> & {
-  usdPrice?: number;
-};
+// Combine form values with API fields
+export type ProductFormValues = z.infer<typeof productFormSchema> & 
+  z.infer<typeof apiFieldsSchema> & {
+    usdPrice?: number;
+  };

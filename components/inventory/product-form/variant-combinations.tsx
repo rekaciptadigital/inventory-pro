@@ -25,10 +25,10 @@ import {
 } from "@/components/ui/table";
 import {
   VariantTypeSelector as VariantType,
-  VariantValueSelector as VariantValue,
+  VariantValueSelector as VariantValueSelect, // Rename to avoid conflict
 } from "./enhanced-selectors";
 import type { ProductFormValues } from "./form-schema";
-import type { VariantValue } from "@/types/variant";
+import type { VariantValue as VariantValueType } from "@/types/variant"; // Rename import
 import type { SelectOption } from "@/components/ui/enhanced-select";
 import { Input } from "@/components/ui/input";
 import { RootState } from "@/lib/store";
@@ -527,7 +527,7 @@ export function VariantCombinations() {
       }));
 
       return (
-        <VariantValue
+        <VariantValueSelect // Use renamed component
           key={`value-${variant.id}-${variant.typeId}-${variant.values.join(
             ","
           )}`}
