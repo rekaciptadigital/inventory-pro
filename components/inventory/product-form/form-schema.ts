@@ -62,11 +62,27 @@ export const productFormSchema = z.object({
       })
     )
     .default([]),
-  variantPrices: z.record(z.number()).optional(),
+  variantPrices: z.record(z.string(), z.number()).optional(),
 });
 
-// Combine form values with API fields
-export type ProductFormValues = z.infer<typeof productFormSchema> & 
-  z.infer<typeof apiFieldsSchema> & {
-    usdPrice?: number;
-  };
+// Use direct interface mapping for API fields
+interface ApiFields {
+  brand_id?: string;
+  brand_code?: string;
+  brand_name?: string;
+  product_type_id?: string;
+  product_type_code?: string;
+  product_type_name?: string;
+  unique_code?: string;
+  product_name?: string;
+  full_product_name?: string;
+  vendor_sku?: string;
+  categories?: Array<{
+    product_category_id: string;
+    product_category_parent: string | null;
+    product_category_name: string;
+    category_hierarchy: number;
+  }>;
+}
+
+export type ProductFormValues = z.infer<typeof productFormSchema> & ApiFields;

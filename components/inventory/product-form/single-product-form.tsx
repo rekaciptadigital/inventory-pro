@@ -10,7 +10,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { BasicInfo } from "./basic-info";
 import { VariantCombinations } from "./variant-combinations"; // Import VariantCombinations
 import { productFormSchema, type ProductFormValues } from "./form-schema";
-import { generateSKU } from "@/lib/utils/sku-generator";
 import { useBrands } from "@/lib/hooks/use-brands";
 import { useProductTypeList } from "@/lib/hooks/product-types/use-product-type-list";
 import { useSelector, useDispatch } from "react-redux";
@@ -86,7 +85,6 @@ interface SubmissionData extends Omit<CreateInventoryData, 'product_type_id' | '
 }
 
 export function SingleProductForm({
-  onSuccess,
   onClose,
   initialData,
 }: Readonly<SingleProductFormProps>) {
@@ -221,8 +219,7 @@ export function SingleProductForm({
   const onSubmit = async (values: ProductFormValues) => {
     try {
       setIsSubmitting(true);
-
-      const inventoryData: CreateInventoryData = {
+      await createInventoryProduct({
         // Convert string IDs to numbers for API
         brand_id: parseInt(formData.brand_id?.toString() || "0"),
         brand_code: formData.brand_code || "",
@@ -261,9 +258,7 @@ export function SingleProductForm({
         })),
         ...(formData.vendor_sku && { vendor_sku: formData.vendor_sku }),
         ...(formData.description && { description: formData.description }),
-      };
-
-      const response = await createInventoryProduct(inventoryData);
+      });
 
       toast({
         variant: "default",

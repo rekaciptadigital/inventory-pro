@@ -33,6 +33,18 @@ import type { SelectOption } from "@/components/ui/enhanced-select";
 import { Input } from "@/components/ui/input";
 import { RootState } from "@/lib/store";
 
+// Add additional type for variant value
+interface VariantValueData {
+  variant_value_id: string;
+  variant_value_name: string;
+}
+
+interface VariantType {
+  id: number;
+  name: string;
+  values: string[];
+}
+
 interface SelectedVariant {
   id: string;
   typeId: number;
@@ -107,7 +119,7 @@ export function VariantCombinations() {
   const handleRemoveVariant = useCallback(
     (variantId: string) => {
       setSelectedVariants((prev) => {
-        const newVariants = prev.filter((v) => v.id !== variantId);
+        const newVariants = prev.filter((v: SelectedVariant) => v.id !== variantId);
 
         // Jika tidak ada variant yang tersisa, reset semua state terkait
         if (newVariants.length === 0) {
@@ -125,7 +137,7 @@ export function VariantCombinations() {
           );
         } else {
           // Update Redux untuk variant yang dihapus
-          const variantToRemove = prev.find((v) => v.id === variantId);
+          const variantToRemove = prev.find((v: SelectedVariant) => v.id === variantId);
           if (variantToRemove?.typeId) {
             dispatch(removeVariantSelector(variantToRemove.typeId));
           }
@@ -207,16 +219,16 @@ export function VariantCombinations() {
       if (!selected?.data) return;
 
       const existingVariant = existingVariants.find(
-        (v) => v.variant_id === parseInt(selected.value)
+        (v: ExistingVariant) => v.variant_id === parseInt(selected.value)
       );
 
       setSelectedVariants((prev) => {
-        const newVariants = prev.map((v) =>
+        const newVariants = prev.map((v: SelectedVariant) =>
           v.id === variantId
             ? {
                 ...v,
                 typeId: parseInt(selected.value),
-                values: existingVariant?.variant_values.map((v) => v.variant_value_name) || [],
+                values: existingVariant?.variant_values.map((value: VariantValueData) => value.variant_value_name) || [],
               }
             : v
         );
@@ -244,10 +256,10 @@ export function VariantCombinations() {
 
   const handleValuesChange = useCallback(
     (variantId: string, selected: SelectOption[]) => {
-      const selectedValues = selected.map((option) => option.value);
+      const selectedValues = selected.map((option: SelectOption) => option.value);
 
       setSelectedVariants((prev) => {
-        const newVariants = prev.map((v) =>
+        const newVariants = prev.map((v: SelectedVariant) =>
           v.id === variantId
             ? {
                 ...v,
@@ -287,8 +299,8 @@ export function VariantCombinations() {
       if (variants.length === 0) return [[]];
       const [first, ...rest] = variants;
       const restCombinations = generateCombinations(rest);
-      return first.values.flatMap((value) =>
-        restCombinations.map((combo) => [value, ...combo])
+      return first.values.flatMap((value: string) =>
+        restCombinations.map((combo: string[]) => [value, ...combo])
       );
     };
 

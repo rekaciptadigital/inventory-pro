@@ -32,6 +32,11 @@ export default function InventoryPage() {
     dispatch(resetFormState());
   }, [dispatch]);
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    handlePageChange(1);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -52,10 +57,7 @@ export default function InventoryPage() {
           <Input
             placeholder="Search by brand, SKU, or product name..."
             value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              handlePageChange(1);
-            }}
+            onChange={handleSearchChange}
             className="pl-8"
           />
         </div>

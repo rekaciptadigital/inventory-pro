@@ -11,6 +11,9 @@ import type {
 // Define the VariantValue type based on ProductVariant interface
 type VariantValue = ProductVariant['variant_values'][number];
 
+// Remove redundant type alias
+// type CategoryHierarchy = number;
+
 const initialState: InventoryProductForm = {
   brand_id: null,
   brand_code: "",
@@ -62,10 +65,8 @@ const formInventoryProductSlice = createSlice({
       state.categories = action.payload;
     },
     addCategory: (state, action: PayloadAction<ProductCategory>) => {
-      // Ensure we're working with numbers for comparison
       const hierarchyToMatch = Number(action.payload.category_hierarchy);
       
-      // Remove any existing category with the same hierarchy
       const filteredCategories = state.categories.filter(
         (cat) => Number(cat.category_hierarchy) !== hierarchyToMatch
       );
@@ -82,10 +83,9 @@ const formInventoryProductSlice = createSlice({
       );
     },
     removeCategory: (state, action: PayloadAction<number>) => {
-      // Convert action payload to number and compare with category hierarchy
-      const hierarchyThreshold = Number(action.payload);
+      const hierarchyThreshold = action.payload;
       state.categories = state.categories.filter(
-        (cat) => Number(cat.category_hierarchy) < hierarchyThreshold
+        (cat: ProductCategory) => Number(cat.category_hierarchy) < hierarchyThreshold
       );
     },
     setVariants: (state, action: PayloadAction<ProductVariant[]>) => {  // Change Variant to ProductVariant
@@ -104,7 +104,7 @@ const formInventoryProductSlice = createSlice({
       
       // Sort them in a separate operation using toSorted
       state.categories = state.categories.toSorted(
-        (a, b) => a.category_hierarchy - b.category_hierarchy
+        (a, b) => a.category_hierarchy - Number(b.category_hierarchy)
       );
     },
     updateSkuInfo: (

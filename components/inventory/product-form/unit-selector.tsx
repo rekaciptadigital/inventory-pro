@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useController, useFormContext } from "react-hook-form";
+import type { FieldValues } from "react-hook-form";
 import {
   Select,
   SelectContent,
@@ -10,9 +11,9 @@ import {
 } from "@/components/ui/select";
 import { selectUnit } from "@/lib/store/slices/formInventoryProductSlice";
 
-export function UnitSelector() {
+export function UnitSelector<T extends FieldValues>() {
   const selectedUnit = useSelector(selectUnit);
-  const form = useFormContext();
+  const form = useFormContext<T>();
   const { field } = useController({
     name: "unit",
     control: form.control,
