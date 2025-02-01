@@ -11,8 +11,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Form } from '@/components/ui/form';
-import { CustomerPrices } from '@/components/inventory/product-form/customer-prices';
-import { PricingInfo } from '@/components/inventory/product-form/pricing-info';
+import { CustomerPrices } from '@/components/price-management/customer-prices';
+import { PricingInfo } from '@/components/price-management/pricing-info';
 import { useToast } from '@/components/ui/use-toast';
 import { usePriceCalculations } from '@/lib/hooks/use-price-calculations';
 import type { Product } from '@/types/inventory';

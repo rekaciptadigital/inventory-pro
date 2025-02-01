@@ -159,14 +159,14 @@ export function DashboardNav() {
                     sideOffset={-5}
                   >
                     <div className="space-y-1">
-                      <div className="px-2 py-1.5 text-sm font-medium">{item.name}</div>
+                      <div className="px-2 py-1.5 text-sm">{item.name}</div>
                       {item.children.map((child: any) => (
                         <Link
                           key={child.href || child.name}
                           href={child.href}
                           className={cn(
-                            "flex items-center space-x-2 px-2 py-1.5 text-sm rounded-lg transition-colors",
-                            "hover:bg-primary/10 hover:text-primary",
+                            "flex items-center space-x-2 px-2 py-1.5 rounded-lg text-sm",
+                            "hover:bg-secondary hover:text-primary transition-colors",
                             pathname === child.href && "bg-accent text-accent-foreground"
                           )}
                         >
@@ -257,7 +257,7 @@ export function DashboardNav() {
               <Target className="h-6 w-6 text-primary" />
               <span
                 className={cn(
-                  "font-semibold text-lg whitespace-nowrap",
+                  "text-lg font-semibold whitespace-nowrap",
                   !isOpen && "hidden"
                 )}
               >
@@ -351,7 +351,7 @@ export function DashboardNav() {
             <div className="flex h-16 items-center justify-between px-4">
               <Link href="/dashboard" className="flex items-center space-x-3">
                 <Target className="h-6 w-6 text-primary" />
-                <span className="text-lg font-semibold">Archery Pro</span>
+                <span className="text-lg font-semibold tracking-tight">Archery Pro</span>
               </Link>
               <Button
                 variant="ghost"
