@@ -113,7 +113,7 @@ export function DashboardNav() {
             <AccordionTrigger
               className={cn(
                 "flex items-center space-x-2 px-3 py-2 text-sm rounded-lg text-muted-foreground",
-                "hover:bg-accent hover:text-accent-foreground transition-colors",
+                "hover:bg-secondary hover:text-primary transition-all",
                 "hover:no-underline"
               )}
             >
@@ -165,8 +165,8 @@ export function DashboardNav() {
                           key={child.href || child.name}
                           href={child.href}
                           className={cn(
-                            "flex items-center space-x-2 px-2 py-1.5 text-sm rounded-lg",
-                            "hover:bg-accent hover:text-accent-foreground transition-colors",
+                            "flex items-center space-x-2 px-2 py-1.5 text-sm rounded-lg transition-colors",
+                            "hover:bg-primary/10 hover:text-primary",
                             pathname === child.href && "bg-accent text-accent-foreground"
                           )}
                         >
@@ -195,10 +195,10 @@ export function DashboardNav() {
       <Link
         href={item.href}
         className={cn(
-          "flex items-center px-3 py-2 rounded-lg",
-          "hover:bg-accent hover:text-accent-foreground transition-colors",
+          "flex items-center px-3 py-2 rounded-lg transition-all",
+          "hover:bg-secondary hover:text-primary",
           pathname === item.href
-            ? "bg-accent text-accent-foreground"
+            ? "bg-secondary text-primary"
             : "text-muted-foreground",
           "text-sm"
         )}
@@ -212,10 +212,10 @@ export function DashboardNav() {
           <Link
             href={item.href}
             className={cn(
-              "flex items-center justify-center p-2 rounded-lg",
-              "hover:bg-accent hover:text-accent-foreground transition-colors",
+              "flex items-center justify-center p-2 rounded-lg transition-all",
+              "hover:bg-secondary hover:text-primary",
               pathname === item.href
-                ? "bg-accent text-accent-foreground"
+                ? "bg-secondary text-primary"
                 : "text-muted-foreground",
               "text-sm"
             )}
@@ -276,7 +276,9 @@ export function DashboardNav() {
 
           <nav className="flex-1 space-y-1 px-3 py-4">
             {navigation.map((item) => (
-              <div key={item.href || item.name}>{renderNavItem(item)}</div>
+              <div key={item.href || item.name} className="text-sm">
+                {renderNavItem(item)}
+              </div>
             ))}
           </nav>
 
