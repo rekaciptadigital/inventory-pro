@@ -106,12 +106,25 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                         <FormItem>
                           <FormLabel>Pre-tax Price</FormLabel>
                           <FormControl>
-                            <Input
-                              type="text"
-                              value={formatCurrency(prices.basePrice)}
-                              className="bg-muted"
-                              disabled
-                            />
+                            {isManual ? (
+                              <Input
+                                type="number"
+                                value={form.watch(`customerPrices.${categoryKey}.basePrice`) || 0}
+                                onChange={(e) => {
+                                  form.setValue(
+                                    `customerPrices.${categoryKey}.basePrice`,
+                                    parseFloat(e.target.value) || 0
+                                  );
+                                }}
+                              />
+                            ) : (
+                              <Input
+                                type="text"
+                                value={formatCurrency(prices.basePrice)}
+                                className="bg-muted"
+                                disabled
+                              />
+                            )}
                           </FormControl>
                           <p className="text-sm text-muted-foreground">
                             {currentPercentage}% markup from HB Naik ({formatCurrency(hbNaik)})
@@ -127,12 +140,25 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                         <FormItem>
                           <FormLabel>Tax-inclusive Price</FormLabel>
                           <FormControl>
-                            <Input
-                              type="text"
-                              value={formatCurrency(prices.taxInclusivePrice)}
-                              className="bg-muted font-medium"
-                              disabled
-                            />
+                            {isManual ? (
+                              <Input
+                                type="number"
+                                value={form.watch(`customerPrices.${categoryKey}.taxInclusivePrice`) || 0}
+                                onChange={(e) => {
+                                  form.setValue(
+                                    `customerPrices.${categoryKey}.taxInclusivePrice`,
+                                    parseFloat(e.target.value) || 0
+                                  );
+                                }}
+                              />
+                            ) : (
+                              <Input
+                                type="text"
+                                value={formatCurrency(prices.taxInclusivePrice)}
+                                className="bg-muted font-medium"
+                                disabled
+                              />
+                            )}
                           </FormControl>
                           <p className="text-sm text-muted-foreground">
                             Including 11% tax ({formatCurrency(prices.taxAmount)})
