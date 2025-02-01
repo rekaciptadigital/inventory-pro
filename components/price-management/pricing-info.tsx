@@ -120,16 +120,9 @@ export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
 
             <div className="bg-muted/50 p-4 rounded-lg">
               <FormLabel>HB Real (Base Price)</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  value={form.watch('hbReal') || 0}
-                  onChange={(e) => {
-                    const value = parseFloat(e.target.value) || 0;
-                    form.setValue('hbReal', value);
-                  }}
-                />
-              </FormControl>
+              <div className="text-2xl font-bold mt-1">
+                {formatCurrency(form.watch("hbReal"))}
+              </div>
               <p className="text-sm text-muted-foreground mt-1">
                 Automatically calculated: USD Price × Exchange Rate
               </p>
