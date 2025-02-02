@@ -1,13 +1,47 @@
 import { useState, useCallback } from 'react';
-import { useInventoryList } from './use-inventory-list';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useInventoryMutations } from './use-inventory-mutations';
-import { getInventoryProduct } from '@/lib/api/inventory';
+import { getInventoryProduct, deleteInventoryProduct, getInventoryProducts } from '@/lib/api/inventory';
 import type { InventoryFilters } from '@/lib/api/inventory';
+import { useToast } from '@/components/ui/use-toast';
 
 export function useInventory(filters: InventoryFilters = {}) {
   const [isLoading, setIsLoading] = useState(false);
-  const { data, isLoading: isLoadingList, error } = useInventoryList(filters);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const { 
+    data, 
+    isLoading: isLoadingList, 
+    error 
+  } = useQuery({
+    queryKey: ['inventory', filters],
+    queryFn: () => getInventoryProducts(filters),
+  });
+
   const mutations = useInventoryMutations();
+
+  const deleteProduct = async (id: number) => {
+    setIsLoading(true);
+    try {
+      await deleteInventoryProduct(id);
+      // Invalidate and refetch
+      await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      toast({
+        title: "Success",
+        description: "Product has been deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete product",
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getProduct = useCallback(async (id: string) => {
     setIsLoading(true);
@@ -28,6 +62,7 @@ export function useInventory(filters: InventoryFilters = {}) {
     isLoading: isLoadingList || isLoading || mutations.isLoading,
     error,
     getProduct,
+    deleteProduct,
     ...mutations,
   };
 }

@@ -19,7 +19,7 @@ export default function InventoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const { currentPage, pageSize, handlePageChange, handlePageSizeChange } = usePagination();
   
-  const { products, pagination, isLoading } = useInventory({
+  const { products, pagination, isLoading, deleteProduct } = useInventory({
     search: searchTerm,
     page: currentPage,
     limit: pageSize,
@@ -66,6 +66,7 @@ export default function InventoryPage() {
       <ProductList 
         products={products}
         isLoading={isLoading}
+        onDelete={deleteProduct}
       />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -114,3 +114,15 @@ export async function createInventoryProduct(
     throw error;
   }
 }
+
+export async function deleteInventoryProduct(id: number): Promise<void> {
+  try {
+    const response = await axiosInstance.delete(`/inventory/${id}`);
+    if (response.status !== 200) {
+      throw new Error('Failed to delete product');
+    }
+  } catch (error: any) {
+    const message = error.response?.data?.message || 'Failed to delete product';
+    throw new Error(message);
+  }
+}
