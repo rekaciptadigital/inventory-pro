@@ -19,33 +19,32 @@ import { usePriceCalculations } from '@/lib/hooks/use-price-calculations';
 
 interface PricingInfoProps {
   readonly form: UseFormReturn<PriceFormFields>;
-  readonly product?: any; // Add product prop
+  readonly product?: any;
 }
 
 export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
   const { toast } = useToast();
   const { updateProductPrices } = useProductPrices();
-
   const { updateHBNaik, updateHBReal } = usePriceCalculations(form);
 
   // Calculate HB Real when USD Price or Exchange Rate changes
   useEffect(() => {
-    const unsubscribe = form.watch((value: any, { name }: { name: string }) => { // Added type for 'value'
+    const subscription = form.watch((value, { name }) => {
       if (name === "usdPrice" || name === "exchangeRate") {
         updateHBReal();
       }
     });
-    return unsubscribe; // Updated cleanup function
+    return () => subscription.unsubscribe();
   }, [form, updateHBReal]);
 
   // Calculate HB Naik when HB Real or Adjustment Percentage changes
   useEffect(() => {
-    const unsubscribe = form.watch((value: any, { name }: { name: string }) => { // Added type for 'value'
+    const subscription = form.watch((value, { name }) => {
       if (name === "hbReal" || name === "adjustmentPercentage") {
         updateHBNaik();
       }
     });
-    return unsubscribe; // Updated cleanup function
+    return () => subscription.unsubscribe();
   }, [form, updateHBNaik]);
 
   const onSubmit = async (values: any) => {
