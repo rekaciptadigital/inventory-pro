@@ -9,12 +9,11 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { usePriceCategories } from "@/lib/hooks/use-price-categories";
-import { useTaxes } from "@/lib/hooks/use-taxes";
 import { formatCurrency } from "@/lib/utils/format";
 
 interface CustomerPricesProps {
@@ -23,7 +22,6 @@ interface CustomerPricesProps {
 
 export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
   const { categories } = usePriceCategories();
-  const { taxes } = useTaxes();
   const [manualModes, setManualModes] = useState<Record<string, boolean>>({});
   
   // Get form values with proper defaults
@@ -54,20 +52,12 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     });
   }, [hbNaik, categories, form]);
 
-  const activeTaxes = taxes.filter((tax) => tax.status === "active");
-
   return (
     <Form {...form}>
       <form className="space-y-6">
-        <div className="rounded-lg border p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium">Customer Category Prices</h3>
-            <div className="text-sm text-muted-foreground">
-              Base Price (HB Naik): {formatCurrency(hbNaik)}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+        <div className="rounded-lg border p-4 space-y-4">
+          <h3 className="text-lg font-medium">Customer Category Prices</h3>
+          <div className="flex flex-col gap-4">
             {categories.map((category) => {
               const categoryKey = category.name.toLowerCase();
               const isManual = manualModes[categoryKey] || false;
@@ -80,105 +70,83 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                   className="space-y-4 p-4 rounded-lg border"
                 >
                   <div className="flex items-center justify-between">
+                    <FormLabel>{category.name} Price Settings</FormLabel>
                     <div className="flex items-center gap-2">
-                      <FormLabel>{category.name} Price Settings</FormLabel>
+                      <span className="text-sm text-muted-foreground">Custom Tax-inclusive Price</span>
+                      <Switch
+                        checked={isManual}
+                        onCheckedChange={(checked) => {
+                          setManualModes(prev => ({
+                            ...prev,
+                            [categoryKey]: checked
+                          }));
+                        }}
+                      />
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Manual Edit</span>
-                    <Switch
-                      checked={isManual}
-                      onCheckedChange={(checked) => {
-                        setManualModes(prev => ({
-                          ...prev,
-                          [categoryKey]: checked
-                        }));
-                      }}
-                    />
-                  </div>
-
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name={`customerPrices.${categoryKey}.basePrice`}
-                      render={() => (
-                        <FormItem>
-                          <FormLabel>Pre-tax Price</FormLabel>
-                          <FormControl>
-                            {isManual ? (
-                              <Input
-                                type="number"
-                                value={form.watch(`customerPrices.${categoryKey}.basePrice`) || 0}
-                                onChange={(e) => {
-                                  form.setValue(
-                                    `customerPrices.${categoryKey}.basePrice`,
-                                    parseFloat(e.target.value) || 0
-                                  );
-                                }}
-                              />
-                            ) : (
+                  {/* Changed container to display Pre-tax Price and Tax-inclusive Price side by side */}
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <FormField
+                        control={form.control}
+                        name={`customerPrices.${categoryKey}.basePrice`}
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>Pre-tax Price</FormLabel>
+                            <FormControl>
                               <Input
                                 type="text"
                                 value={formatCurrency(prices.basePrice)}
                                 className="bg-muted"
                                 disabled
                               />
-                            )}
-                          </FormControl>
-                          <p className="text-sm text-muted-foreground">
-                            {currentPercentage}% markup from HB Naik ({formatCurrency(hbNaik)})
-                          </p>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`customerPrices.${categoryKey}.taxInclusivePrice`}
-                      render={() => (
-                        <FormItem>
-                          <FormLabel>Tax-inclusive Price</FormLabel>
-                          <FormControl>
-                            {isManual ? (
-                              <Input
-                                type="number"
-                                value={form.watch(`customerPrices.${categoryKey}.taxInclusivePrice`) || 0}
-                                onChange={(e) => {
-                                  form.setValue(
-                                    `customerPrices.${categoryKey}.taxInclusivePrice`,
-                                    parseFloat(e.target.value) || 0
-                                  );
-                                }}
-                              />
-                            ) : (
-                              <Input
-                                type="text"
-                                value={formatCurrency(prices.taxInclusivePrice)}
-                                className="bg-muted font-medium"
-                                disabled
-                              />
-                            )}
-                          </FormControl>
-                          <p className="text-sm text-muted-foreground">
-                            Including 11% tax ({formatCurrency(prices.taxAmount)})
-                          </p>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {activeTaxes.length > 0 && (
-                    <div className="mt-2 text-sm text-muted-foreground">
-                      <Separator className="my-2" />
-                      <p>Applied Taxes:</p>
-                      {activeTaxes.map((tax) => (
-                        <p key={tax.id}>
-                          • {tax.name}: {tax.percentage}%
-                        </p>
-                      ))}
+                            </FormControl>
+                            <p className="text-sm text-muted-foreground">
+                              {currentPercentage}% markup from HB Naik ({formatCurrency(hbNaik)})
+                            </p>
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                  )}
+                    <div className="flex-1">
+                      <FormField
+                        control={form.control}
+                        name={`customerPrices.${categoryKey}.taxInclusivePrice`}
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>Tax-inclusive Price</FormLabel>
+                            <FormControl>
+                              {isManual ? (
+                                <Input
+                                  type="number"
+                                  value={form.watch(`customerPrices.${categoryKey}.taxInclusivePrice`) || 0}
+                                  onChange={(e) => {
+                                    form.setValue(
+                                      `customerPrices.${categoryKey}.taxInclusivePrice`,
+                                      parseFloat(e.target.value) || 0
+                                    );
+                                  }}
+                                />
+                              ) : (
+                                <Input
+                                  type="text"
+                                  value={formatCurrency(prices.taxInclusivePrice)}
+                                  className="bg-muted font-medium"
+                                  disabled
+                                />
+                              )}
+                            </FormControl>
+                            <FormMessage />
+                            <p className="text-sm text-muted-foreground">
+                              Including 11% tax ({formatCurrency(prices.taxAmount)})
+                            </p>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                  {/* Removed the Applied Taxes section */}
                 </div>
               );
             })}
