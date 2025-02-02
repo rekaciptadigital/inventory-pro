@@ -65,7 +65,7 @@ export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
                         min="0"
                         step="0.01"
                         placeholder="Enter USD price"
-                        {...field}
+                        value={field.value || 0}
                         onChange={(e) =>
                           field.onChange(parseFloat(e.target.value) || 0)
                         }
@@ -88,7 +88,7 @@ export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
                         type="number"
                         min="0"
                         placeholder="Enter exchange rate"
-                        {...field}
+                        value={field.value || 0}
                         onChange={(e) =>
                           field.onChange(parseFloat(e.target.value) || 0)
                         }
@@ -113,7 +113,7 @@ export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
                         max="100"
                         step="0.1"
                         placeholder="Enter adjustment percentage"
-                        {...field}
+                        value={field.value || 0}
                         onChange={(e) =>
                           field.onChange(parseFloat(e.target.value) || 0)
                         }

@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { PriceFormFields } from '@/types/form';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/utils/format';
-import type { InventoryProduct } from '@/types/inventory';
+import type { InventoryProduct, InventoryProductVariant } from '@/types/inventory';
 
 interface VariantPricesProps {
   readonly form: UseFormReturn<PriceFormFields>;
@@ -16,7 +16,50 @@ interface VariantPricesProps {
 
 export function VariantPrices({ form, product, defaultPriceCategory }: Readonly<VariantPricesProps>) {
   const [manualPriceEditing, setManualPriceEditing] = useState(false);
-  const defaultPrice = form.watch(`customerPrices.${defaultPriceCategory}.taxInclusivePrice`) || 0;
+  
+  // Memoize key values
+  const variants = useMemo(() => product?.product_by_variant || [], [product]);
+  const defaultPrice = useMemo(() => 
+    form.watch(`customerPrices.${defaultPriceCategory}.taxInclusivePrice`) || 0,
+    [form, defaultPriceCategory]
+  );
+
+  // Initialize prices once when component mounts or variants change
+  useEffect(() => {
+    if (!variants.length) return;
+
+    const currentPrices = form.getValues('variantPrices') || {};
+    if (Object.keys(currentPrices).length === 0) {
+      const initialPrices = variants.reduce((acc, variant) => {
+        acc[variant.sku_product_variant] = {
+          price: defaultPrice,
+          status: true
+        };
+        return acc;
+      }, {} as Record<string, { price: number; status: boolean }>);
+
+      form.setValue('variantPrices', initialPrices, { shouldDirty: true });
+    }
+  }, [variants.length]); // Only run on mount or when variants change
+
+  // Update prices when default price changes (if not manual mode)
+  useEffect(() => {
+    if (manualPriceEditing || !variants.length) return;
+
+    const currentPrices = form.getValues('variantPrices') || {};
+    const updatedPrices = {
+      ...currentPrices,
+      ...variants.reduce((acc, variant) => {
+        acc[variant.sku_product_variant] = {
+          ...currentPrices[variant.sku_product_variant],
+          price: defaultPrice,
+        };
+        return acc;
+      }, {} as Record<string, { price: number; status: boolean }>)
+    };
+
+    form.setValue('variantPrices', updatedPrices, { shouldDirty: true });
+  }, [defaultPrice, manualPriceEditing]);
 
   const handlePriceChange = useCallback((sku: string, value: string) => {
     const numericValue = parseFloat(value) || 0;
@@ -27,28 +70,15 @@ export function VariantPrices({ form, product, defaultPriceCategory }: Readonly<
     form.setValue(`variantPrices.${sku}.status`, checked, { shouldDirty: true });
   }, [form]);
 
-  // Initialize or update variant prices once
-  useEffect(() => {
-    if (!product?.product_by_variant?.length || !manualPriceEditing) {
-      const variants = product?.product_by_variant || [];
-      const updatedPrices = variants.reduce((acc, variant) => {
-        acc[variant.sku_product_variant] = {
-          price: defaultPrice,
-          status: form.getValues(`variantPrices.${variant.sku_product_variant}.status`) ?? true
-        };
-        return acc;
-      }, {} as Record<string, { price: number; status: boolean }>);
+  // Ensure value is always a number for Input
+  const getVariantPrice = useCallback((variant: InventoryProductVariant) => {
+    const price = form.watch(`variantPrices.${variant.sku_product_variant}.price`);
+    return typeof price === 'number' ? price : defaultPrice;
+  }, [form, defaultPrice]);
 
-      form.setValue('variantPrices', updatedPrices, { shouldDirty: true });
-    }
-  }, [product?.product_by_variant, defaultPrice, manualPriceEditing, form]);
-
-  // Early return if no product or variants
-  if (!product?.product_by_variant?.length) {
+  if (!variants.length) {
     return null;
   }
-
-  const variants = product.product_by_variant;
 
   return (
     <div className="rounded-lg border p-4 space-y-4">
@@ -103,7 +133,7 @@ export function VariantPrices({ form, product, defaultPriceCategory }: Readonly<
                   <Input
                     type="number"
                     min="0"
-                    value={variantPrice.price}
+                    value={getVariantPrice(variant)}
                     onChange={(e) => handlePriceChange(variant.sku_product_variant, e.target.value)}
                     disabled={!manualPriceEditing}
                     className="w-[150px] text-right"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -15,20 +15,15 @@ export function EditPriceForm() {
   const { id } = useParams();
   const router = useRouter();
   const { getProductById } = useProducts();
-  const product = id ? getProductById(id as string) : undefined;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Get product once and memoize it
+  const product = useMemo(() => 
+    id ? getProductById(id as string) : undefined,
+    [id, getProductById]
+  );
 
-  // Single debug effect
-  useEffect(() => {
-    if (product) {
-      console.log('Product data:', {
-        product,
-        variants: product.product_by_variant,
-        altVariants: product.variants
-      });
-    }
-  }, [product]);
-
+  // Initialize form with product values
   const form = useForm<PriceFormFields>({
     defaultValues: {
       usdPrice: product?.usdPrice ?? 0,
@@ -41,24 +36,6 @@ export function EditPriceForm() {
       variantPrices: {},
     },
   });
-
-  // Update form values when product changes
-  useEffect(() => {
-    if (product) {
-      form.reset({
-        usdPrice: product.usdPrice ?? 0,
-        exchangeRate: product.exchangeRate ?? 0,
-        hbReal: product.hbReal ?? 0,
-        adjustmentPercentage: product.adjustmentPercentage ?? 0,
-        hbNaik: product.hbNaik ?? 0,
-        customerPrices: product.customerPrices || {},
-        percentages: product.percentages || {},
-        variantPrices: form.getValues('variantPrices') || {}, // Preserve variant prices
-      }, {
-        keepDirtyValues: true,
-      });
-    }
-  }, [product?.id]); // Only run when product ID changes
 
   const handleSubmit = async (values: PriceFormFields) => {
     setIsSubmitting(true);

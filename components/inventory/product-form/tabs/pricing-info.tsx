@@ -4,13 +4,13 @@ import React from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { UseFormReturn } from 'react-hook-form';
-import { ProductFormValues } from '../form-schema';
+import type { PriceFormFields } from '@/types/form';
 
 interface PricingInfoProps {
-  form: UseFormReturn<ProductFormValues>;
+  readonly form: UseFormReturn<PriceFormFields>;
 }
 
-export function PricingInfo({ form }: PricingInfoProps) {
+export function PricingInfo({ form }: Readonly<PricingInfoProps>) {
   const handleNumericChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     field: {

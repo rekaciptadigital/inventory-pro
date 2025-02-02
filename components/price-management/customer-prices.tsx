@@ -33,12 +33,14 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     const categoryKey = category.name.toLowerCase();
     const markup = percentages[categoryKey] ?? category.percentage;
     const basePrice = hbNaik * (1 + (markup / 100));
-    const taxAmount = basePrice * 0.11;
+    const taxPercentage = 11; // Fixed tax rate
+    const taxAmount = basePrice * (taxPercentage / 100);
 
     return {
       basePrice: Number(basePrice.toFixed(2)),
       taxAmount: Number(taxAmount.toFixed(2)),
-      taxInclusivePrice: Number((basePrice + taxAmount).toFixed(2))
+      taxInclusivePrice: Number((basePrice + taxAmount).toFixed(2)),
+      appliedTaxPercentage: taxPercentage
     };
   };
 
