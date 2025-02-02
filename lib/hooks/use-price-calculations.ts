@@ -1,5 +1,5 @@
-import { UseFormReturn } from 'react-hook-form';
-import { ProductFormValues } from '@/components/inventory/product-form/form-schema';
+import { UseFormReturn } from "react-hook-form";
+import type { PriceFormFields } from "@/types/form";
 
 interface Category {
   id: number;
@@ -7,27 +7,25 @@ interface Category {
   percentage: number;
 }
 
-export function usePriceCalculations(form: UseFormReturn<ProductFormValues>) {
+export function usePriceCalculations(form: UseFormReturn<PriceFormFields>) {
   const updateHBReal = () => {
-    const values = form.getValues();
-    const hbReal = (values.usdPrice || 0) * (values.exchangeRate || 0);
-    form.setValue('hbReal', hbReal);
-    return hbReal;
+    const usdPrice = form.getValues("usdPrice");
+    const exchangeRate = form.getValues("exchangeRate");
+    const hbReal = usdPrice * exchangeRate;
+    form.setValue("hbReal", hbReal);
   };
 
   const updateHBNaik = () => {
-    const values = form.getValues();
-    const hbReal = values.hbReal || 0;
-    const adjustmentPercentage = values.adjustmentPercentage || 0;
-    const hbNaik = hbReal * (1 + (adjustmentPercentage / 100));
-    form.setValue('hbNaik', hbNaik);
-    return hbNaik;
+    const hbReal = form.getValues("hbReal");
+    const adjustmentPercentage = form.getValues("adjustmentPercentage");
+    const hbNaik = hbReal * (1 + adjustmentPercentage / 100);
+    form.setValue("hbNaik", hbNaik);
   };
 
   const updateCustomerPrices = (hbNaik: number, categories: Category[]) => {
     if (!categories?.length) return;
 
-    const customerPrices: PriceFormValues['customerPrices'] = {};
+    const customerPrices: PriceFormFields['customerPrices'] = {};
     
     categories.forEach(category => {
       const categoryKey = category.name.toLowerCase();
@@ -38,7 +36,8 @@ export function usePriceCalculations(form: UseFormReturn<ProductFormValues>) {
       customerPrices[categoryKey] = {
         basePrice: Number(basePrice.toFixed(2)),
         taxAmount: Number(taxAmount.toFixed(2)),
-        taxInclusivePrice: Number((basePrice + taxAmount).toFixed(2))
+        taxInclusivePrice: Number((basePrice + taxAmount).toFixed(2)),
+        appliedTaxPercentage: 11 // Add missing property
       };
     });
 

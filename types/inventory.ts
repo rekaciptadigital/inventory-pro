@@ -20,6 +20,19 @@ export interface InventoryProduct {
   categories: InventoryCategory[];
   variants: InventoryVariant[];
   product_by_variant: InventoryProductVariant[];
+  // Additional pricing fields
+  usdPrice?: number;
+  exchangeRate?: number;
+  hbReal?: number;
+  adjustmentPercentage?: number;
+  hbNaik?: number;
+  customerPrices?: Record<string, {
+    basePrice: number;
+    taxAmount: number;
+    taxInclusivePrice: number;
+    appliedTaxPercentage: number;
+  }>;
+  percentages?: Record<string, number>;
 }
 
 export interface InventoryCategory {

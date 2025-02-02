@@ -12,8 +12,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
-import { useProductPrices } from "@/lib/hooks/use-product-prices";
 import { formatCurrency } from "@/lib/utils/format";
 import { usePriceCalculations } from '@/lib/hooks/use-price-calculations';
 
@@ -23,8 +21,7 @@ interface PricingInfoProps {
 }
 
 export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
-  const { toast } = useToast();
-  const { updateProductPrices } = useProductPrices();
+
   const { updateHBNaik, updateHBReal } = usePriceCalculations(form);
 
   // Calculate HB Real when USD Price or Exchange Rate changes

@@ -8,8 +8,6 @@ import { Form } from "@/components/ui/form";
 import { PricingInfo } from "@/components/price-management/pricing-info";
 import { CustomerPrices } from "@/components/price-management/customer-prices";
 import { VariantPrices } from '@/components/price-management/variant-prices';
-import { useToast } from '@/components/ui/use-toast';
-import { usePriceCalculations } from '@/lib/hooks/use-price-calculations';
 import { useProducts } from "@/lib/hooks/use-products";
 import type { PriceFormFields } from '@/types/form';
 
@@ -20,33 +18,47 @@ export function EditPriceForm() {
   const product = id ? getProductById(id as string) : undefined;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Single debug effect
+  useEffect(() => {
+    if (product) {
+      console.log('Product data:', {
+        product,
+        variants: product.product_by_variant,
+        altVariants: product.variants
+      });
+    }
+  }, [product]);
+
   const form = useForm<PriceFormFields>({
     defaultValues: {
-      usdPrice: 0,
-      exchangeRate: 0,
-      hbReal: 0,
-      adjustmentPercentage: 0,
-      hbNaik: 0,
-      customerPrices: {},
-      percentages: {},
+      usdPrice: product?.usdPrice ?? 0,
+      exchangeRate: product?.exchangeRate ?? 0,
+      hbReal: product?.hbReal ?? 0,
+      adjustmentPercentage: product?.adjustmentPercentage ?? 0,
+      hbNaik: product?.hbNaik ?? 0,
+      customerPrices: product?.customerPrices || {},
+      percentages: product?.percentages || {},
       variantPrices: {},
     },
   });
 
+  // Update form values when product changes
   useEffect(() => {
     if (product) {
       form.reset({
-        usdPrice: product.usdPrice || 0,
-        exchangeRate: product.exchangeRate || 0,
-        hbReal: product.hbReal || 0,
-        adjustmentPercentage: product.adjustmentPercentage || 0,
-        hbNaik: product.hbNaik || 0,
+        usdPrice: product.usdPrice ?? 0,
+        exchangeRate: product.exchangeRate ?? 0,
+        hbReal: product.hbReal ?? 0,
+        adjustmentPercentage: product.adjustmentPercentage ?? 0,
+        hbNaik: product.hbNaik ?? 0,
         customerPrices: product.customerPrices || {},
         percentages: product.percentages || {},
-        variantPrices: {},
+        variantPrices: form.getValues('variantPrices') || {}, // Preserve variant prices
+      }, {
+        keepDirtyValues: true,
       });
     }
-  }, [product, form.reset]);
+  }, [product?.id]); // Only run when product ID changes
 
   const handleSubmit = async (values: PriceFormFields) => {
     setIsSubmitting(true);
@@ -68,7 +80,7 @@ export function EditPriceForm() {
         <div>
           <h1 className="text-3xl font-bold">Edit Product Price</h1>
           <p className="text-muted-foreground">
-            Update pricing information for {product?.productName || 'Loading...'}
+            Update pricing information for {product?.product_name ?? 'Loading...'}
           </p>
         </div>
         <Button variant="outline" onClick={() => router.push('/dashboard/price-management')}>
@@ -81,8 +93,8 @@ export function EditPriceForm() {
           <PricingInfo form={form} product={product} />
           <CustomerPrices form={form} />
 
-          {/* Product Variant Prices */}
-          {product && product.product_by_variant?.length > 0 && (
+          {/* Product Variant Prices - always show */}
+          {product && (
             <VariantPrices 
               form={form}
               product={product}
