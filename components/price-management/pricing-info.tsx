@@ -47,133 +47,115 @@ export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
     return () => subscription.unsubscribe();
   }, [form, updateHBNaik]);
 
-  const onSubmit = async (values: any) => {
-    try {
-      await updateProductPrices(product.id, values);
-      toast({
-        title: "Success",
-        description: "Product prices have been updated successfully",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update product prices",
-      });
-    }
-  };
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="rounded-lg border p-4">
-          <h3 className="text-lg font-medium mb-4">Pricing Information</h3>
+      <div className="rounded-lg border p-4">
+        <h3 className="text-lg font-medium mb-4">Pricing Information</h3>
 
-          <div className="flex flex-col space-y-4">
-            {/* First row: USD Price, Exchange Rate (KURS) and Adjustment Percentage */}
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <FormField
-                  control={form.control}
-                  name="usdPrice"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>USD Price</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Enter USD price"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="flex-1">
-                <FormField
-                  control={form.control}
-                  name="exchangeRate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Exchange Rate (KURS)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          placeholder="Enter exchange rate"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="flex-1">
-                <FormField
-                  control={form.control}
-                  name="adjustmentPercentage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Adjustment Percentage (%)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.1"
-                          placeholder="Enter adjustment percentage"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+        <div className="flex flex-col space-y-4">
+          {/* First row: USD Price, Exchange Rate (KURS) and Adjustment Percentage */}
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <FormField
+                control={form.control}
+                name="usdPrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>USD Price</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Enter USD price"
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(parseFloat(e.target.value) || 0)
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
+            <div className="flex-1">
+              <FormField
+                control={form.control}
+                name="exchangeRate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Exchange Rate (KURS)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Enter exchange rate"
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(parseFloat(e.target.value) || 0)
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="flex-1">
+              <FormField
+                control={form.control}
+                name="adjustmentPercentage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Adjustment Percentage (%)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        placeholder="Enter adjustment percentage"
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(parseFloat(e.target.value) || 0)
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
 
-            {/* Second row: HB Real (Base Price) and HB Naik (Adjusted Price) */}
-            <div className="flex gap-4">
-              <div className="flex-1 bg-muted/50 p-4 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <FormLabel>HB Real (Base Price)</FormLabel>
-                  <div className="text-lg font-medium">
-                    {formatCurrency(form.watch("hbReal"))}
-                  </div>
+          {/* Second row: HB Real (Base Price) and HB Naik (Adjusted Price) */}
+          <div className="flex gap-4">
+            <div className="flex-1 bg-muted/50 p-4 rounded-lg">
+              <div className="flex items-center gap-2">
+                <FormLabel>HB Real (Base Price)</FormLabel>
+                <div className="text-lg font-medium">
+                  {formatCurrency(form.watch("hbReal"))}
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Automatically calculated: USD Price × Exchange Rate
-                </p>
               </div>
-              <div className="flex-1 bg-muted/50 p-4 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <FormLabel>HB Naik (Adjusted Price)</FormLabel>
-                  <div className="text-lg font-medium">
-                    {formatCurrency(form.watch("hbNaik"))}
-                  </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Automatically calculated: USD Price × Exchange Rate
+              </p>
+            </div>
+            <div className="flex-1 bg-muted/50 p-4 rounded-lg">
+              <div className="flex items-center gap-2">
+                <FormLabel>HB Naik (Adjusted Price)</FormLabel>
+                <div className="text-lg font-medium">
+                  {formatCurrency(form.watch("hbNaik"))}
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Automatically calculated: HB Real × (1 + Adjustment/100)
-                </p>
               </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Automatically calculated: HB Real × (1 + Adjustment/100)
+              </p>
             </div>
           </div>
         </div>
-      </form>
+      </div>
     </Form>
   );
 }
