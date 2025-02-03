@@ -29,50 +29,12 @@ interface CategorySelectorState {
 export function BrandSelector() {
   const {
     control,
-    getValues,
     formState: { errors },
     setValue,
   } = useFormContext<ProductFormValues>();
   const { getBrands } = useBrands();
   const dispatch = useDispatch();
   const [selectedBrand, setSelectedBrand] = useState<SelectOption | null>(null);
-  const initialBrandId = getValues('brand');
-
-  // Load initial brand data
-  useEffect(() => {
-    const loadInitialBrand = async () => {
-      if (initialBrandId) {
-        console.log('Loading initial brand:', initialBrandId);
-        try {
-          const response = await getBrands({
-            search: '',
-            page: 1,
-            limit: 100 // Increased limit to ensure we find the brand
-          });
-          const brand = response.data.find(b => b.id.toString() === initialBrandId);
-          if (brand) {
-            console.log('Found initial brand:', brand);
-            setSelectedBrand({
-              value: brand.id.toString(),
-              label: brand.name,
-              subLabel: brand.code,
-              data: brand
-            });
-            dispatch(setBrand({
-              id: brand.id,
-              code: brand.code,
-              name: brand.name,
-            }));
-          } else {
-            console.warn('Initial brand not found:', initialBrandId);
-          }
-        } catch (error) {
-          console.error('Error loading initial brand:', error);
-        }
-      }
-    };
-    loadInitialBrand();
-  }, [initialBrandId, getBrands, dispatch]);
 
   const loadBrandOptions = async (
     search: string,
@@ -156,49 +118,12 @@ export function BrandSelector() {
 export function ProductTypeSelector() {
   const {
     control,
-    getValues,
     formState: { errors },
     setValue,
   } = useFormContext<ProductFormValues>();
   const dispatch = useDispatch();
   const [selectedProductType, setSelectedProductType] =
     useState<SelectOption | null>(null);
-  const initialProductTypeId = getValues('productTypeId');
-
-  // Load initial product type data
-  useEffect(() => {
-    const loadInitialProductType = async () => {
-      if (initialProductTypeId) {
-        try {
-          const response = await getProductTypes({
-            search: '',
-            page: 1,
-            limit: 100 // Increased limit to ensure we find the product type
-          });
-          const productType = response.data.find(pt => pt.id.toString() === initialProductTypeId);
-          if (productType) {
-            console.log('Found initial product type:', productType);
-            setSelectedProductType({
-              value: productType.id.toString(),
-              label: productType.name,
-              subLabel: productType.code,
-              data: productType
-            });
-            dispatch(setProductType({
-              id: productType.id,
-              code: productType.code,
-              name: productType.name,
-            }));
-          } else {
-            console.warn('Initial product type not found:', initialProductTypeId);
-          }
-        } catch (error) {
-          console.error('Error loading initial product type:', error);
-        }
-      }
-    };
-    loadInitialProductType();
-  }, [initialProductTypeId, dispatch]);
 
   const loadProductTypeOptions = async (
     search: string,
@@ -297,96 +222,46 @@ export function CategorySelector() {
   const [selectorStates, setSelectorStates] = useState<CategorySelectorState[]>(
     [{ level: 0, parentId: null, selectedCategories: [] }]
   );
+  const [pendingSelection, setPendingSelection] = useState<{
+    selected: SelectOption | null;
+    level: number;
+  } | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<
     ProductCategory[]
   >([]);
-  const [currentCategoryId, setCurrentCategoryId] = useState<string | null>(null);
 
-  // Helper function to validate and process category data
-  const processCategoryData = useCallback((category: any): SelectOption => {
-    if (!category) return null;
-    
-    const processedData = {
-      id: category.id?.toString() || '',
-      name: category.name || '',
-      code: category.code || '',
-      parent_id: category.parent_id,
-      children: category.children || []
-    };
-
-    const hasChildren = Array.isArray(category.children) && category.children.length > 0;
-    const processedChildren = hasChildren 
-      ? category.children.map((child: any) => ({
-          id: child.id?.toString() || '',
-          name: child.name || '',
-          code: child.code || '',
-          parent_id: child.parent_id,
-          children: child.children || []
-        }))
-      : [];
-
-    return {
-      value: processedData.id,
-      label: processedData.name,
-      subLabel: processedData.code,
-      data: {
-        ...processedData,
-        hasChildren,
-        children: processedChildren,
-      },
-    };
-  }, []);
-
-  // Optimize the loadCategoryOptions function
   const loadCategoryOptions = useCallback(
     async (
       search: string,
       loadedOptions: SelectOption[],
-      { page, parentId = null }: { page: number; parentId?: number | null }
+      { page }: { page: number }
     ) => {
       try {
+        // Only fetch from API for root level categories
         const response = await getCategories({
           search,
           page,
-          limit: 100,
+          limit: 10,
           sort: "created_at",
           order: "DESC",
-          include_children: true,
         });
 
-        // Immediately process all categories and their children
-        const processWithChildren = (category: any): SelectOption => {
-          const hasChildren = Array.isArray(category.children) && category.children.length > 0;
-          const children = hasChildren ? category.children.map(processWithChildren) : [];
-          
-          return {
-            value: category.id?.toString() || '',
-            label: category.name || '',
-            subLabel: category.code || '',
-            data: {
-              id: category.id,
-              name: category.name,
-              code: category.code,
-              parent_id: category.parent_id,
-              hasChildren,
-              children,
-              processedChildren: children,
-            },
-          };
-        };
-
-        const categories = response.data
-          .filter((cat) => cat.parent_id === parentId)
-          .map(processWithChildren)
-          .filter(Boolean);
+        // Filter based on parent_id for root level
+        const rootCategories = response.data.filter(
+          (cat) => cat.parent_id === null
+        );
 
         return {
-          options: categories,
+          options: rootCategories.map((category) => ({
+            value: category.id.toString(),
+            label: category.name,
+            subLabel: category.code,
+            data: category, // Include full category data with children
+          })),
           hasMore: response.pagination.hasNext,
           additional: {
             page: page + 1,
             hasMore: response.pagination.hasNext,
-            parentId,
           },
         };
       } catch (error) {
@@ -394,151 +269,114 @@ export function CategorySelector() {
         return {
           options: [],
           hasMore: false,
-          additional: { page: 1, hasMore: false, parentId },
+          additional: { page: 1, hasMore: false },
         };
       }
     },
     []
   );
 
-  // Add state for initial category
-  const initialCategoryId = useFormContext<ProductFormValues>().getValues('categoryId');
-
-  // Load initial category data
+  // Effect to handle state updates
   useEffect(() => {
-    const loadInitialCategory = async () => {
-      if (initialCategoryId) {
-        try {
-          const response = await getCategories({
-            search: '',
-            page: 1,
-            limit: 100 // Increased limit to ensure we find the category
-          });
+    if (pendingSelection === null) return;
 
-          const findCategoryPath = (categories: any[], targetId: string): any[] => {
-            for (const category of categories) {
-              if (category.id.toString() === targetId) {
-                return [category];
-              }
-              if (category.children) {
-                const path = findCategoryPath(category.children, targetId);
-                if (path.length) {
-                  return [category, ...path];
-                }
-              }
-            }
-            return [];
-          };
+    const { selected, level } = pendingSelection;
 
-          const categoryPath = findCategoryPath(response.data, initialCategoryId);
-
-          if (categoryPath.length) {
-            const newStates = categoryPath.map((category, index) => ({
-              level: index,
-              parentId: index === 0 ? null : categoryPath[index - 1].id,
-              selectedCategories: [{
-                value: category.id.toString(),
-                label: category.name,
-                subLabel: category.code,
-                data: category
-              }]
-            }));
-
-            setSelectorStates(newStates);
-
-            const selectedCats = categoryPath.map((category, index) => ({
-              product_category_id: category.id,
-              product_category_parent: index === 0 ? null : categoryPath[index - 1].id,
-              product_category_name: category.name,
-              category_hierarchy: index + 1,
-            }));
-
-            setSelectedCategories(selectedCats);
-            dispatch(updateProductCategories(selectedCats));
-            setValue("categoryId", categoryPath[categoryPath.length - 1].id.toString());
-          }
-        } catch (error) {
-          console.error('Error loading initial category:', error);
-        }
-      }
-    };
-    loadInitialCategory();
-  }, [initialCategoryId, dispatch, setValue]);
-
-  // Effect to handle form value updates
-  useEffect(() => {
-    if (currentCategoryId !== null) {
-      setValue("categoryId", currentCategoryId);
-    }
-  }, [currentCategoryId, setValue]);
-
-  // Optimize handleChange: hanya update selectorStates dan form value
-  const handleChange = useCallback(
-    (selected: SelectOption | null, level: number) => {
+    if (selected?.data) {
       setSelectorStates((prev) => {
         const newStates = prev.slice(0, level + 1);
-        if (selected) {
-          newStates[level] = {
-            ...newStates[level],
-            selectedCategories: [selected],
-          };
-          if (selected.data.hasChildren && selected.data.children?.length > 0) {
-            newStates.push({
-              level: level + 1,
-              parentId: parseInt(selected.value),
-              selectedCategories: [],
-              availableOptions: selected.data.children,
-            });
-          }
-        } else {
-          newStates[level].selectedCategories = [];
+        newStates[level] = {
+          ...newStates[level],
+          selectedCategories: [selected],
+        };
+
+        if (selected.data.children?.length > 0) {
+          newStates.push({
+            level: level + 1,
+            parentId: parseInt(selected.value),
+            selectedCategories: [],
+            availableOptions: selected.data.children.map((child) => ({
+              value: child.id.toString(),
+              label: child.name,
+              subLabel: child.code,
+              data: child,
+            })),
+          });
         }
+
+        // Prepare new selected categories
+        const newSelectedCategories = newStates
+          .filter((state) => state.selectedCategories.length > 0)
+          .map((state, idx) => ({
+            product_category_id: parseInt(state.selectedCategories[0].value),
+            product_category_parent: state.selectedCategories[0].data.parent_id,
+            product_category_name: state.selectedCategories[0].data.name,
+            category_hierarchy: idx + 1,
+          }));
+
+        setSelectedCategories(newSelectedCategories);
         return newStates;
       });
-      setValue("categoryId", selected ? selected.value : "");
-    },
-    [setValue]
-  );
 
-  // Tambahkan efek untuk menghitung dan dispatch selected categories
+      setValue("categoryId", selected.value);
+    } else {
+      setSelectorStates((prev) => {
+        const newStates = prev.slice(0, level + 1);
+
+        const newRemainingCategories = newStates
+          .slice(0, level)
+          .filter((state) => state.selectedCategories.length > 0)
+          .map((state, idx) => ({
+            product_category_id: parseInt(state.selectedCategories[0].value),
+            product_category_parent: state.selectedCategories[0].data.parent_id,
+            product_category_name: state.selectedCategories[0].data.name,
+            category_hierarchy: idx + 1,
+          }));
+
+        setSelectedCategories(newRemainingCategories);
+        return newStates;
+      });
+
+      setValue("categoryId", "");
+    }
+
+    setPendingSelection(null);
+  }, [pendingSelection, dispatch, setValue]);
+
+  // Effect to update Redux store when selectedCategories changes
   useEffect(() => {
-    const newSelectedCategories = selectorStates
-      .map((state, idx) => {
-        const sel = state.selectedCategories[0];
-        return sel
-          ? {
-              product_category_id: parseInt(sel.value),
-              product_category_parent: sel.data.parent_id,
-              product_category_name: sel.data.name,
-              category_hierarchy: idx + 1,
-            }
-          : null;
-      })
-      .filter(Boolean);
-    setSelectedCategories(newSelectedCategories);
-    dispatch(updateProductCategories(newSelectedCategories));
-  }, [selectorStates, dispatch]);
+    dispatch(updateProductCategories(selectedCategories));
+  }, [selectedCategories, dispatch]);
+
+  const handleChange = useCallback(
+    (selected: SelectOption | null, level: number) => {
+      setPendingSelection({ selected, level });
+    },
+    []
+  );
 
   return (
     <div className="space-y-4">
       {selectorStates.map((state, index) => (
         <ClientSelect
-          key={`category-${state.level}-${state.parentId}-${state.selectedCategories[0]?.value || 'empty'}`}
+          key={`category-${state.level}`}
           name={`category-${state.level}`}
           control={control}
-          loadOptions={(search, loadedOptions, additional) =>
-            loadCategoryOptions(search, loadedOptions, {
-              ...additional,
-              parentId: state.parentId,
-            })
+          loadOptions={
+            index === 0
+              ? loadCategoryOptions
+              : async () => ({
+                  options: state.availableOptions || [],
+                  hasMore: false,
+                  additional: { page: 1, hasMore: false },
+                })
           }
           onChange={(selected) => handleChange(selected, state.level)}
           value={state.selectedCategories[0] || null}
-          defaultOptions={ index === 0 ? true : (state.availableOptions || undefined) }
+          defaultOptions={index === 0 ? true : state.availableOptions || []}
           placeholder={`Select ${index === 0 ? "category" : "subcategory"}...`}
           error={index === 0 ? errors.categoryId?.message : undefined}
-          isClearable={true}
-          cacheOptions={true}
+          isClearable={false}
           classNames={{
             control: () => "h-10",
             placeholder: () => "text-sm",
@@ -561,26 +399,6 @@ export function VariantTypeSelector({
   excludeIds?: number[];
 }) {
   const { variants, isLoading } = useVariants();
-  const [initialLoad, setInitialLoad] = useState(true);
-
-  // Add initial load effect
-  useEffect(() => {
-    if (initialLoad && variants.length > 0 && value?.value) {
-      const variant = variants.find(v => v.id.toString() === value.value);
-      if (variant) {
-        onChange({
-          value: variant.id.toString(),
-          label: variant.name,
-          data: {
-            id: variant.id,
-            name: variant.name,
-            values: variant.values,
-          },
-        });
-      }
-      setInitialLoad(false);
-    }
-  }, [variants, value, onChange, initialLoad]);
 
   const loadOptions = useCallback(
     async (search: string) => {
