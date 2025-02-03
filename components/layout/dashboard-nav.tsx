@@ -22,6 +22,7 @@ import {
   FolderTree,
   Users,
   Package,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ const navigation = [
       { name: "Variants", href: "/dashboard/variants", icon: Layers },
       { name: "Product Types", href: "/dashboard/product-types", icon: ListTree },
       { name: "Product Categories", href: "/dashboard/product-categories", icon: FolderTree },
+      { name: "Locations", href: "/dashboard/locations", icon: Building2 },
     ],
   },
   {
