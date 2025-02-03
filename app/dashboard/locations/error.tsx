@@ -3,13 +3,15 @@
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
-export default function Error({
+interface LocationErrorProps {
+  readonly error: Error & { digest?: string };
+  readonly reset: () => void;
+}
+
+export default function LocationError({
   error,
   reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+}: LocationErrorProps) {
   useEffect(() => {
     console.error(error);
   }, [error]);

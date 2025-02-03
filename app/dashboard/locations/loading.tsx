@@ -1,6 +1,15 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
+  // Create static skeleton items with predefined IDs
+  const skeletonItems = [
+    'header',
+    'main',
+    'secondary',
+    'footer',
+    'extra',
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -18,9 +27,9 @@ export default function Loading() {
 
       <div className="border rounded-lg">
         <div className="p-4">
-          {Array.from({ length: 5 }).map((_, index) => (
+          {skeletonItems.map((item) => (
             <div
-              key={index}
+              key={`location-skeleton-${item}`}
               className="flex items-center space-x-4 py-4 border-b last:border-0"
             >
               <div className="space-y-2 flex-1">

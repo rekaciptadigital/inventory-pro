@@ -26,10 +26,10 @@ import { formatDate } from '@/lib/utils/format';
 import type { Location } from '@/types/location';
 
 interface LocationListProps {
-  locations: Location[];
-  onEdit: (location: Location) => void;
-  onDelete: (id: string) => Promise<void>;
-  isLoading?: boolean;
+  readonly locations: readonly Location[];
+  readonly onEdit: (location: Location) => void;
+  readonly onDelete: (id: string) => Promise<void>;
+  readonly isLoading?: boolean;
 }
 
 export function LocationList({

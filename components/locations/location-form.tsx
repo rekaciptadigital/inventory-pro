@@ -27,17 +27,31 @@ import { useToast } from '@/components/ui/use-toast';
 import { generateLocationCode } from '@/lib/utils/location-code';
 import type { Location } from '@/types/location';
 
-const formSchema = z.object({
-  code: z.string().min(1, 'Location code is required'),
-  name: z.string().min(1, 'Location name is required'),
-  type: z.enum(['warehouse', 'store', 'affiliate', 'others']),
-  description: z.string().optional(),
-});
+// Define schema type before the component
+type LocationFormSchema = z.infer<ReturnType<typeof createLocationFormSchema>>;
+
+// Create a schema factory function
+const createLocationFormSchema = (isAutoGenerateCode: boolean) => {
+  return z.object({
+    code: z.string().optional(),
+    name: z.string().min(1, 'Location name is required'),
+    type: z.enum(['warehouse', 'store', 'affiliate', 'others']),
+    description: z.string().optional(),
+  }).refine((data) => {
+    if (!data.code && !isAutoGenerateCode) {
+      return false;
+    }
+    return true;
+  }, {
+    message: "Location code is required",
+    path: ["code"]
+  });
+};
 
 interface LocationFormProps {
-  onSubmit: (data: z.infer<typeof formSchema>) => Promise<void>;
-  initialData?: Location;
-  onClose: () => void;
+  readonly onSubmit: (data: LocationFormSchema) => Promise<void>;
+  readonly initialData?: Location;
+  readonly onClose: () => void;
 }
 
 export function LocationForm({ onSubmit, initialData, onClose }: LocationFormProps) {
@@ -45,23 +59,28 @@ export function LocationForm({ onSubmit, initialData, onClose }: LocationFormPro
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAutoGenerateCode, setIsAutoGenerateCode] = useState(!initialData);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const formSchema = createLocationFormSchema(isAutoGenerateCode);
+
+  const form = useForm<LocationFormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      code: initialData?.code || '',
-      name: initialData?.name || '',
-      type: initialData?.type || 'warehouse',
-      description: initialData?.description || '',
+      code: initialData?.code ?? '',
+      name: initialData?.name ?? '',
+      type: initialData?.type ?? 'warehouse',
+      description: initialData?.description ?? '',
     },
   });
 
-  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+  const handleSubmit = async (values: LocationFormSchema) => {
     try {
       setIsSubmitting(true);
+      const submissionData = { ...values };
+      
       if (isAutoGenerateCode && !initialData) {
-        values.code = generateLocationCode(values.type);
+        submissionData.code = generateLocationCode(values.type);
       }
-      await onSubmit(values);
+      
+      await onSubmit(submissionData);
       form.reset();
     } catch (error) {
       toast({
@@ -72,6 +91,13 @@ export function LocationForm({ onSubmit, initialData, onClose }: LocationFormPro
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const getSubmitButtonLabel = () => {
+    if (isSubmitting) {
+      return initialData ? 'Updating...' : 'Creating...';
+    }
+    return initialData ? 'Update Location' : 'Create Location';
   };
 
   return (
@@ -178,13 +204,7 @@ export function LocationForm({ onSubmit, initialData, onClose }: LocationFormPro
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting
-              ? initialData
-                ? 'Updating...'
-                : 'Creating...'
-              : initialData
-              ? 'Update Location'
-              : 'Create Location'}
+            {getSubmitButtonLabel()}
           </Button>
         </div>
       </form>
