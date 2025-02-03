@@ -31,8 +31,6 @@ interface PageSize {
 }
 
 const PAGE_SIZES: Record<string, PageSize> = {
-  'a4': { name: 'A4', width: 297, height: 210, unit: 'mm' }, // Swapped width and height for landscape
-  'letter': { name: 'Letter', width: 279, height: 216, unit: 'mm' }, // Swapped width and height for landscape
   'label-small': { name: '50 x 25mm Label', width: 50, height: 25, unit: 'mm' },
   'label-medium': { name: '100 x 30mm Label', width: 100, height: 30, unit: 'mm' },
   'label-large': { name: '100 x 50mm Label', width: 100, height: 50, unit: 'mm' },
@@ -47,42 +45,83 @@ interface BarcodeModalProps {
   }>;
 }
 
-const calculateBarcodeSize = (pageSize: PageSize) => {
-  const scaleFactor = pageSize.width < 100 ? 1 : 0.5; // Scale down for larger formats
-  const maxWidth = pageSize.width * scaleFactor;
-  const maxHeight = pageSize.height * scaleFactor;
-  
-  // Keep aspect ratio similar to the paper size
-  const aspectRatio = pageSize.width / pageSize.height;
-  const width = Math.min(maxWidth, maxHeight * aspectRatio);
-  
+const REFERENCE_SIZE = {
+  width: 100,
+  height: 30,
+  fontSize: 8,
+  spacing: 2,
+  barcodeHeight: 20,
+};
+
+const calculateBarcodeLayout = (pageSize: PageSize) => {
+  // Calculate scale factors
+  const widthScale = pageSize.width / REFERENCE_SIZE.width;
+  const heightScale = pageSize.height / REFERENCE_SIZE.height;
+  const scale = Math.min(widthScale, heightScale);
+
+  // Calculate scaled dimensions
+  const fontSize = Math.min(Math.max(REFERENCE_SIZE.fontSize * scale, 6), 14);
+  const spacing = REFERENCE_SIZE.spacing * scale;
+  const margins = {
+    top: spacing * 2,
+    right: spacing * 2,
+    bottom: spacing * 2,
+    left: spacing * 2
+  };
+
+  // Calculate barcode size
+  let barcodeHeight = REFERENCE_SIZE.barcodeHeight * scale;
+  let barcodeWidth = barcodeHeight * 2.5;
+
+  // Adjust if too wide
+  const availableWidth = pageSize.width - (margins.left + margins.right);
+  if (barcodeWidth > availableWidth) {
+    const reductionRatio = availableWidth / barcodeWidth;
+    barcodeWidth = availableWidth;
+    barcodeHeight = barcodeHeight * reductionRatio;
+  }
+
   return {
-    width,
-    height: width / aspectRatio,
-    barcodeWidth: 2,
-    barcodeHeight: width / 3,
-    fontSize: Math.max(Math.min(width * 0.05, 14), 8),
+    fontSize,
+    textSpacing: spacing,
+    barcodeWidth,
+    barcodeHeight,
+    margins,
+    scale
   };
 };
+
+interface LayoutDimensions {
+  fontSize: number;
+  textSpacing: number;
+  barcodeWidth: number;
+  barcodeHeight: number;
+  margins: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+  scale: number;
+}
 
 export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
   const { toast } = useToast();
   const barcodeRefs = useRef<(SVGSVGElement | null)[]>([]);
   
-  // Callback untuk menangani ref
   const setRef = (index: number) => (el: SVGSVGElement | null) => {
     barcodeRefs.current[index] = el;
   };
 
-  const [selectedPageSize, setSelectedPageSize] = useState<string>('a4');
+  const [selectedPageSize, setSelectedPageSize] = useState<string>('label-medium');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [dimensions, setDimensions] = useState(() => 
-    calculateBarcodeSize(PAGE_SIZES['a4'])
+  const [dimensions, setDimensions] = useState<LayoutDimensions>(() => 
+    calculateBarcodeLayout(PAGE_SIZES['label-medium'])
   );
 
   // Update dimensions when page size changes
   useEffect(() => {
-    const newDimensions = calculateBarcodeSize(PAGE_SIZES[selectedPageSize]);
+    const newDimensions = calculateBarcodeLayout(PAGE_SIZES[selectedPageSize]);
     setDimensions(newDimensions);
   }, [selectedPageSize]);
 
@@ -95,12 +134,12 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
             try {
               JsBarcode(ref, skus[index].sku, {
                 format: 'CODE128',
-                width: dimensions.barcodeWidth,
-                height: dimensions.barcodeHeight,
-                displayValue: true,
-                fontSize: dimensions.fontSize,
-                margin: dimensions.fontSize,
-                background: '#ffffff',
+                width: 2 * dimensions.scale, // Apply scale to preview
+                height: 100,
+                displayValue: false,
+                margin: 0,
+                background: '#FFFFFF',
+                lineColor: '#000000'
               });
             } catch (error) {
               console.error(`Error generating barcode for SKU ${skus[index].sku}:`, error);
@@ -109,96 +148,74 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
         });
       }, 100);
     }
-  }, [open, skus, dimensions]);
+  }, [open, skus, dimensions.scale]); // Update dependency to dimensions.scale
 
   const generatePDF = async () => {
     setIsGeneratingPDF(true);
     try {
       const pageSize = PAGE_SIZES[selectedPageSize];
+      const layout = calculateBarcodeLayout(pageSize);
+      
       const doc = new jsPDF({
         orientation: 'landscape',
-        unit: pageSize.unit,
-        format: [pageSize.width, pageSize.height],
-        compress: true
+        unit: 'mm',
+        format: [pageSize.width, pageSize.height]
       });
 
-      // Page layout calculations
-      const marginRatio = 0.1; // 10% margin
-      const horizontalMargin = pageSize.width * marginRatio;
-      const verticalMargin = pageSize.height * marginRatio;
-      
-      // Available space calculations
-      const availableWidth = pageSize.width - (horizontalMargin * 2);
-      const availableHeight = pageSize.height - (verticalMargin * 2);
-      
-      // Barcode dimensions (80% of available height)
-      const barcodeHeight = availableHeight * 0.8;
-      const barcodeWidth = Math.min(availableWidth * 0.8, barcodeHeight * 1.5); // maintain aspect ratio
-      
-      // Text spacing calculations
-      const textAreaHeight = availableHeight * 0.2; // 20% for text
-      const fontSize = Math.max(Math.min(availableHeight * 0.05, 12), 8); // Dynamic font size with limits
-      
-      // Center positions
       const centerX = pageSize.width / 2;
-      const startY = verticalMargin;
 
       for (let index = 0; index < skus.length; index++) {
-        const sku = skus[index];
+        const { sku, name } = skus[index];
         
         if (index > 0) {
           doc.addPage();
         }
 
-        // Product name
-        doc.setFontSize(fontSize);
-        const maxTextWidth = availableWidth;
-        const splitName = doc.splitTextToSize(sku.name || '', maxTextWidth);
-        doc.text(splitName, centerX, startY + (textAreaHeight * 0.3), { 
+        let currentY = layout.margins.top;
+
+        // Draw product name
+        doc.setFontSize(layout.fontSize);
+        const splitName = doc.splitTextToSize(name || '', pageSize.width - (layout.margins.left + layout.margins.right));
+        doc.text(splitName, centerX, currentY, { 
           align: 'center',
-          baseline: 'middle'
+          baseline: 'top'
         });
 
-        // Generate barcode
+        // Update Y position for barcode
+        currentY += layout.textSpacing;
+
+        // Generate and draw barcode
         const tempSvg = document.createElement('svg');
-        JsBarcode(tempSvg, sku.sku, {
+        JsBarcode(tempSvg, sku, {
           format: 'CODE128',
-          width: 2,
-          height: 100, // Base height, will be scaled in PDF
-          displayValue: false, // We'll add SKU text separately
+          width: layout.barcodeWidth * 0.015,
+          height: layout.barcodeHeight,
+          displayValue: false,
           margin: 0,
           background: '#FFFFFF',
           lineColor: '#000000'
         });
 
-        try {
-          // Convert SVG to PDF with calculated dimensions
-          const barcodeX = centerX - (barcodeWidth / 2);
-          const barcodeY = startY + textAreaHeight;
-          await doc.svg(tempSvg, {
-            x: barcodeX,
-            y: barcodeY,
-            width: barcodeWidth,
-            height: barcodeHeight
-          });
-        } catch (svgError) {
-          console.error('Error adding SVG to PDF:', svgError);
-          throw new Error('Failed to add barcode to PDF');
-        }
-        
-        // SKU text
-        doc.setFontSize(fontSize * 1.2); // Slightly larger font for SKU
-        const skuText = sku.sku || '';
-        doc.text(skuText, centerX, startY + textAreaHeight + barcodeHeight + (fontSize * 0.8), {
+        await doc.svg(tempSvg, {
+          x: centerX - (layout.barcodeWidth / 2),
+          y: currentY,
+          width: layout.barcodeWidth,
+          height: layout.barcodeHeight
+        });
+
+        // Update Y position for SKU
+        currentY += layout.barcodeHeight + layout.textSpacing;
+
+        // Draw SKU
+        doc.text(sku, centerX, currentY, {
           align: 'center',
-          baseline: 'middle'
+          baseline: 'top'
         });
       }
 
-      // Save and open PDF
+      // Output PDF
       const pdfBlob = doc.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
-      
       try {
         window.open(pdfUrl, '_blank');
       } finally {
@@ -237,8 +254,6 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
                 <SelectValue placeholder="Select page size" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="a4">A4 (210 x 297 mm)</SelectItem>
-                <SelectItem value="letter">Letter (216 x 279 mm)</SelectItem>
                 <SelectItem value="label-small">Label (50 x 25 mm)</SelectItem>
                 <SelectItem value="label-medium">Label (100 x 30 mm)</SelectItem>
                 <SelectItem value="label-large">Label (100 x 50 mm)</SelectItem>
@@ -250,16 +265,16 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
         <ScrollArea className="h-[60vh] w-full rounded-md border p-4">
           <div className="space-y-6">
             {skus.map(({ sku, name }, index) => (
-              <div key={sku} className="flex flex-col items-center space-y-2 p-4 border rounded-lg bg-white">
+              <div key={sku} className="flex flex-col items-center gap-1 p-4 border rounded-lg bg-white">
                 <h3 className="font-medium text-base" style={{ fontSize: `${dimensions.fontSize}px` }}>
                   {name}
                 </h3>
                 <svg
                   ref={setRef(index)}
-                  className="w-full"
+                  // Updated style to match the printed PDF canvas
                   style={{
-                    maxWidth: `${dimensions.width}px`,
-                    height: `${dimensions.height}px`,
+                    height: '100px',
+                    width: 'auto'
                   }}
                   xmlns="http://www.w3.org/2000/svg"
                   preserveAspectRatio="xMidYMid meet"
