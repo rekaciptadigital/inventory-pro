@@ -59,6 +59,7 @@ const navigation = [
         href: "/dashboard/products/stock",
         icon: Package,
       },
+      { name: "Locations", href: "/dashboard/locations", icon: Building2 },
     ],
   },
   {
@@ -69,7 +70,6 @@ const navigation = [
       { name: "Variants", href: "/dashboard/variants", icon: Layers },
       { name: "Product Types", href: "/dashboard/product-types", icon: ListTree },
       { name: "Product Categories", href: "/dashboard/product-categories", icon: FolderTree },
-      { name: "Locations", href: "/dashboard/locations", icon: Building2 },
     ],
   },
   {
@@ -284,7 +284,7 @@ export function DashboardNav() {
 
           <nav className="flex-1 space-y-1 px-3 py-4">
             {navigation.map((item) => (
-              <div key={item.href || item.name} className="text-sm">
+              <div key={item.href ?? item.name} className="text-sm">
                 {renderNavItem(item)}
               </div>
             ))}
@@ -372,7 +372,7 @@ export function DashboardNav() {
 
             <nav className="flex-1 space-y-2 px-3 py-4">
               {navigation.map((item) => (
-                <div key={item.href || item.name} className="text-sm">
+                <div key={item.href ?? item.name} className="text-sm">
                   {renderNavItem(item)}
                 </div>
               ))}
