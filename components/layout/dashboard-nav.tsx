@@ -21,6 +21,7 @@ import {
   Menu,
   FolderTree,
   Users,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,11 @@ const navigation = [
         name: "Price Management",
         href: "/dashboard/price-management",
         icon: DollarSign,
+      },
+      {
+        name: "Product Stock",
+        href: "/dashboard/products/stock",
+        icon: Package,
       },
     ],
   },
