@@ -1,20 +1,13 @@
 import { useCallback, useState, useEffect } from "react";
 import { useFormContext } from "react-hook-form";
-import { useDispatch } from "react-redux";
-import {
-  EnhancedSelect,
-  type SelectOption,
-} from "@/components/ui/enhanced-select";
+import { useDispatch, useSelector } from "react-redux";
 import { ClientSelect } from "@/components/ui/enhanced-select/client-select";
 import { useBrands } from "@/lib/hooks/use-brands";
-import { useProductCategories } from "@/lib/hooks/use-product-categories";
 import { useVariants } from "@/lib/hooks/use-variants";
 import type { ProductFormValues } from "./form-schema";
 import {
   setBrand,
   setProductType,
-  addCategory,
-  removeCategory,
   updateProductCategories,
 } from "@/lib/store/slices/formInventoryProductSlice";
 import { getProductTypes } from "@/lib/api/product-types";
@@ -29,12 +22,50 @@ interface CategorySelectorState {
 export function BrandSelector() {
   const {
     control,
+    getValues,
     formState: { errors },
     setValue,
   } = useFormContext<ProductFormValues>();
   const { getBrands } = useBrands();
   const dispatch = useDispatch();
   const [selectedBrand, setSelectedBrand] = useState<SelectOption | null>(null);
+  const initialBrandId = getValues('brand');
+
+  // Load initial brand data
+  useEffect(() => {
+    const loadInitialBrand = async () => {
+      if (initialBrandId) {
+        console.log('Loading initial brand:', initialBrandId);
+        try {
+          const response = await getBrands({
+            search: '',
+            page: 1,
+            limit: 100 // Increased limit to ensure we find the brand
+          });
+          const brand = response.data.find(b => b.id.toString() === initialBrandId);
+          if (brand) {
+            console.log('Found initial brand:', brand);
+            setSelectedBrand({
+              value: brand.id.toString(),
+              label: brand.name,
+              subLabel: brand.code,
+              data: brand
+            });
+            dispatch(setBrand({
+              id: brand.id,
+              code: brand.code,
+              name: brand.name,
+            }));
+          } else {
+            console.warn('Initial brand not found:', initialBrandId);
+          }
+        } catch (error) {
+          console.error('Error loading initial brand:', error);
+        }
+      }
+    };
+    loadInitialBrand();
+  }, [initialBrandId, getBrands, dispatch]);
 
   const loadBrandOptions = async (
     search: string,
@@ -118,12 +149,49 @@ export function BrandSelector() {
 export function ProductTypeSelector() {
   const {
     control,
+    getValues,
     formState: { errors },
     setValue,
   } = useFormContext<ProductFormValues>();
   const dispatch = useDispatch();
   const [selectedProductType, setSelectedProductType] =
     useState<SelectOption | null>(null);
+  const initialProductTypeId = getValues('productTypeId');
+
+  // Load initial product type data
+  useEffect(() => {
+    const loadInitialProductType = async () => {
+      if (initialProductTypeId) {
+        try {
+          const response = await getProductTypes({
+            search: '',
+            page: 1,
+            limit: 100 // Increased limit to ensure we find the product type
+          });
+          const productType = response.data.find(pt => pt.id.toString() === initialProductTypeId);
+          if (productType) {
+            console.log('Found initial product type:', productType);
+            setSelectedProductType({
+              value: productType.id.toString(),
+              label: productType.name,
+              subLabel: productType.code,
+              data: productType
+            });
+            dispatch(setProductType({
+              id: productType.id,
+              code: productType.code,
+              name: productType.name,
+            }));
+          } else {
+            console.warn('Initial product type not found:', initialProductTypeId);
+          }
+        } catch (error) {
+          console.error('Error loading initial product type:', error);
+        }
+      }
+    };
+    loadInitialProductType();
+  }, [initialProductTypeId, dispatch]);
 
   const loadProductTypeOptions = async (
     search: string,
@@ -215,10 +283,15 @@ export function ProductTypeSelector() {
 export function CategorySelector() {
   const {
     control,
+    getValues,
     formState: { errors },
     setValue,
   } = useFormContext<ProductFormValues>();
   const dispatch = useDispatch();
+  // Get categories from Redux slice to support edit mode without affecting add new product.
+  const storeCategories = useSelector(
+    (state: any) => state.formInventoryProduct.categories
+  );
   const [selectorStates, setSelectorStates] = useState<CategorySelectorState[]>(
     [{ level: 0, parentId: null, selectedCategories: [] }]
   );
@@ -226,9 +299,96 @@ export function CategorySelector() {
     selected: SelectOption | null;
     level: number;
   } | null>(null);
-  const [selectedCategories, setSelectedCategories] = useState<
-    ProductCategory[]
-  >([]);
+  const [selectedCategories, setSelectedCategories] = useState<ProductCategory[]>([]);
+  const initialCategoryId = getValues("categoryId");
+  // Remove initialProductCategories from form values and use storeCategories instead
+  
+  // Updated effect for loading initial categories in edit mode using Redux slice data
+  useEffect(() => {
+    if (!initialCategoryId || !storeCategories?.length) return;
+
+    (async () => {
+      try {
+        // Get all categories to build the complete hierarchy
+        const response = await getCategories({
+          search: "",
+          page: 1,
+          limit: 100,
+        });
+        const allCategories = response.data;
+
+        // Function to find category and its parent chain
+        const findCategoryChain = (categories: any[], targetId: number): any[] => {
+          for (const category of categories) {
+            if (category.id === targetId) {
+              return [category];
+            }
+            if (category.children?.length) {
+              const found = findCategoryChain(category.children, targetId);
+              if (found.length) {
+                return [category, ...found];
+              }
+            }
+          }
+          return [];
+        };
+
+        // Build the chain with Redux data for edit mode
+        const categoryChain = findCategoryChain(allCategories, parseInt(initialCategoryId));
+        if (categoryChain.length) {
+          const newStates = categoryChain.map((category, index) => {
+            const selectOption: SelectOption = {
+              value: category.id.toString(),
+              label: category.name,
+              subLabel: category.code,
+              data: category,
+            };
+            return {
+              level: index,
+              parentId: index === 0 ? null : parseInt(categoryChain[index - 1].id),
+              selectedCategories: [selectOption],
+              availableOptions:
+                index === 0
+                  ? undefined
+                  : categoryChain[index - 1].children?.map((child: any) => ({
+                      value: child.id.toString(),
+                      label: child.name,
+                      subLabel: child.code,
+                      data: child,
+                    })),
+            };
+          });
+          const lastCategory = categoryChain[categoryChain.length - 1];
+          if (lastCategory.children?.length > 0) {
+            newStates.push({
+              level: categoryChain.length,
+              parentId: lastCategory.id,
+              selectedCategories: [],
+              availableOptions: lastCategory.children.map((child: any) => ({
+                value: child.id.toString(),
+                label: child.name,
+                subLabel: child.code,
+                data: child,
+              })),
+            });
+          }
+          setSelectorStates(newStates);
+          // Use storeCategories from redux slice for consistency
+          setSelectedCategories(storeCategories);
+          dispatch(updateProductCategories(storeCategories));
+          setValue("categoryId", categoryChain[categoryChain.length - 1].id.toString());
+        }
+      } catch (error: any) {
+        if (error.isAxiosError) {
+          console.error("Axios network error while loading categories:", error.message);
+        } else {
+          console.error("Error loading initial categories:", error);
+        }
+        // Optionally, you can display a fallback UI or set empty states here:
+        setSelectorStates([{ level: 0, parentId: null, selectedCategories: [] }]);
+      }
+    })();
+  }, [initialCategoryId, storeCategories, dispatch, setValue]);
 
   const loadCategoryOptions = useCallback(
     async (
@@ -529,20 +689,20 @@ export function VariantValueSelector({
         container: () => "min-w-0",
       }}
       styles={{
-        menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-        multiValue: (base) => ({
+        menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+        multiValue: (base: any) => ({
           ...base,
           backgroundColor: "hsl(var(--accent))",
           margin: "2px",
         }),
-        multiValueLabel: (base) => ({
+        multiValueLabel: (base: any) => ({
           ...base,
           color: "hsl(var(--accent-foreground))",
           whiteSpace: "nowrap",
           overflow: "hidden",
           textOverflow: "ellipsis",
         }),
-        multiValueRemove: (base) => ({
+        multiValueRemove: (base: any) => ({
           ...base,
           color: "hsl(var(--accent-foreground))",
           padding: "0 4px",
@@ -551,7 +711,7 @@ export function VariantValueSelector({
             color: "hsl(var(--accent-foreground))",
           },
         }),
-        valueContainer: (base) => ({
+        valueContainer: (base: any) => ({
           ...base,
           padding: "2px 6px",
           gap: "2px",
@@ -559,14 +719,14 @@ export function VariantValueSelector({
           maxHeight: "120px",
           overflowY: "auto",
         }),
-        control: (base) => ({
+        control: (base: any) => ({
           ...base,
           minHeight: "40px",
           height: "auto",
           maxHeight: "120px",
           overflow: "hidden",
         }),
-        input: (base) => ({
+        input: (base: any) => ({
           ...base,
           margin: "2px",
         }),
