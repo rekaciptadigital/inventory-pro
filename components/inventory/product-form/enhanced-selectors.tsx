@@ -297,46 +297,96 @@ export function CategorySelector() {
   const [selectorStates, setSelectorStates] = useState<CategorySelectorState[]>(
     [{ level: 0, parentId: null, selectedCategories: [] }]
   );
-  const [pendingSelection, setPendingSelection] = useState<{
-    selected: SelectOption | null;
-    level: number;
-  } | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<
     ProductCategory[]
   >([]);
+  const [currentCategoryId, setCurrentCategoryId] = useState<string | null>(null);
 
+  // Helper function to validate and process category data
+  const processCategoryData = useCallback((category: any): SelectOption => {
+    if (!category) return null;
+    
+    const processedData = {
+      id: category.id?.toString() || '',
+      name: category.name || '',
+      code: category.code || '',
+      parent_id: category.parent_id,
+      children: category.children || []
+    };
+
+    const hasChildren = Array.isArray(category.children) && category.children.length > 0;
+    const processedChildren = hasChildren 
+      ? category.children.map((child: any) => ({
+          id: child.id?.toString() || '',
+          name: child.name || '',
+          code: child.code || '',
+          parent_id: child.parent_id,
+          children: child.children || []
+        }))
+      : [];
+
+    return {
+      value: processedData.id,
+      label: processedData.name,
+      subLabel: processedData.code,
+      data: {
+        ...processedData,
+        hasChildren,
+        children: processedChildren,
+      },
+    };
+  }, []);
+
+  // Optimize the loadCategoryOptions function
   const loadCategoryOptions = useCallback(
     async (
       search: string,
       loadedOptions: SelectOption[],
-      { page }: { page: number }
+      { page, parentId = null }: { page: number; parentId?: number | null }
     ) => {
       try {
-        // Only fetch from API for root level categories
         const response = await getCategories({
           search,
           page,
-          limit: 10,
+          limit: 100,
           sort: "created_at",
           order: "DESC",
+          include_children: true,
         });
 
-        // Filter based on parent_id for root level
-        const rootCategories = response.data.filter(
-          (cat) => cat.parent_id === null
-        );
+        // Immediately process all categories and their children
+        const processWithChildren = (category: any): SelectOption => {
+          const hasChildren = Array.isArray(category.children) && category.children.length > 0;
+          const children = hasChildren ? category.children.map(processWithChildren) : [];
+          
+          return {
+            value: category.id?.toString() || '',
+            label: category.name || '',
+            subLabel: category.code || '',
+            data: {
+              id: category.id,
+              name: category.name,
+              code: category.code,
+              parent_id: category.parent_id,
+              hasChildren,
+              children,
+              processedChildren: children,
+            },
+          };
+        };
+
+        const categories = response.data
+          .filter((cat) => cat.parent_id === parentId)
+          .map(processWithChildren)
+          .filter(Boolean);
 
         return {
-          options: rootCategories.map((category) => ({
-            value: category.id.toString(),
-            label: category.name,
-            subLabel: category.code,
-            data: category, // Include full category data with children
-          })),
+          options: categories,
           hasMore: response.pagination.hasNext,
           additional: {
             page: page + 1,
             hasMore: response.pagination.hasNext,
+            parentId,
           },
         };
       } catch (error) {
@@ -344,7 +394,7 @@ export function CategorySelector() {
         return {
           options: [],
           hasMore: false,
-          additional: { page: 1, hasMore: false },
+          additional: { page: 1, hasMore: false, parentId },
         };
       }
     },
@@ -415,107 +465,80 @@ export function CategorySelector() {
     loadInitialCategory();
   }, [initialCategoryId, dispatch, setValue]);
 
-  // Effect to handle state updates
+  // Effect to handle form value updates
   useEffect(() => {
-    if (pendingSelection === null) return;
-
-    const { selected, level } = pendingSelection;
-
-    if (selected?.data) {
-      setSelectorStates((prev) => {
-        const newStates = prev.slice(0, level + 1);
-        newStates[level] = {
-          ...newStates[level],
-          selectedCategories: [selected],
-        };
-
-        if (selected.data.children?.length > 0) {
-          newStates.push({
-            level: level + 1,
-            parentId: parseInt(selected.value),
-            selectedCategories: [],
-            availableOptions: selected.data.children.map((child) => ({
-              value: child.id.toString(),
-              label: child.name,
-              subLabel: child.code,
-              data: child,
-            })),
-          });
-        }
-
-        // Prepare new selected categories
-        const newSelectedCategories = newStates
-          .filter((state) => state.selectedCategories.length > 0)
-          .map((state, idx) => ({
-            product_category_id: parseInt(state.selectedCategories[0].value),
-            product_category_parent: state.selectedCategories[0].data.parent_id,
-            product_category_name: state.selectedCategories[0].data.name,
-            category_hierarchy: idx + 1,
-          }));
-
-        setSelectedCategories(newSelectedCategories);
-        return newStates;
-      });
-
-      setValue("categoryId", selected.value);
-    } else {
-      setSelectorStates((prev) => {
-        const newStates = prev.slice(0, level + 1);
-
-        const newRemainingCategories = newStates
-          .slice(0, level)
-          .filter((state) => state.selectedCategories.length > 0)
-          .map((state, idx) => ({
-            product_category_id: parseInt(state.selectedCategories[0].value),
-            product_category_parent: state.selectedCategories[0].data.parent_id,
-            product_category_name: state.selectedCategories[0].data.name,
-            category_hierarchy: idx + 1,
-          }));
-
-        setSelectedCategories(newRemainingCategories);
-        return newStates;
-      });
-
-      setValue("categoryId", "");
+    if (currentCategoryId !== null) {
+      setValue("categoryId", currentCategoryId);
     }
+  }, [currentCategoryId, setValue]);
 
-    setPendingSelection(null);
-  }, [pendingSelection, dispatch, setValue]);
-
-  // Effect to update Redux store when selectedCategories changes
-  useEffect(() => {
-    dispatch(updateProductCategories(selectedCategories));
-  }, [selectedCategories, dispatch]);
-
+  // Optimize handleChange: hanya update selectorStates dan form value
   const handleChange = useCallback(
     (selected: SelectOption | null, level: number) => {
-      setPendingSelection({ selected, level });
+      setSelectorStates((prev) => {
+        const newStates = prev.slice(0, level + 1);
+        if (selected) {
+          newStates[level] = {
+            ...newStates[level],
+            selectedCategories: [selected],
+          };
+          if (selected.data.hasChildren && selected.data.children?.length > 0) {
+            newStates.push({
+              level: level + 1,
+              parentId: parseInt(selected.value),
+              selectedCategories: [],
+              availableOptions: selected.data.children,
+            });
+          }
+        } else {
+          newStates[level].selectedCategories = [];
+        }
+        return newStates;
+      });
+      setValue("categoryId", selected ? selected.value : "");
     },
-    []
+    [setValue]
   );
+
+  // Tambahkan efek untuk menghitung dan dispatch selected categories
+  useEffect(() => {
+    const newSelectedCategories = selectorStates
+      .map((state, idx) => {
+        const sel = state.selectedCategories[0];
+        return sel
+          ? {
+              product_category_id: parseInt(sel.value),
+              product_category_parent: sel.data.parent_id,
+              product_category_name: sel.data.name,
+              category_hierarchy: idx + 1,
+            }
+          : null;
+      })
+      .filter(Boolean);
+    setSelectedCategories(newSelectedCategories);
+    dispatch(updateProductCategories(newSelectedCategories));
+  }, [selectorStates, dispatch]);
 
   return (
     <div className="space-y-4">
       {selectorStates.map((state, index) => (
         <ClientSelect
-          key={`category-${state.level}`}
+          key={`category-${state.level}-${state.parentId}-${state.selectedCategories[0]?.value || 'empty'}`}
           name={`category-${state.level}`}
           control={control}
-          loadOptions={
-            index === 0
-              ? loadCategoryOptions
-              : async () => ({
-                  options: state.availableOptions || [],
-                  hasMore: false,
-                  additional: { page: 1, hasMore: false },
-                })
+          loadOptions={(search, loadedOptions, additional) =>
+            loadCategoryOptions(search, loadedOptions, {
+              ...additional,
+              parentId: state.parentId,
+            })
           }
           onChange={(selected) => handleChange(selected, state.level)}
           value={state.selectedCategories[0] || null}
-          defaultOptions={index === 0 ? true : state.availableOptions || []}
+          defaultOptions={ index === 0 ? true : (state.availableOptions || undefined) }
           placeholder={`Select ${index === 0 ? "category" : "subcategory"}...`}
           error={index === 0 ? errors.categoryId?.message : undefined}
-          isClearable={false}
+          isClearable={true}
+          cacheOptions={true}
           classNames={{
             control: () => "h-10",
             placeholder: () => "text-sm",
