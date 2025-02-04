@@ -13,6 +13,13 @@ import {
 import { getProductTypes } from "@/lib/api/product-types";
 import { getCategories } from "@/lib/api/categories";
 
+interface SelectOption {
+  value: string;
+  label: string;
+  subLabel?: string;
+  data?: any;
+}
+
 interface CategorySelectorState {
   level: number;
   parentId: number | null;
@@ -301,6 +308,7 @@ export function CategorySelector() {
   } | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<ProductCategory[]>([]);
   const initialCategoryId = getValues("categoryId");
+  
   // Remove initialProductCategories from form values and use storeCategories instead
   
   // Updated effect for loading initial categories in edit mode using Redux slice data
@@ -391,49 +399,24 @@ export function CategorySelector() {
   }, [initialCategoryId, storeCategories, dispatch, setValue]);
 
   const loadCategoryOptions = useCallback(
-    async (
-      search: string,
-      loadedOptions: SelectOption[],
-      { page }: { page: number }
-    ) => {
-      try {
-        // Only fetch from API for root level categories
-        const response = await getCategories({
-          search,
-          page,
-          limit: 10,
-          sort: "created_at",
-          order: "DESC",
-        });
-
-        // Filter based on parent_id for root level
-        const rootCategories = response.data.filter(
-          (cat) => cat.parent_id === null
-        );
-
-        return {
-          options: rootCategories.map((category) => ({
-            value: category.id.toString(),
-            label: category.name,
-            subLabel: category.code,
-            data: category, // Include full category data with children
-          })),
-          hasMore: response.pagination.hasNext,
-          additional: {
-            page: page + 1,
-            hasMore: response.pagination.hasNext,
-          },
-        };
-      } catch (error) {
-        console.error("Error loading categories:", error);
-        return {
-          options: [],
-          hasMore: false,
-          additional: { page: 1, hasMore: false },
-        };
-      }
+    async (search: string, loadedOptions: SelectOption[], { page }: { page: number }) => {
+      const filtered = storeCategories.filter((cat) =>
+        search
+          ? cat.name.toLowerCase().includes(search.toLowerCase())
+          : cat.parent_id === null
+      );
+      return {
+        options: filtered.map((category) => ({
+          value: category.id.toString(),
+          label: category.name,
+          subLabel: category.code,
+          data: category,
+        })),
+        hasMore: false,
+        additional: { page: 1, hasMore: false },
+      };
     },
-    []
+    [storeCategories]
   );
 
   // Effect to handle state updates
@@ -525,8 +508,10 @@ export function CategorySelector() {
           loadOptions={
             index === 0
               ? loadCategoryOptions
-              : async () => ({
-                  options: state.availableOptions || [],
+              : async (search: string) => ({
+                  options: (state.availableOptions || []).filter((option) =>
+                    option.label.toLowerCase().includes(search.toLowerCase())
+                  ),
                   hasMore: false,
                   additional: { page: 1, hasMore: false },
                 })
