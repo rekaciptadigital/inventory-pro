@@ -14,6 +14,28 @@ type VariantValue = ProductVariant['variant_values'][number];
 // Remove redundant type alias
 // type CategoryHierarchy = number;
 
+interface InventoryProductForm {
+  brand_id: number | null;
+  brand_code: string;
+  brand_name: string;
+  product_type_id: number | null;
+  product_type_code: string;
+  product_type_name: string;
+  unique_code: string;
+  sku: string;
+  product_name: string;
+  full_product_name: string;
+  vendor_sku: string;
+  description: string;
+  unit: string;
+  slug: string;
+  categories: ProductCategory[];
+  availableCategories: ProductCategory[]; // Add this new field
+  variants: ProductVariant[];
+  product_by_variant: ProductByVariant[];
+  variant_selectors: VariantSelectorData[];
+}
+
 const initialState: InventoryProductForm = {
   brand_id: null,
   brand_code: "",
@@ -30,6 +52,7 @@ const initialState: InventoryProductForm = {
   unit: "PC",
   slug: "", // Add initial value for slug
   categories: [],
+  availableCategories: [], // Initialize new field
   variants: [],
   product_by_variant: [],
   variant_selectors: [], // Make sure this matches the imported type
@@ -99,15 +122,15 @@ const formInventoryProductSlice = createSlice({
       state,
       action: PayloadAction<ProductCategory[]>
     ) => {
-      // Ensure we're not processing empty or invalid data
+      // Enhanced validation and processing
       if (!action.payload || !Array.isArray(action.payload)) {
         state.categories = [];
         return;
       }
       
-      // Validate and sort categories
       const validCategories = action.payload.filter(
-        cat => cat.product_category_id && cat.category_hierarchy
+        cat => cat.product_category_id && 
+        typeof cat.category_hierarchy === 'number'
       );
       
       state.categories = validCategories.sort(
@@ -185,6 +208,9 @@ const formInventoryProductSlice = createSlice({
     resetCategories: (state) => {
       state.categories = [];
     },
+    setAvailableCategories: (state, action: PayloadAction<ProductCategory[]>) => {
+      state.availableCategories = action.payload;
+    },
   },
 });
 
@@ -210,6 +236,7 @@ export const {
   clearVariantSelectors,
   resetFormState,
   resetCategories,
+  setAvailableCategories,
 } = formInventoryProductSlice.actions;
 
 // Memoized selectors
@@ -291,6 +318,12 @@ export const selectSortedCategories = createSelector(
 export const selectVariantSelectors = createSelector(
   selectFormInventoryProduct,
   (form) => form.variant_selectors
+);
+
+// Add new selector for available categories
+export const selectAvailableCategories = createSelector(
+  selectFormInventoryProduct,
+  (form) => form.availableCategories
 );
 
 export default formInventoryProductSlice.reducer;
