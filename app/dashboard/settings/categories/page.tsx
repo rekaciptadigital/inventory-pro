@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -12,6 +12,7 @@ import {
   selectMarketplaceCategories,
   selectIsLoading,
   selectDefaultCategory,
+  setDefaultCategoryAsync,
 } from "@/lib/store/slices/priceCategoriesSlice";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,12 +55,28 @@ export default function CategoriesPage() {
   const isLoading = useSelector(selectIsLoading);
   const defaultCategory = useSelector(selectDefaultCategory);
 
-  const handleSetDefault = (categoryId: string) => {
-    dispatch(setDefaultCategory(categoryId));
-    toast({
-      title: "Success",
-      description: "Default category has been updated",
-    });
+  const handleSetDefault = async (categoryId: string) => {
+    try {
+      await dispatch(
+        setDefaultCategoryAsync({ categoryId, setDefault: true })
+      ).unwrap();
+
+      // Refresh data setelah set default
+      await dispatch(fetchPriceCategories());
+
+      toast({
+        title: "Success",
+        description: "Default category has been updated",
+        variant: "success",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description:
+          typeof error === "string" ? error : "Failed to set default category",
+        variant: "destructive",
+      });
+    }
   };
 
   useEffect(() => {
@@ -97,9 +114,9 @@ export default function CategoriesPage() {
         const updatedCount = response.data?.updated?.length || 0;
 
         toast({
+          variant: "destructive",
           title: "Success",
           description: `Successfully saved price categories. ${createdCount} categories created and ${updatedCount} categories updated.`,
-          variant: "success",
           duration: 5000,
         });
 
@@ -169,18 +186,21 @@ export default function CategoriesPage() {
                   <div className="flex items-center gap-2">
                     <div className="text-sm font-medium">
                       {category.name}
-                      {defaultCategory === category.id.toString() && (
-                        <span className="text-xs text-muted-foreground ml-2">(Default)</span>
+                      {category.set_default && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          (Default)
+                        </span>
                       )}
                     </div>
-                    {defaultCategory !== category.id.toString() && (
+                    {!category.set_default && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleSetDefault(category.id.toString())}
                         className={cn(
                           "opacity-0 transition-opacity",
-                          hoveredCategory === category.id.toString() && "opacity-100"
+                          hoveredCategory === category.id.toString() &&
+                            "opacity-100"
                         )}
                       >
                         Set Default
@@ -315,10 +335,13 @@ export default function CategoriesPage() {
                       Formula: Default price + {category.percentage}% markup
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {defaultCategory ? 
-                        `Based on ${customerCategories.find(c => c.id.toString() === defaultCategory)?.name || 'Default'} category price` 
-                        : 'Please set a default customer category first'
-                      }
+                      {defaultCategory
+                        ? `Based on ${
+                            customerCategories.find(
+                              (c) => c.id.toString() === defaultCategory
+                            )?.name || "Default"
+                          } category price`
+                        : "Please set a default customer category first"}
                     </div>
                   </div>
                   <div className="flex items-start gap-2">

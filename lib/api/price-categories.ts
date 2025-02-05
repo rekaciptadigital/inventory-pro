@@ -1,3 +1,4 @@
+import axios from "axios";
 import axiosInstance from "./axios";
 import type { ApiResponse } from "@/types/api";
 
@@ -22,6 +23,7 @@ export interface PriceCategory {
   formula: string;
   percentage: number;
   status: boolean;
+  set_default?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -104,3 +106,20 @@ export async function batchUpdatePriceCategories(
   );
   return response.data;
 }
+
+export const setDefaultPriceCategory = async (
+  categoryId: number | string,
+  setDefault: boolean
+) => {
+  try {
+    const response = await axiosInstance.post(
+      `/price-categories/${categoryId}/set-default`,
+      {
+        set_default: setDefault,
+      }
+    );
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data?.error?.[0] || "Failed to set default category";
+  }
+};

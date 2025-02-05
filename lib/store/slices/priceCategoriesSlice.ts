@@ -1,5 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
-import { getPriceCategories } from "@/lib/api/price-categories";
+import {
+  getPriceCategories,
+  setDefaultPriceCategory,
+} from "@/lib/api/price-categories";
 import type {
   PriceCategory,
   GroupedPriceCategories,
@@ -40,6 +43,24 @@ export const fetchPriceCategories = createAsyncThunk(
       return processedData;
     } catch (error: any) {
       return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const setDefaultCategoryAsync = createAsyncThunk(
+  "priceCategories/setDefault",
+  async (
+    {
+      categoryId,
+      setDefault,
+    }: { categoryId: number | string; setDefault: boolean },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await setDefaultPriceCategory(categoryId, setDefault);
+      return { categoryId, setDefault };
+    } catch (error: any) {
+      return rejectWithValue(error);
     }
   }
 );
@@ -155,19 +176,33 @@ const priceCategoriesSlice = createSlice({
       .addCase(fetchPriceCategories.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
+      })
+      .addCase(setDefaultCategoryAsync.fulfilled, (state, action) => {
+        const { categoryId } = action.payload;
+        // Update default status untuk semua kategori
+        state.customerCategories = state.customerCategories.map((cat) => ({
+          ...cat,
+          set_default: cat.id.toString() === categoryId.toString(),
+        }));
       });
   },
-});
+}); // End of createSlice
 
-export const { addCategory, updateCategory, deleteCategory, setDefaultCategory } =
-  priceCategoriesSlice.actions;
+// Export actions
+export const {
+  addCategory,
+  updateCategory,
+  deleteCategory,
+  setDefaultCategory,
+} = priceCategoriesSlice.actions;
 
+// Export selectors
 export const selectCustomerCategories = (state: RootState) =>
   state.priceCategories.customerCategories;
-export const selectMarketplaceCategories = (
-  state: RootState // Rename dari selectEcommerceCategories
-) => state.priceCategories.marketplaceCategories;
-export const selectDefaultCategory = (state: RootState) => state.priceCategories.defaultCategoryId;
+export const selectMarketplaceCategories = (state: RootState) =>
+  state.priceCategories.marketplaceCategories;
+export const selectDefaultCategory = (state: RootState) =>
+  state.priceCategories.defaultCategoryId;
 export const selectIsLoading = (state: RootState) =>
   state.priceCategories.isLoading;
 export const selectError = (state: RootState) => state.priceCategories.error;
