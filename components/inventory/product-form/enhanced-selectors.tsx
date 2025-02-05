@@ -398,6 +398,43 @@ export function CategorySelector() {
     })();
   }, [initialCategoryId, storeCategories, dispatch, setValue]);
 
+  // Add useEffect to initialize selector states from Redux categories
+  useEffect(() => {
+    if (storeCategories?.length) {
+      // Sort categories by hierarchy to ensure proper order
+      const sortedCategories = [...storeCategories].sort(
+        (a, b) => a.category_hierarchy - b.category_hierarchy
+      );
+
+      const newStates = sortedCategories.map((category, index) => {
+        const selectOption: SelectOption = {
+          value: category.product_category_id.toString(),
+          label: category.product_category_name,
+          data: {
+            id: category.product_category_id,
+            name: category.product_category_name,
+            parent_id: category.product_category_parent,
+          },
+        };
+
+        return {
+          level: index,
+          parentId: category.product_category_parent,
+          selectedCategories: [selectOption],
+          // We'll set availableOptions when parent category is selected
+          availableOptions: [],
+        };
+      });
+
+      setSelectorStates(newStates);
+      
+      // Load initial category data if needed
+      if (newStates.length > 0) {
+        setValue("categoryId", newStates[newStates.length - 1].selectedCategories[0].value);
+      }
+    }
+  }, [storeCategories, setValue]);
+
   const loadCategoryOptions = useCallback(
     async (search: string, loadedOptions: SelectOption[], { page }: { page: number }) => {
       const filtered = storeCategories.filter((cat) =>
