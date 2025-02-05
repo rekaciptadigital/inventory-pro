@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useMemo } from "react";
 import { useFormContext } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
 import { ClientSelect } from "@/components/ui/enhanced-select/client-select";
@@ -9,6 +9,7 @@ import {
   setBrand,
   setProductType,
   updateProductCategories,
+  selectSortedCategories,
 } from "@/lib/store/slices/formInventoryProductSlice";
 import { getProductTypes } from "@/lib/api/product-types";
 import { getCategories } from "@/lib/api/categories";
@@ -295,10 +296,8 @@ export function CategorySelector() {
     setValue,
   } = useFormContext<ProductFormValues>();
   const dispatch = useDispatch();
-  // Get categories from Redux slice to support edit mode without affecting add new product.
-  const storeCategories = useSelector(
-    (state: any) => state.formInventoryProduct.categories
-  );
+  // Use the new selector to retrieve sorted categories from Redux
+  const storeCategories = useSelector(selectSortedCategories);
   const [selectorStates, setSelectorStates] = useState<CategorySelectorState[]>(
     [{ level: 0, parentId: null, selectedCategories: [] }]
   );
@@ -308,12 +307,13 @@ export function CategorySelector() {
   } | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<ProductCategory[]>([]);
   const initialCategoryId = getValues("categoryId");
+  const [isLoading, setIsLoading] = useState(true);
   
   // Remove initialProductCategories from form values and use storeCategories instead
   
   // Updated effect for loading initial categories in edit mode using Redux slice data
   useEffect(() => {
-    if (!initialCategoryId || !storeCategories?.length) return;
+    if (!initialCategoryId || !storeCategories?.length || isLoading) return;
 
     (async () => {
       try {
@@ -394,9 +394,11 @@ export function CategorySelector() {
         }
         // Optionally, you can display a fallback UI or set empty states here:
         setSelectorStates([{ level: 0, parentId: null, selectedCategories: [] }]);
+      } finally {
+        setIsLoading(false);
       }
     })();
-  }, [initialCategoryId, storeCategories, dispatch, setValue]);
+  }, [initialCategoryId, storeCategories, dispatch, setValue, isLoading]);
 
   // Add useEffect to initialize selector states from Redux categories
   useEffect(() => {
@@ -434,6 +436,21 @@ export function CategorySelector() {
       }
     }
   }, [storeCategories, setValue]);
+
+  // Reset local state when initialCategoryId changes to avoid flickering
+  useEffect(() => {
+    setIsLoading(true);
+    setSelectorStates([{ level: 0, parentId: null, selectedCategories: [] }]);
+    setSelectedCategories([]);
+    setPendingSelection(null);
+    
+    // Small delay to ensure clean state
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [initialCategoryId]);
 
   const loadCategoryOptions = useCallback(
     async (search: string, loadedOptions: SelectOption[], { page }: { page: number }) => {
@@ -523,9 +540,12 @@ export function CategorySelector() {
     setPendingSelection(null);
   }, [pendingSelection, dispatch, setValue]);
 
-  // Effect to update Redux store when selectedCategories changes
+  // Replace the immediate dispatch with a debounced update to reduce flickering:
   useEffect(() => {
-    dispatch(updateProductCategories(selectedCategories));
+    const handler = setTimeout(() => {
+      dispatch(updateProductCategories(selectedCategories));
+    }, 300);
+    return () => clearTimeout(handler);
   }, [selectedCategories, dispatch]);
 
   const handleChange = useCallback(
@@ -535,11 +555,19 @@ export function CategorySelector() {
     []
   );
 
+  const memoizedSelectorStates = useMemo(() => {
+    return selectorStates;
+  }, [selectorStates]);
+
+  if (isLoading) {
+    return <div className="space-y-4">Loading categories...</div>;
+  }
+
   return (
     <div className="space-y-4">
-      {selectorStates.map((state, index) => (
+      {memoizedSelectorStates.map((state, index) => (
         <ClientSelect
-          key={`category-${state.level}`}
+          key={`category-${initialCategoryId}-${state.level}`}
           name={`category-${state.level}`}
           control={control}
           loadOptions={

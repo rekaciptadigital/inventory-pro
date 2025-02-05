@@ -99,12 +99,19 @@ const formInventoryProductSlice = createSlice({
       state,
       action: PayloadAction<ProductCategory[]>
     ) => {
-      // First update the categories array
-      state.categories = action.payload;
+      // Ensure we're not processing empty or invalid data
+      if (!action.payload || !Array.isArray(action.payload)) {
+        state.categories = [];
+        return;
+      }
       
-      // Sort them in a separate operation using toSorted
-      state.categories = state.categories.toSorted(
-        (a, b) => a.category_hierarchy - Number(b.category_hierarchy)
+      // Validate and sort categories
+      const validCategories = action.payload.filter(
+        cat => cat.product_category_id && cat.category_hierarchy
+      );
+      
+      state.categories = validCategories.sort(
+        (a, b) => a.category_hierarchy - b.category_hierarchy
       );
     },
     updateSkuInfo: (
@@ -175,6 +182,9 @@ const formInventoryProductSlice = createSlice({
     resetFormState: () => {
       return initialState;
     },
+    resetCategories: (state) => {
+      state.categories = [];
+    },
   },
 });
 
@@ -199,6 +209,7 @@ export const {
   updateVariantSelectorValues,
   clearVariantSelectors,
   resetFormState,
+  resetCategories,
 } = formInventoryProductSlice.actions;
 
 // Memoized selectors
@@ -268,6 +279,12 @@ export const selectVariants = createSelector(
 export const selectVariantsWithValues = createSelector(
   selectFormInventoryProduct,
   (form) => form.variants
+);
+
+// Add new memoized selector for sorted categories
+export const selectSortedCategories = createSelector(
+  selectFormInventoryProduct,
+  (form) => [...form.categories].sort((a, b) => a.category_hierarchy - b.category_hierarchy)
 );
 
 // Add new selector
