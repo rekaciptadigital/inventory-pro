@@ -307,9 +307,40 @@ export function CategorySelector() {
     { level: 0, parentId: null, selectedCategories: [] }
   ]);
 
-  // Load all available categories on mount
+  // Add new state to track the complete category chain
+  const [initialCategoryChain, setInitialCategoryChain] = useState<any[]>([]);
+
+  // Add new state to track initialization
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [selectedCategoryChain, setSelectedCategoryChain] = useState<any[]>([]);
+
+  // Modified buildFullCategoryChain function
+  const buildFullCategoryChain = useCallback((categories: any[], targetId: number): any[] => {
+    const findCategoryPath = (cats: any[], id: number, path: any[] = []): any[] | null => {
+      for (const cat of cats) {
+        // Check if this is our target
+        if (cat.id === id) {
+          return [...path, cat];
+        }
+        // Check children if any
+        if (cat.children?.length) {
+          const foundPath = findCategoryPath(cat.children, id, [...path, cat]);
+          if (foundPath) return foundPath;
+        }
+      }
+      return null;
+    };
+
+    const path = findCategoryPath(categories, targetId) || [];
+    console.log('Found category path:', path);
+    return path;
+  }, []);
+
+  // Modified initial load effect
   useEffect(() => {
     const loadCategories = async () => {
+      if (isInitialized) return;
+      
       try {
         const response = await getCategories({
           search: "",
@@ -318,68 +349,64 @@ export function CategorySelector() {
         });
         
         dispatch(setAvailableCategories(response.data));
+        
+        // Get initial category ID after categories are loaded
+        const initialCategoryId = getValues("categoryId");
+        if (initialCategoryId && response.data.length > 0) {
+          const chain = buildFullCategoryChain(response.data, parseInt(initialCategoryId));
+          setSelectedCategoryChain(chain);
+          
+          // Create states for each level
+          const states = chain.map((category, index) => ({
+            level: index,
+            parentId: index === 0 ? null : chain[index - 1].id,
+            selectedCategories: [{
+              value: category.id.toString(),
+              label: category.name,
+              subLabel: category.code,
+              data: {
+                ...category,
+                parent_id: index === 0 ? null : chain[index - 1].id,
+                children: category.children || []
+              }
+            }]
+          }));
+
+          // Add empty state for next level if needed
+          if (chain[chain.length - 1]?.children?.length > 0) {
+            states.push({
+              level: chain.length,
+              parentId: chain[chain.length - 1].id,
+              selectedCategories: []
+            });
+          }
+
+          setSelectorStates(states);
+
+          // Update Redux store
+          const categories = chain.map((cat, idx) => ({
+            product_category_id: cat.id,
+            product_category_name: cat.name,
+            product_category_parent: idx === 0 ? null : chain[idx - 1].id,
+            category_hierarchy: idx + 1
+          }));
+
+          dispatch(updateProductCategories(categories));
+        }
+
         setIsInitialLoading(false);
+        setIsInitialized(true);
       } catch (error) {
         console.error("Error loading categories:", error);
         setIsInitialLoading(false);
+        setIsInitialized(true);
       }
     };
 
     loadCategories();
-  }, [dispatch]);
+  }, [dispatch, getValues, buildFullCategoryChain, isInitialized]);
 
-  // Handle initial categories for edit mode
-  useEffect(() => {
-    const initialCategoryId = getValues("categoryId");
-    
-    if (!initialCategoryId || !availableCategories?.length) return;
-
-    const buildCategoryChain = (categories: any[], targetId: number): any[] => {
-      const findCategory = (cats: any[], id: number, chain: any[] = []): any[] | null => {
-        for (const cat of cats) {
-          if (cat.id === id) {
-            return [...chain, cat];
-          }
-          if (cat.children?.length) {
-            const result = findCategory(cat.children, id, [...chain, cat]);
-            if (result) return result;
-          }
-        }
-        return null;
-      };
-
-      return findCategory(categories, targetId) || [];
-    };
-
-    const categoryChain = buildCategoryChain(availableCategories, parseInt(initialCategoryId));
-    
-    if (categoryChain.length) {
-      const newStates = categoryChain.map((category, index) => ({
-        level: index,
-        parentId: index === 0 ? null : categoryChain[index - 1].id,
-        selectedCategories: [{
-          value: category.id.toString(),
-          label: category.name,
-          subLabel: category.code,
-          data: category,
-        }],
-      }));
-
-      setSelectorStates(newStates);
-      
-      // Update Redux store with selected categories in next tick
-      setTimeout(() => {
-        const selectedCategories = categoryChain.map((cat, idx) => ({
-          product_category_id: cat.id,
-          product_category_name: cat.name,
-          product_category_parent: idx === 0 ? null : categoryChain[idx - 1].id,
-          category_hierarchy: idx + 1,
-        }));
-        dispatch(updateProductCategories(selectedCategories));
-      }, 0);
-    }
-  }, [availableCategories, getValues, dispatch]);
-
+  // Modified loadCategoryOptions function
   const loadCategoryOptions = useCallback(async (
     search: string,
     loadedOptions: SelectOption[],
@@ -387,51 +414,39 @@ export function CategorySelector() {
   ) => {
     if (!availableCategories?.length) return { options: [], hasMore: false };
 
-    const findChildren = (categories: any[], targetId: number | null): any[] => {
-      if (targetId === null) {
-        // Return root level categories
+    const findChildrenForParent = (categories: any[], targetParentId: number | null): any[] => {
+      if (targetParentId === null) {
         return categories.filter(cat => !cat.parent_id);
       }
-      
-      // Recursively find children
-      const findInCategory = (category: any): any[] => {
-        if (category.id === targetId) {
-          return category.children || [];
-        }
-        if (category.children?.length) {
-          for (const child of category.children) {
-            const result = findInCategory(child);
-            if (result.length) return result;
-          }
-        }
-        return [];
-      };
 
-      let children: any[] = [];
-      for (const category of categories) {
-        children = findInCategory(category);
-        if (children.length) break;
+      for (const cat of categories) {
+        if (cat.id === targetParentId) {
+          return cat.children || [];
+        }
+        if (cat.children?.length) {
+          const found = findChildrenForParent(cat.children, targetParentId);
+          if (found.length) return found;
+        }
       }
-      return children;
+      return [];
     };
 
-    const availableOptions = findChildren(availableCategories, parentId)
-      .filter(cat => 
-        search ? cat.name.toLowerCase().includes(search.toLowerCase()) : true
-      )
+    const availableOptions = findChildrenForParent(availableCategories, parentId)
+      .filter(cat => !search || cat.name.toLowerCase().includes(search.toLowerCase()))
       .map(cat => ({
         value: cat.id.toString(),
         label: cat.name,
         subLabel: cat.code,
         data: {
           ...cat,
-          children: cat.children || [],
-        },
+          parent_id: parentId,
+          children: cat.children || []
+        }
       }));
 
     return {
       options: availableOptions,
-      hasMore: false,
+      hasMore: false
     };
   }, [availableCategories]);
 
