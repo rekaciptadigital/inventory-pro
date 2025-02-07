@@ -40,17 +40,21 @@ interface VariantValueData {
   variant_value_name: string;
 }
 
+// Update VariantType interface to include display_order
 interface VariantType {
   id: number;
   name: string;
   values: string[];
+  display_order: number;
 }
 
+// Add display_order to SelectedVariant
 interface SelectedVariant {
   id: string;
   typeId: number;
   values: string[];
   availableValues?: string[];
+  display_order?: number;
 }
 
 interface VariantTableData {
@@ -185,8 +189,12 @@ export function VariantCombinations() {
             typeId: variant.variant_id,
             values: variant.variant_values.map((v) => v.variant_value_name),
             availableValues: variantType?.values || [],
+            display_order: variantType?.display_order || 0, // Make sure to include display_order
           };
         });
+
+        // Sort initialVariants by display_order
+        initialVariants.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
         const variantSelectors = existingVariants.map((variant: ExistingVariant) => {
           const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
@@ -225,17 +233,26 @@ export function VariantCombinations() {
     (variantId: string, selected: SelectOption | null) => {
       if (!selected?.data) return;
 
+      const selectedVariantType = variantTypes?.find(
+        vt => vt.id === parseInt(selected.value)
+      );
+
       const existingVariant = existingVariants.find(
         (v: ExistingVariant) => v.variant_id === parseInt(selected.value)
       );
 
       setSelectedVariants((prev) => {
+        // Reset all previously generated combinations when variant type changes
+        setVariantUniqueCodes({});
+        setLocalValues({});
+
         const newVariants = prev.map((v: SelectedVariant) =>
           v.id === variantId
             ? {
                 ...v,
                 typeId: parseInt(selected.value),
                 values: existingVariant?.variant_values.map((value: VariantValueData) => value.variant_value_name) || [],
+                display_order: selectedVariantType?.display_order || 0,
               }
             : v
         );
@@ -247,18 +264,19 @@ export function VariantCombinations() {
         (selector) => selector.id === parseInt(selected.value)
       );
 
-      if (!existingSelector) {
+      if (!existingSelector && selectedVariantType) {
         dispatch(
           addVariantSelector({
             id: parseInt(selected.value),
-            name: selected.data.name,
-            values: selected.data.values || [],
+            name: selectedVariantType.name,
+            values: selectedVariantType.values || [],
             selected_values: existingVariant?.variant_values.map((v) => v.variant_value_name) || [],
+            display_order: selectedVariantType.display_order,
           })
         );
       }
     },
-    [dispatch, existingVariants, variantSelectors]
+    [dispatch, existingVariants, variantSelectors, variantTypes]
   );
 
   const handleValuesChange = useCallback(
@@ -266,6 +284,10 @@ export function VariantCombinations() {
       const selectedValues = selected.map((option: SelectOption) => option.value);
 
       setSelectedVariants((prev) => {
+        // Reset generated combinations when values change
+        setVariantUniqueCodes({});
+        setLocalValues({});
+
         const newVariants = prev.map((v: SelectedVariant) =>
           v.id === variantId
             ? {
@@ -277,10 +299,8 @@ export function VariantCombinations() {
         return newVariants;
       });
 
-      // Find the variant type ID outside of setState
       const variant = selectedVariants.find((v) => v.id === variantId);
       if (variant && variant.typeId) {
-        // Dispatch Redux update separately
         dispatch(
           updateVariantSelectorValues({
             id: variant.typeId,
@@ -289,7 +309,7 @@ export function VariantCombinations() {
         );
       }
     },
-    [dispatch, selectedVariants] // Add selectedVariants as dependency
+    [dispatch, selectedVariants]
   );
 
   const canShowGeneratedSkus = useMemo(() => {
@@ -304,16 +324,48 @@ export function VariantCombinations() {
 
     const generateCombinations = (variants: SelectedVariant[]) => {
       if (variants.length === 0) return [[]];
-      const [first, ...rest] = variants;
-      const restCombinations = generateCombinations(rest);
-      return first.values.flatMap((value: string) =>
-        restCombinations.map((combo: string[]) => [value, ...combo])
-      );
+
+      // Ensure stable sorting based on display_order
+      const sortedVariants = [...variants].sort((a, b) => {
+        // Get variant types for each variant to access display_order
+        const typeA = variantTypes?.find(vt => vt.id === a.typeId);
+        const typeB = variantTypes?.find(vt => vt.id === b.typeId);
+        
+        // Use the actual display_order from variantTypes
+        const orderA = typeA?.display_order ?? Number.MAX_SAFE_INTEGER;
+        const orderB = typeB?.display_order ?? Number.MAX_SAFE_INTEGER;
+        
+        return orderA - orderB;
+      });
+
+      // Create combinations maintaining the sorted order
+      let combinations: string[][] = [[]];
+      
+      sortedVariants.forEach(variant => {
+        const newCombinations: string[][] = [];
+        combinations.forEach(combo => {
+          variant.values.forEach(value => {
+            newCombinations.push([...combo, value]);
+          });
+        });
+        combinations = newCombinations;
+      });
+
+      return combinations;
     };
 
-    const combinations = generateCombinations(
-      selectedVariants.filter((v) => v.values.length > 0)
-    );
+    // Filter variants and sort them by the actual display_order from variantTypes
+    const validVariants = selectedVariants
+      .filter((v) => v.typeId && v.values.length > 0)
+      .sort((a, b) => {
+        const typeA = variantTypes?.find(vt => vt.id === a.typeId);
+        const typeB = variantTypes?.find(vt => vt.id === b.typeId);
+        const orderA = typeA?.display_order ?? Number.MAX_SAFE_INTEGER;
+        const orderB = typeB?.display_order ?? Number.MAX_SAFE_INTEGER;
+        return orderA - orderB;
+      });
+
+    const combinations = generateCombinations(validVariants);
 
     return combinations.map((combo, index) => {
       const defaultUniqueCode = String(index + 1).padStart(4, "0");
@@ -332,6 +384,7 @@ export function VariantCombinations() {
   }, [
     canShowGeneratedSkus,
     selectedVariants,
+    variantTypes, // Add variantTypes as dependency
     baseSku,
     full_product_name,
     variantUniqueCodes,
