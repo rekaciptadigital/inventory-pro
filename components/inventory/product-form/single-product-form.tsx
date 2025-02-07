@@ -149,16 +149,22 @@ export function SingleProductForm({
         }
 
         if (initialData.categories?.length > 0) {
-          updates.push(() => {
-            dispatch(updateProductCategories(
-              initialData.categories.map(cat => ({
-                product_category_id: String(cat.product_category_id),
-                product_category_parent: cat.product_category_parent ? String(cat.product_category_parent) : null,
-                product_category_name: cat.product_category_name,
-                category_hierarchy: cat.category_hierarchy,
-              }))
-            ));
-            form.setValue('categoryId', String(initialData.categories[0].product_category_id), { shouldValidate: true });
+          // Ensure all categories are properly formatted and sorted
+          const formattedCategories = initialData.categories
+            .map(cat => ({
+              product_category_id: String(cat.product_category_id),
+              product_category_name: cat.product_category_name,
+              product_category_parent: cat.product_category_parent ? String(cat.product_category_parent) : null,
+              category_hierarchy: Number(cat.category_hierarchy)
+            }))
+            .sort((a, b) => a.category_hierarchy - b.category_hierarchy);
+
+          // Update Redux store with all categories
+          dispatch(updateProductCategories(formattedCategories));
+          
+          // Set initial category ID for the form
+          form.setValue('categoryId', formattedCategories[0].product_category_id, { 
+            shouldValidate: true 
           });
         }
 

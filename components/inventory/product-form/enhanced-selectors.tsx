@@ -39,38 +39,42 @@ export function BrandSelector() {
   const { getBrands } = useBrands();
   const dispatch = useDispatch();
   const [selectedBrand, setSelectedBrand] = useState<SelectOption | null>(null);
-  const initialBrandId = getValues('brand');
+  const initialBrandId = getValues("brand");
 
   // Load initial brand data
   useEffect(() => {
     const loadInitialBrand = async () => {
       if (initialBrandId) {
-        console.log('Loading initial brand:', initialBrandId);
+        console.log("Loading initial brand:", initialBrandId);
         try {
           const response = await getBrands({
-            search: '',
+            search: "",
             page: 1,
-            limit: 100 // Increased limit to ensure we find the brand
+            limit: 100, // Increased limit to ensure we find the brand
           });
-          const brand = response.data.find(b => b.id.toString() === initialBrandId);
+          const brand = response.data.find(
+            (b) => b.id.toString() === initialBrandId
+          );
           if (brand) {
-            console.log('Found initial brand:', brand);
+            console.log("Found initial brand:", brand);
             setSelectedBrand({
               value: brand.id.toString(),
               label: brand.name,
               subLabel: brand.code,
-              data: brand
+              data: brand,
             });
-            dispatch(setBrand({
-              id: brand.id,
-              code: brand.code,
-              name: brand.name,
-            }));
+            dispatch(
+              setBrand({
+                id: brand.id,
+                code: brand.code,
+                name: brand.name,
+              })
+            );
           } else {
-            console.warn('Initial brand not found:', initialBrandId);
+            console.warn("Initial brand not found:", initialBrandId);
           }
         } catch (error) {
-          console.error('Error loading initial brand:', error);
+          console.error("Error loading initial brand:", error);
         }
       }
     };
@@ -166,7 +170,7 @@ export function ProductTypeSelector() {
   const dispatch = useDispatch();
   const [selectedProductType, setSelectedProductType] =
     useState<SelectOption | null>(null);
-  const initialProductTypeId = getValues('productTypeId');
+  const initialProductTypeId = getValues("productTypeId");
 
   // Load initial product type data
   useEffect(() => {
@@ -174,29 +178,36 @@ export function ProductTypeSelector() {
       if (initialProductTypeId) {
         try {
           const response = await getProductTypes({
-            search: '',
+            search: "",
             page: 1,
-            limit: 100 // Increased limit to ensure we find the product type
+            limit: 100, // Increased limit to ensure we find the product type
           });
-          const productType = response.data.find(pt => pt.id.toString() === initialProductTypeId);
+          const productType = response.data.find(
+            (pt) => pt.id.toString() === initialProductTypeId
+          );
           if (productType) {
-            console.log('Found initial product type:', productType);
+            console.log("Found initial product type:", productType);
             setSelectedProductType({
               value: productType.id.toString(),
               label: productType.name,
               subLabel: productType.code,
-              data: productType
+              data: productType,
             });
-            dispatch(setProductType({
-              id: productType.id,
-              code: productType.code,
-              name: productType.name,
-            }));
+            dispatch(
+              setProductType({
+                id: productType.id,
+                code: productType.code,
+                name: productType.name,
+              })
+            );
           } else {
-            console.warn('Initial product type not found:', initialProductTypeId);
+            console.warn(
+              "Initial product type not found:",
+              initialProductTypeId
+            );
           }
         } catch (error) {
-          console.error('Error loading initial product type:', error);
+          console.error("Error loading initial product type:", error);
         }
       }
     };
@@ -301,218 +312,242 @@ export function CategorySelector() {
 
   const storeCategories = useSelector(selectSortedCategories);
   const availableCategories = useSelector(selectAvailableCategories);
-  
+
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [selectorStates, setSelectorStates] = useState<CategorySelectorState[]>([
-    { level: 0, parentId: null, selectedCategories: [] }
-  ]);
-
-  // Add new state to track the complete category chain
-  const [initialCategoryChain, setInitialCategoryChain] = useState<any[]>([]);
-
-  // Add new state to track initialization
   const [isInitialized, setIsInitialized] = useState(false);
-  const [selectedCategoryChain, setSelectedCategoryChain] = useState<any[]>([]);
+  const [selectorStates, setSelectorStates] = useState<CategorySelectorState[]>(
+    []
+  );
 
-  // Modified buildFullCategoryChain function
-  const buildFullCategoryChain = useCallback((categories: any[], targetId: number): any[] => {
-    const findCategoryPath = (cats: any[], id: number, path: any[] = []): any[] | null => {
-      for (const cat of cats) {
-        // Check if this is our target
-        if (cat.id === id) {
-          return [...path, cat];
+  // Helper function to find children for a category
+  const findChildren = useCallback(
+    (categories: any[], id: string | number): any[] => {
+      for (const cat of categories) {
+        if (cat.id?.toString() === id?.toString()) {
+          return cat.children || [];
         }
-        // Check children if any
         if (cat.children?.length) {
-          const foundPath = findCategoryPath(cat.children, id, [...path, cat]);
-          if (foundPath) return foundPath;
+          const found = findChildren(cat.children, id);
+          if (found.length) return found;
         }
       }
-      return null;
-    };
-
-    const path = findCategoryPath(categories, targetId) || [];
-    console.log('Found category path:', path);
-    return path;
-  }, []);
+      return [];
+    },
+    []
+  );
 
   // Modified initial load effect
   useEffect(() => {
     const loadCategories = async () => {
       if (isInitialized) return;
-      
+
       try {
         const response = await getCategories({
           search: "",
           page: 1,
           limit: 100,
         });
-        
+
+        if (!response?.data) {
+          throw new Error("No categories data received");
+        }
+
         dispatch(setAvailableCategories(response.data));
-        
-        // Get initial category ID after categories are loaded
-        const initialCategoryId = getValues("categoryId");
-        if (initialCategoryId && response.data.length > 0) {
-          const chain = buildFullCategoryChain(response.data, parseInt(initialCategoryId));
-          setSelectedCategoryChain(chain);
-          
-          // Create states for each level
-          const states = chain.map((category, index) => ({
-            level: index,
-            parentId: index === 0 ? null : chain[index - 1].id,
-            selectedCategories: [{
-              value: category.id.toString(),
-              label: category.name,
-              subLabel: category.code,
-              data: {
-                ...category,
-                parent_id: index === 0 ? null : chain[index - 1].id,
-                children: category.children || []
-              }
-            }]
-          }));
 
-          // Add empty state for next level if needed
-          if (chain[chain.length - 1]?.children?.length > 0) {
-            states.push({
-              level: chain.length,
-              parentId: chain[chain.length - 1].id,
-              selectedCategories: []
-            });
-          }
+        // Initialize selector states
+        if (storeCategories.length > 0) {
+          const states = storeCategories
+            .map((category, index) => {
+              if (!category?.product_category_id) return null;
 
-          setSelectorStates(states);
+              return {
+                level: index,
+                parentId:
+                  index === 0
+                    ? null
+                    : parseInt(
+                        storeCategories[
+                          index - 1
+                        ]?.product_category_id?.toString() || "0"
+                      ),
+                selectedCategories: [
+                  {
+                    value: category.product_category_id.toString(),
+                    label: category.product_category_name || "",
+                    data: {
+                      id: category.product_category_id,
+                      name: category.product_category_name,
+                      parent_id: category.product_category_parent,
+                      children: findChildren(
+                        response.data,
+                        category.product_category_id
+                      ),
+                    },
+                  },
+                ],
+              };
+            })
+            .filter(Boolean) as CategorySelectorState[];
 
-          // Update Redux store
-          const categories = chain.map((cat, idx) => ({
-            product_category_id: cat.id,
-            product_category_name: cat.name,
-            product_category_parent: idx === 0 ? null : chain[idx - 1].id,
-            category_hierarchy: idx + 1
-          }));
-
-          dispatch(updateProductCategories(categories));
+          setSelectorStates(
+            states.length > 0
+              ? states
+              : [
+                  {
+                    level: 0,
+                    parentId: null,
+                    selectedCategories: [],
+                  },
+                ]
+          );
+        } else {
+          setSelectorStates([
+            {
+              level: 0,
+              parentId: null,
+              selectedCategories: [],
+            },
+          ]);
         }
 
         setIsInitialLoading(false);
         setIsInitialized(true);
       } catch (error) {
         console.error("Error loading categories:", error);
+        setSelectorStates([
+          { level: 0, parentId: null, selectedCategories: [] },
+        ]);
         setIsInitialLoading(false);
         setIsInitialized(true);
       }
     };
 
     loadCategories();
-  }, [dispatch, getValues, buildFullCategoryChain, isInitialized]);
+  }, [dispatch, storeCategories, isInitialized, findChildren]);
 
   // Modified loadCategoryOptions function
-  const loadCategoryOptions = useCallback(async (
-    search: string,
-    loadedOptions: SelectOption[],
-    { level, parentId }: { level: number; parentId: number | null }
-  ) => {
-    if (!availableCategories?.length) return { options: [], hasMore: false };
+  const loadCategoryOptions = useCallback(
+    async (
+      search: string,
+      loadedOptions: SelectOption[],
+      { level, parentId }: { level: number; parentId: number | null }
+    ) => {
+      if (!availableCategories?.length) return { options: [], hasMore: false };
 
-    const findChildrenForParent = (categories: any[], targetParentId: number | null): any[] => {
-      if (targetParentId === null) {
-        return categories.filter(cat => !cat.parent_id);
+      const findChildrenForParent = (
+        categories: any[],
+        targetParentId: number | null
+      ): any[] => {
+        if (targetParentId === null) {
+          return categories.filter((cat) => !cat.parent_id);
+        }
+
+        for (const cat of categories) {
+          if (cat.id === targetParentId) {
+            return cat.children || [];
+          }
+          if (cat.children?.length) {
+            const found = findChildrenForParent(cat.children, targetParentId);
+            if (found.length) return found;
+          }
+        }
+        return [];
+      };
+
+      const availableOptions = findChildrenForParent(
+        availableCategories,
+        parentId
+      )
+        .filter(
+          (cat) =>
+            !search || cat.name.toLowerCase().includes(search.toLowerCase())
+        )
+        .map((cat) => ({
+          value: cat.id.toString(),
+          label: cat.name,
+          subLabel: cat.code,
+          data: {
+            ...cat,
+            parent_id: parentId,
+            children: cat.children || [],
+          },
+        }));
+
+      return {
+        options: availableOptions,
+        hasMore: false,
+      };
+    },
+    [availableCategories]
+  );
+
+  const handleChange = useCallback(
+    (selected: SelectOption | null, level: number) => {
+      if (!selected) {
+        setSelectorStates((prev) => {
+          const newStates = prev.slice(0, level + 1);
+          newStates[level].selectedCategories = [];
+
+          const remainingCategories = newStates
+            .slice(0, level)
+            .filter((state) => state.selectedCategories.length > 0)
+            .map((state, idx) => ({
+              product_category_id: parseInt(state.selectedCategories[0].value),
+              product_category_name: state.selectedCategories[0].label,
+              product_category_parent: state.parentId,
+              category_hierarchy: idx + 1,
+            }));
+
+          setTimeout(() => {
+            dispatch(updateProductCategories(remainingCategories));
+            if (level === 0) {
+              setValue("categoryId", "");
+            }
+          }, 0);
+
+          return newStates;
+        });
+        return;
       }
 
-      for (const cat of categories) {
-        if (cat.id === targetParentId) {
-          return cat.children || [];
-        }
-        if (cat.children?.length) {
-          const found = findChildrenForParent(cat.children, targetParentId);
-          if (found.length) return found;
-        }
-      }
-      return [];
-    };
-
-    const availableOptions = findChildrenForParent(availableCategories, parentId)
-      .filter(cat => !search || cat.name.toLowerCase().includes(search.toLowerCase()))
-      .map(cat => ({
-        value: cat.id.toString(),
-        label: cat.name,
-        subLabel: cat.code,
-        data: {
-          ...cat,
-          parent_id: parentId,
-          children: cat.children || []
-        }
-      }));
-
-    return {
-      options: availableOptions,
-      hasMore: false
-    };
-  }, [availableCategories]);
-
-  const handleChange = useCallback((selected: SelectOption | null, level: number) => {
-    if (!selected) {
-      setSelectorStates(prev => {
+      setSelectorStates((prev) => {
         const newStates = prev.slice(0, level + 1);
-        newStates[level].selectedCategories = [];
-        
-        const remainingCategories = newStates
-          .slice(0, level)
-          .filter(state => state.selectedCategories.length > 0)
+        newStates[level] = {
+          ...newStates[level],
+          selectedCategories: [selected],
+        };
+
+        // Add next level if there are children
+        const hasChildren =
+          selected.data.children && selected.data.children.length > 0;
+        if (hasChildren) {
+          newStates.push({
+            level: level + 1,
+            parentId: parseInt(selected.value),
+            selectedCategories: [],
+          });
+        }
+
+        // Update categories in Redux
+        const selectedCategories = newStates
+          .filter((state) => state.selectedCategories.length > 0)
           .map((state, idx) => ({
             product_category_id: parseInt(state.selectedCategories[0].value),
             product_category_name: state.selectedCategories[0].label,
             product_category_parent: state.parentId,
             category_hierarchy: idx + 1,
           }));
-        
+
         setTimeout(() => {
-          dispatch(updateProductCategories(remainingCategories));
-          if (level === 0) {
-            setValue("categoryId", "");
-          }
+          dispatch(updateProductCategories(selectedCategories));
+          setValue("categoryId", selected.value);
         }, 0);
-        
+
         return newStates;
       });
-      return;
-    }
-
-    setSelectorStates(prev => {
-      const newStates = prev.slice(0, level + 1);
-      newStates[level] = {
-        ...newStates[level],
-        selectedCategories: [selected],
-      };
-
-      // Add next level if there are children
-      const hasChildren = selected.data.children && selected.data.children.length > 0;
-      if (hasChildren) {
-        newStates.push({
-          level: level + 1,
-          parentId: parseInt(selected.value),
-          selectedCategories: [],
-        });
-      }
-
-      // Update categories in Redux
-      const selectedCategories = newStates
-        .filter(state => state.selectedCategories.length > 0)
-        .map((state, idx) => ({
-          product_category_id: parseInt(state.selectedCategories[0].value),
-          product_category_name: state.selectedCategories[0].label,
-          product_category_parent: state.parentId,
-          category_hierarchy: idx + 1,
-        }));
-
-      setTimeout(() => {
-        dispatch(updateProductCategories(selectedCategories));
-        setValue("categoryId", selected.value);
-      }, 0);
-
-      return newStates;
-    });
-  }, [dispatch, setValue]);
+    },
+    [dispatch, setValue]
+  );
 
   if (isInitialLoading) {
     return <div>Loading categories...</div>;
