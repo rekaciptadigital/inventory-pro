@@ -1,4 +1,5 @@
 import axiosInstance from "./axios";
+import axios, { AxiosError } from 'axios';
 
 export interface ProductTypeResponse {
   status: {
@@ -62,7 +63,19 @@ export const getProductTypes = async ({
     );
     return response.data;
   } catch (error) {
-    console.error("Error fetching product types:", error);
+    if (axios.isAxiosError(error)) {
+      const axiosError = error as AxiosError;
+      if (!axiosError.response) {
+        console.error('Network Error: Unable to connect to the server');
+        throw new Error('Unable to connect to the server. Please check your internet connection.');
+      }
+      console.error('Error fetching product types:', {
+        status: axiosError.response?.status,
+        message: axiosError.message,
+      });
+    } else {
+      console.error('Unexpected error:', error);
+    }
     throw error;
   }
 };

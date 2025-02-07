@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react"; // Add useRef
 import { useFormContext } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
-import { Plus, X } from "lucide-react";
+import { Plus, X, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   updateForm,
@@ -32,6 +32,7 @@ import type { VariantValue as VariantValueType } from "@/types/variant"; // Rena
 import type { SelectOption } from "@/components/ui/enhanced-select";
 import { Input } from "@/components/ui/input";
 import { RootState } from "@/lib/store";
+import { FormItem, FormLabel, FormControl, FormDescription } from '@/components/ui/form';
 
 // Add additional type for variant value
 interface VariantValueData {
@@ -82,6 +83,12 @@ interface VariantSelectorData {
   name: string;
   values: string[];
   selected_values?: string[];
+}
+
+// Add new input state type
+interface InputStates {
+  value: string;
+  isDirty: boolean;
 }
 
 export function VariantCombinations() {
@@ -369,25 +376,11 @@ export function VariantCombinations() {
   }, [selectedVariants, variantTypes, dispatch]);
 
   // Modifikasi pada useEffect untuk variantData
-  useEffect(() => {
-    if (variantData.length) {
-      dispatch(
-        updateForm({
-          product_by_variant: variantData.map((variant) => ({
-            originalSkuKey: variant.originalSkuKey,
-            sku: variant.skuKey,
-            sku_product_unique_code: variant.uniqueCode, // Ubah dari unique_code
-            full_product_name: variant.productName, // Ubah key dari product_name ke full_product_name
-          })),
-        })
-      );
-    }
-  }, [variantData, dispatch]);
-
+  const [skipReduxUpdate, setSkipReduxUpdate] = useState(false);
   const updateTimeoutRef = useRef<NodeJS.Timeout>();
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
 
-  // Fungsi untuk update local state
+  // Fungsi untuk update local state tetap sama
   const updateLocalValue = useCallback((key: string, value: string) => {
     setLocalValues((prev) => ({
       ...prev,
@@ -395,139 +388,175 @@ export function VariantCombinations() {
     }));
   }, []);
 
-  // Modifikasi pada debouncedUpdateRedux
-  const debouncedUpdateRedux = useCallback(
-    (originalSkuKey: string, value: string) => {
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
-
-      updateTimeoutRef.current = setTimeout(() => {
-        setVariantUniqueCodes((prev) => ({
-          ...prev,
-          [originalSkuKey]: value,
-        }));
-
-        dispatch(
-          updateForm({
-            product_by_variant: variantData.map((variant) => ({
-              originalSkuKey: variant.originalSkuKey,
-              sku:
-                variant.originalSkuKey === originalSkuKey
-                  ? `${baseSku}-${value || "0000"}`
-                  : variant.skuKey,
-              sku_product_unique_code:
-                variant.originalSkuKey === originalSkuKey // Ubah dari unique_code
-                  ? value
-                  : variant.uniqueCode,
-              full_product_name: variant.productName, // Ubah key dari product_name ke full_product_name
-            })),
-          })
-        );
-      }, 300);
-    },
-    [baseSku, variantData, dispatch]
-  );
-
-  // Modifikasi handler untuk perubahan input
-  // Modifikasi pada handleUniqueCodeChange untuk reset case
+  // Disabling immediate Redux update on change
   const handleUniqueCodeChange = useCallback(
     (originalSkuKey: string, value: string) => {
       if (!value.match(/^\d*$/)) return;
-
       const cleanValue = value.replace(/\D/g, "").slice(0, 10);
-
-      // Jika value kosong, hapus dari localValues untuk menggunakan default value
-      if (!cleanValue) {
-        setLocalValues((prev) => {
-          const newValues = { ...prev };
-          delete newValues[originalSkuKey];
-          return newValues;
-        });
-
-        // Reset ke nilai default di Redux juga
-        if (updateTimeoutRef.current) {
-          clearTimeout(updateTimeoutRef.current);
-        }
-
-        updateTimeoutRef.current = setTimeout(() => {
-          setVariantUniqueCodes((prev) => {
-            const newValues = { ...prev };
-            delete newValues[originalSkuKey];
-            return newValues;
-          });
-
-          // Dapatkan default unique code dari variantData
-          const defaultUniqueCode =
-            variantData.find((v) => v.originalSkuKey === originalSkuKey)
-              ?.uniqueCode || "0000";
-
-          dispatch(
-            updateForm({
-              product_by_variant: variantData.map((variant) => ({
-                originalSkuKey: variant.originalSkuKey,
-                sku:
-                  variant.originalSkuKey === originalSkuKey
-                    ? `${baseSku}-${defaultUniqueCode}`
-                    : variant.skuKey,
-                sku_product_unique_code:
-                  variant.originalSkuKey === originalSkuKey // Ubah dari unique_code
-                    ? defaultUniqueCode
-                    : variant.uniqueCode,
-                full_product_name: variant.productName, // Ubah key dari product_name ke full_product_name
-              })),
-            })
-          );
-        }, 300);
-
-        return;
-      }
-
-      // Normal flow untuk value yang tidak kosong
       updateLocalValue(originalSkuKey, cleanValue);
-      debouncedUpdateRedux(originalSkuKey, cleanValue);
+      setSkipReduxUpdate(true);
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+      updateTimeoutRef.current = setTimeout(() => {
+        // Do nothing here; we'll update Redux upon blur
+      }, 300);
     },
-    [updateLocalValue, debouncedUpdateRedux, baseSku, variantData, dispatch]
+    [updateLocalValue]
   );
 
-  // Handler untuk blur event
+  // On blur, re-enable Redux update and dispatch change
   const handleInputBlur = useCallback(
     (originalSkuKey: string, value: string) => {
       const cleanValue = value.replace(/\D/g, "").slice(0, 10);
-      const paddedValue =
-        cleanValue.length < 4 ? cleanValue.padStart(4, "0") : cleanValue;
-
+      const paddedValue = cleanValue.length < 4 ? cleanValue.padStart(4, "0") : cleanValue;
       updateLocalValue(originalSkuKey, paddedValue);
-      debouncedUpdateRedux(originalSkuKey, paddedValue);
+      setSkipReduxUpdate(false);
+      // Dispatch Redux update now
+      setVariantUniqueCodes((prev) => ({
+        ...prev,
+        [originalSkuKey]: paddedValue,
+      }));
+      dispatch(
+        updateForm({
+          product_by_variant: variantData.map((variant) => ({
+            originalSkuKey: variant.originalSkuKey,
+            sku: variant.originalSkuKey === originalSkuKey
+              ? `${baseSku}-${paddedValue}`
+              : variant.skuKey,
+            sku_product_unique_code: variant.originalSkuKey === originalSkuKey
+              ? paddedValue
+              : variant.uniqueCode,
+            full_product_name: variant.productName,
+          })),
+        })
+      );
     },
-    [updateLocalValue, debouncedUpdateRedux]
+    [updateLocalValue, variantData, baseSku, dispatch]
   );
 
-  // Cleanup pada unmount
+  // Only update Redux if skipReduxUpdate is false
   useEffect(() => {
-    return () => {
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
-    };
-  }, []);
+    if (variantData.length && !skipReduxUpdate) {
+      dispatch(
+        updateForm({
+          product_by_variant: variantData.map((variant) => ({
+            originalSkuKey: variant.originalSkuKey,
+            sku: variant.skuKey,
+            sku_product_unique_code: variant.uniqueCode,
+            full_product_name: variant.productName,
+          })),
+        })
+      );
+    }
+  }, [variantData, dispatch, skipReduxUpdate]);
 
-  // Render input component
-  const renderUniqueCodeInput = useCallback(
-    (originalSkuKey: string, uniqueCode: string) => (
-      <Input
-        value={localValues[originalSkuKey] ?? uniqueCode}
-        onChange={(e) => handleUniqueCodeChange(originalSkuKey, e.target.value)}
-        onBlur={(e) => handleInputBlur(originalSkuKey, e.target.value)}
-        className="w-[120px] font-mono"
-        placeholder="0000"
-        maxLength={10}
-        type="text"
-        inputMode="numeric"
-        pattern="\d*"
-      />
-    ),
-    [localValues, handleUniqueCodeChange, handleInputBlur]
+  // Add this new function to handle reset
+  const handleResetUniqueCode = useCallback((originalSkuKey: string) => {
+    // Remove from local state
+    setLocalValues((prev) => {
+      const newValues = { ...prev };
+      delete newValues[originalSkuKey];
+      return newValues;
+    });
+
+    // Remove from variant unique codes
+    setVariantUniqueCodes((prev) => {
+      const newValues = { ...prev };
+      delete newValues[originalSkuKey];
+      return newValues;
+    });
+
+    // Reset in Redux state
+    const defaultUniqueCode = variantData.find(
+      (v) => v.originalSkuKey === originalSkuKey
+    )?.uniqueCode || "0000";
+
+    dispatch(
+      updateForm({
+        product_by_variant: variantData.map((variant) => ({
+          originalSkuKey: variant.originalSkuKey,
+          sku:
+            variant.originalSkuKey === originalSkuKey
+              ? `${baseSku}-${defaultUniqueCode}`
+              : variant.skuKey,
+          sku_product_unique_code:
+            variant.originalSkuKey === originalSkuKey
+              ? defaultUniqueCode
+              : variant.uniqueCode,
+          full_product_name: variant.productName,
+        })),
+      })
+    );
+  }, [baseSku, variantData, dispatch]);
+
+  // Update the render input component
+  const renderSkuFields = useCallback(
+    (originalSkuKey: string, skuKey: string, uniqueCode: string) => {
+      const defaultUniqueCode = String(
+        variantData.findIndex((v) => v.originalSkuKey === originalSkuKey) + 1
+      ).padStart(4, "0");
+
+      const inputValue = localValues[originalSkuKey] ?? uniqueCode;
+      const formGroupId = `variant-group-${originalSkuKey}`;
+
+      return (
+        <div id={formGroupId} className="grid grid-cols-2 gap-4" role="group" aria-labelledby={`${formGroupId}-heading`}>
+          <FormItem className="space-y-2">
+            <FormControl>
+              <div className="space-y-1">
+                <FormLabel htmlFor={`sku-variant-${originalSkuKey}`}>SKU Variant</FormLabel>
+                <Input
+                  id={`sku-variant-${originalSkuKey}`}
+                  name={`sku-variant-${originalSkuKey}`}
+                  value={skuKey}
+                  className="font-mono bg-muted"
+                  readOnly
+                />
+              </div>
+            </FormControl>
+            <FormDescription>
+              Generated SKU based on main SKU and unique code
+            </FormDescription>
+          </FormItem>
+
+          <FormItem className="space-y-2">
+            <FormControl>
+              <div className="space-y-1">
+                <FormLabel htmlFor={`unique-code-${originalSkuKey}`}>Unique Code</FormLabel>
+                <div className="relative">
+                  <Input
+                    id={`unique-code-${originalSkuKey}`}
+                    name={`unique-code-${originalSkuKey}`}
+                    value={inputValue}
+                    onChange={(e) => handleUniqueCodeChange(originalSkuKey, e.target.value)}
+                    onBlur={(e) => handleInputBlur(originalSkuKey, e.target.value)}
+                    className="font-mono pr-8"
+                    placeholder="0000"
+                    maxLength={10}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d*"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
+                    onClick={() => handleResetUniqueCode(originalSkuKey)}
+                    title={`Reset to default (${defaultUniqueCode})`}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </FormControl>
+            <FormDescription>
+              <span className="block">Enter 1-10 numeric or use the default code</span>
+            </FormDescription>
+          </FormItem>
+        </div>
+      );
+    },
+    [localValues, handleUniqueCodeChange, handleInputBlur, handleResetUniqueCode, variantData]
   );
 
   const renderVariantValue = useCallback(
@@ -648,11 +677,8 @@ export function VariantCombinations() {
                       ({ originalSkuKey, skuKey, productName, uniqueCode }: VariantTableData) => (
                         <TableRow key={skuKey}>
                           <TableCell>{productName}</TableCell>
-                          <TableCell className="font-medium">
-                            {skuKey}
-                          </TableCell>
-                          <TableCell>
-                            {renderUniqueCodeInput(originalSkuKey, uniqueCode)}
+                          <TableCell colSpan={2}>
+                            {renderSkuFields(originalSkuKey, skuKey, uniqueCode)}
                           </TableCell>
                         </TableRow>
                       )
