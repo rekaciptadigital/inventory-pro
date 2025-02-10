@@ -146,7 +146,7 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
     }));
   }, []);
 
-  const renderDiscountTable = useCallback((variantSku: string, tiers: DiscountTier[]) => (
+  const renderDiscountTable = useCallback((variantSku: string, tiers: DiscountTier[] = []) => (
     <table className="w-full mt-4">
       <thead>
         <tr className="bg-muted/50">
@@ -241,7 +241,7 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
 
       {isEnabled && (
         <div className="space-y-6">
-          {customizePerVariant ? (
+          {!customizePerVariant ? (
             // Global discount rules
             <div className="border rounded-lg p-4">
               <div className="flex justify-between items-center mb-4">
