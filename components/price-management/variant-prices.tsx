@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { PriceFormFields } from '@/types/form';
 import { Switch } from '@/components/ui/switch';
@@ -99,7 +99,7 @@ export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
           <table className="w-full">
             <thead>
               <tr className="bg-muted/50">
-                <th className="p-4 text-left">Variant</th>
+                <th className="p-4 text-left whitespace-nowrap">Variant</th>
                 {categories.map((category) => (
                   <th key={category.name} className="p-4 text-right whitespace-nowrap">
                     {category.name} Price
@@ -116,7 +116,8 @@ export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
                 };
 
                 return (
-                  <tr key={variant.sku_product_variant} className="hover:bg-muted/30">
+                  <Fragment key={variant.sku_product_variant}>
+                    <tr className="hover:bg-muted/30">
                     <td className="p-4">
                       <div className="font-medium">{variant.full_product_name}</div>
                       <div className="text-sm text-muted-foreground">
@@ -147,7 +148,8 @@ export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
                         onCheckedChange={(checked) => handleStatusChange(variant.sku_product_variant, checked)}
                       />
                     </td>
-                  </tr>
+                    </tr>
+                  </Fragment>
                 );
               })}
             </tbody>
