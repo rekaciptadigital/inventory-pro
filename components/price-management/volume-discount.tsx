@@ -19,8 +19,8 @@ interface VolumeDiscountProps {
 
 interface DiscountTier {
   quantity: number;
-  price: number;
   discount: number;
+  prices: Record<string, number>;  // Changed: remove price, add prices per category
 }
 
 interface VariantDiscount {
@@ -39,9 +39,9 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
 
   // Default tiers for new discount rules
   const defaultTiers: DiscountTier[] = [
-    { quantity: 10, price: 0, discount: 5 },
-    { quantity: 50, price: 0, discount: 10 },
-    { quantity: 100, price: 0, discount: 15 },
+    { quantity: 10, discount: 5, prices: {} },
+    { quantity: 50, discount: 10, prices: {} },
+    { quantity: 100, discount: 15, prices: {} },
   ];
 
   const addQuantityTier = useCallback((variantSku?: string) => {
@@ -52,14 +52,14 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
           ...prev[variantSku],
           tiers: [
             ...(prev[variantSku]?.tiers || []),
-            { quantity: 0, price: 0, discount: 0 }
+            { quantity: 0, discount: 0, prices: {} }
           ]
         }
       }));
     } else {
       // Add global tier
       setVariantDiscounts(prev => {
-        const newTier = { quantity: 0, price: 0, discount: 0 };
+        const newTier = { quantity: 0, discount: 0, prices: {} };
         const updatedDiscounts = { ...prev };
         
         // Apply new tier to all variants
@@ -102,7 +102,7 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
   const updateTier = useCallback((
     variantSku: string,
     index: number,
-    field: keyof DiscountTier,
+    field: string,
     value: number
   ) => {
     setVariantDiscounts(prev => {
@@ -110,21 +110,32 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
       if (!variant) return prev;
 
       const newTiers = [...variant.tiers];
-      const error = validateTier(newTiers, index, field, value);
       
-      if (error) {
-        toast({
-          variant: 'destructive',
-          title: 'Invalid Input',
-          description: error
-        });
-        return prev;
+      // Handle nested price updates
+      if (field.startsWith('prices.')) {
+        const categoryKey = field.split('.')[1];
+        newTiers[index] = {
+          ...newTiers[index],
+          prices: {
+            ...newTiers[index].prices,
+            [categoryKey]: value
+          }
+        };
+      } else {
+        const error = validateTier(newTiers, index, field as keyof DiscountTier, value);
+        if (error) {
+          toast({
+            variant: 'destructive',
+            title: 'Invalid Input',
+            description: error
+          });
+          return prev;
+        }
+        newTiers[index] = {
+          ...newTiers[index],
+          [field]: value
+        };
       }
-
-      newTiers[index] = {
-        ...newTiers[index],
-        [field]: value
-      };
 
       return {
         ...prev,
@@ -151,7 +162,11 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
       <thead>
         <tr className="bg-muted/50">
           <th className="p-2 text-left">QTY</th>
-          <th className="p-2 text-right">Price</th>
+          {categories.map((category) => (
+            <th key={category.name} className="p-2 text-right whitespace-nowrap">
+              {category.name} Price
+            </th>
+          ))}
           <th className="p-2 text-right">Discount (%)</th>
           <th className="p-2 w-[100px]"></th>
         </tr>
@@ -168,19 +183,24 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
                 className="w-[100px]"
               />
             </td>
-            <td className="p-2">
-              <Input
-                type="text"
-                value={formatCurrency(tier.price)}
-                onChange={(e) => updateTier(
-                  variantSku,
-                  index,
-                  'price',
-                  parseFloat(e.target.value.replace(/[^0-9]/g, '')) || 0
-                )}
-                className="text-right"
-              />
-            </td>
+            {categories.map((category) => {
+              const categoryKey = category.name.toLowerCase();
+              return (
+                <td key={category.name} className="p-2">
+                  <Input
+                    type="text"
+                    value={formatCurrency(tier.prices[categoryKey] || 0)}
+                    onChange={(e) => updateTier(
+                      variantSku,
+                      index,
+                      `prices.${categoryKey}`,
+                      parseFloat(e.target.value.replace(/[^0-9]/g, '')) || 0
+                    )}
+                    className="text-right"
+                  />
+                </td>
+              );
+            })}
             <td className="p-2">
               <Input
                 type="number"
@@ -204,7 +224,7 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
         ))}
       </tbody>
     </table>
-  ), [updateTier, removeTier]);
+  ), [updateTier, removeTier, categories]);
 
   if (!variants.length) {
     return null;
