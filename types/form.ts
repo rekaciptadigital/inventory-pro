@@ -16,8 +16,8 @@ export interface PriceFormFields {
   percentages: Record<string, number>;
   
   // Variant prices
-  variantPrices?: Record<string, {
-    price: number;
+  variantPrices: Record<string, {
+    prices: Record<string, number>;  // Changed from price: number
     status: boolean;
   }>;
 }

@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/utils/format';
 import { usePriceCategories } from '@/lib/hooks/use-price-categories';
-import type { InventoryProduct, InventoryProductVariant } from '@/types/inventory';
+import type { InventoryProduct } from '@/types/inventory';
 import { VolumeDiscount } from './volume-discount';
 
 interface VariantPricesProps {
@@ -64,6 +64,7 @@ export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
     form.setValue('variantPrices', updatedPrices, { shouldDirty: true });
   }, [form.watch('customerPrices'), manualPriceEditing]);
 
+  // Update price change handler
   const handlePriceChange = useCallback((sku: string, category: string, value: string) => {
     const numericValue = parseFloat(value) || 0;
     form.setValue(`variantPrices.${sku}.prices.${category}`, numericValue, { shouldDirty: true });
@@ -136,7 +137,7 @@ export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
                                 onChange={(e) => handlePriceChange(
                                   variant.sku_product_variant,
                                   categoryKey,
-                                  e.target.value.replace(/[^0-9]/g, '')
+                                  e.target.value.replace(/\D/g, '')
                                 )}
                                 disabled={!manualPriceEditing}
                                 className="text-right"
