@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Table,
@@ -7,7 +7,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,13 +18,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Edit, Trash2 } from 'lucide-react';
-import { formatDate } from '@/lib/utils/format';
-import type { Location } from '@/types/location';
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Edit, Trash2 } from "lucide-react";
+import { formatDate } from "@/lib/utils/format";
+import type { Location } from "@/types/location";
 
 interface LocationListProps {
   readonly locations: Location[];
@@ -52,17 +52,18 @@ export function LocationList({
   if (!locations?.length) {
     return (
       <div className="border rounded-lg p-8 text-center text-muted-foreground">
-        No locations found. Click the "Add New Location" button to add your first location.
+        No locations found. Click the "Add New Location" button to add your
+        first location.
       </div>
     );
   }
 
-  const getLocationTypeBadge = (type: Location['type']) => {
+  const getLocationTypeBadge = (type: Location["type"]) => {
     const variants: Record<string, any> = {
-      warehouse: { variant: 'default', label: 'Warehouse' },
-      store: { variant: 'secondary', label: 'Store' },
-      affiliate: { variant: 'outline', label: 'Affiliate Store' },
-      others: { variant: 'secondary', label: 'Others' },
+      warehouse: { variant: "default", label: "Warehouse" },
+      store: { variant: "secondary", label: "Store" },
+      affiliate: { variant: "outline", label: "Affiliate Store" },
+      others: { variant: "secondary", label: "Others" },
     };
 
     const { variant, label } = variants[type] || variants.others;
@@ -77,7 +78,6 @@ export function LocationList({
             <TableHead>Location Code</TableHead>
             <TableHead>Location Name</TableHead>
             <TableHead>Type</TableHead>
-            <TableHead>Status</TableHead>
             <TableHead>Created At</TableHead>
             <TableHead>Updated At</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
@@ -89,12 +89,6 @@ export function LocationList({
               <TableCell className="font-medium">{location.code}</TableCell>
               <TableCell>{location.name}</TableCell>
               <TableCell>{getLocationTypeBadge(location.type)}</TableCell>
-              <TableCell>
-                <Switch
-                  checked={location.status}
-                  onCheckedChange={(checked) => onStatusChange(location.id, checked)}
-                />
-              </TableCell>
               <TableCell>{formatDate(location.created_at)}</TableCell>
               <TableCell>{formatDate(location.updated_at)}</TableCell>
               <TableCell>
@@ -116,11 +110,18 @@ export function LocationList({
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete Location</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to delete this location? This action cannot be undone.
+                          Are you sure you want to delete this location? This
+                          action cannot be undone.
                           <div className="mt-4 p-4 bg-muted/50 rounded-lg">
-                            <div><strong>Code:</strong> {location.code}</div>
-                            <div><strong>Name:</strong> {location.name}</div>
-                            <div><strong>Type:</strong> {location.type}</div>
+                            <div>
+                              <strong>Code:</strong> {location.code}
+                            </div>
+                            <div>
+                              <strong>Name:</strong> {location.name}
+                            </div>
+                            <div>
+                              <strong>Type:</strong> {location.type}
+                            </div>
                           </div>
                         </AlertDialogDescription>
                       </AlertDialogHeader>

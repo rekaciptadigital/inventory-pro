@@ -6,18 +6,15 @@ export interface LocationResponse {
     message: string;
   };
   data: Array<{
-    type: 'warehouse' | 'store' | 'affiliate' | 'others';
-    locations: Array<{
-      id: number;
-      created_at: string;
-      updated_at: string;
-      deleted_at: null | string;
-      code: string;
-      name: string;
-      type: 'warehouse' | 'store' | 'affiliate' | 'others';
-      description: string;
-      status: boolean;
-    }>;
+    id: number;
+    created_at: string;
+    updated_at: string;
+    deleted_at: null | string;
+    code: string;
+    name: string;
+    type: string;
+    description: string;
+    status: boolean;
   }>;
   pagination: {
     links: {
@@ -39,14 +36,14 @@ export interface LocationResponse {
 export interface LocationFormData {
   code: string;
   name: string;
-  type: 'warehouse' | 'store' | 'affiliate' | 'others';
+  type: "warehouse" | "store" | "affiliate" | "others";
   description?: string;
   status: boolean;
 }
 
 interface GetLocationsParams {
   search?: string;
-  type?: 'warehouse' | 'store' | 'affiliate' | 'others';
+  type?: "warehouse" | "store" | "affiliate" | "others";
   status?: boolean;
   page?: number;
   limit?: number;
@@ -93,8 +90,11 @@ export const deleteLocation = async (id: number) => {
 };
 
 export const updateLocationStatus = async (id: number, status: boolean) => {
-  const response = await axiosInstance.patch(`/inventory-locations/${id}/status`, {
-    status,
-  });
+  const response = await axiosInstance.patch(
+    `/inventory-locations/${id}/status`,
+    {
+      status,
+    }
+  );
   return response.data;
 };

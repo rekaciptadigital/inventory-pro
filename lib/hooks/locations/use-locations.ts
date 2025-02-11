@@ -1,28 +1,27 @@
-import { useState } from 'react';
-import { useLocationList } from './use-location-list';
-import { useLocationMutations } from './use-location-mutations';
-import type { GetLocationsParams } from '@/lib/api/locations';
-import type { Location } from '@/types/location';
+import { useState } from "react";
+import { useLocationList } from "./use-location-list";
+import { useLocationMutations } from "./use-location-mutations";
+import type { GetLocationsParams } from "@/lib/api/locations";
+import type { Location } from "@/types/location";
 
 export function useLocations(filters: GetLocationsParams = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const { data, isLoading: isLoadingList, error } = useLocationList(filters);
   const mutations = useLocationMutations();
 
-  // Transform the grouped locations into a flat array with proper typing
-  const locations = data?.data.flatMap(group => 
-    group.locations.map(location => ({
+  // Transform the locations array with proper typing
+  const locations =
+    data?.data?.map((location) => ({
       id: location.id,
       code: location.code,
       name: location.name,
-      type: location.type.toLowerCase() as Location['type'],
+      type: location.type.toLowerCase() as Location["type"],
       description: location.description,
       status: location.status,
       created_at: location.created_at,
       updated_at: location.updated_at,
       deleted_at: location.deleted_at,
-    }))
-  ) || [];
+    })) ?? [];
 
   return {
     locations,
