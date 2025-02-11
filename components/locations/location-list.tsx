@@ -21,14 +21,16 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Edit, Trash2 } from 'lucide-react';
 import { formatDate } from '@/lib/utils/format';
 import type { Location } from '@/types/location';
 
 interface LocationListProps {
-  readonly locations: readonly Location[];
+  readonly locations: Location[];
   readonly onEdit: (location: Location) => void;
-  readonly onDelete: (id: string) => Promise<void>;
+  readonly onDelete: (id: number) => void;
+  readonly onStatusChange: (id: number, status: boolean) => void;
   readonly isLoading?: boolean;
 }
 
@@ -36,6 +38,7 @@ export function LocationList({
   locations,
   onEdit,
   onDelete,
+  onStatusChange,
   isLoading,
 }: LocationListProps) {
   if (isLoading) {
@@ -54,7 +57,7 @@ export function LocationList({
     );
   }
 
-  const getLocationTypeBadge = (type: string) => {
+  const getLocationTypeBadge = (type: Location['type']) => {
     const variants: Record<string, any> = {
       warehouse: { variant: 'default', label: 'Warehouse' },
       store: { variant: 'secondary', label: 'Store' },
@@ -74,6 +77,7 @@ export function LocationList({
             <TableHead>Location Code</TableHead>
             <TableHead>Location Name</TableHead>
             <TableHead>Type</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Created At</TableHead>
             <TableHead>Updated At</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
@@ -85,6 +89,12 @@ export function LocationList({
               <TableCell className="font-medium">{location.code}</TableCell>
               <TableCell>{location.name}</TableCell>
               <TableCell>{getLocationTypeBadge(location.type)}</TableCell>
+              <TableCell>
+                <Switch
+                  checked={location.status}
+                  onCheckedChange={(checked) => onStatusChange(location.id, checked)}
+                />
+              </TableCell>
               <TableCell>{formatDate(location.created_at)}</TableCell>
               <TableCell>{formatDate(location.updated_at)}</TableCell>
               <TableCell>

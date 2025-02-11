@@ -1,18 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { LocationList } from '@/components/locations/location-list';
-import { LocationForm } from '@/components/locations/location-form';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -20,24 +11,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { LocationList } from '@/components/locations/location-list';
+import { LocationForm } from '@/components/locations/location-form';
 import { useLocations } from '@/lib/hooks/locations/use-locations';
+import { PaginationControls } from '@/components/ui/pagination/pagination-controls';
+import { PaginationInfo } from '@/components/ui/pagination/pagination-info';
+import { usePagination } from '@/lib/hooks/use-pagination';
+import type { Location } from '@/types/location';
 
 export default function LocationsPage() {
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [locationType, setLocationType] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<any>();
+  const [selectedLocation, setSelectedLocation] = useState<Location | undefined>();
+  const { currentPage, pageSize, handlePageChange, handlePageSizeChange } = usePagination();
 
   const {
     locations,
+    pagination,
     isLoading,
     error,
     createLocation,
     updateLocation,
     deleteLocation,
+    updateLocationStatus,
   } = useLocations({
     search,
-    type: typeFilter === 'all' ? undefined : typeFilter,
+    type: locationType === 'all' ? undefined : locationType as Location['type'],
+    page: currentPage,
+    limit: pageSize,
   });
 
   const handleSuccess = () => {
@@ -70,15 +79,22 @@ export default function LocationsPage() {
 
       <div className="flex gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search locations..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
+            onChange={(e) => {
+              setSearch(e.target.value);
+              handlePageChange(1); // Reset to first page on search
+            }}
           />
         </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
+        <Select 
+          value={locationType} 
+          onValueChange={(value) => {
+            setLocationType(value);
+            handlePageChange(1); // Reset to first page on type change
+          }}
+        >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by type" />
           </SelectTrigger>
@@ -99,6 +115,7 @@ export default function LocationsPage() {
           setIsDialogOpen(true);
         }}
         onDelete={deleteLocation}
+        onStatusChange={updateLocationStatus}
         isLoading={isLoading}
       />
 
@@ -137,6 +154,22 @@ export default function LocationsPage() {
           />
         </DialogContent>
       </Dialog>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <PaginationInfo
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={pagination?.totalItems || 0}
+        />
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={pagination?.totalPages || 1}
+          pageSize={pageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          isLoading={isLoading}
+        />
+      </div>
     </div>
   );
 }
