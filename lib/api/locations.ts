@@ -108,9 +108,38 @@ export const createLocation = async (data: LocationFormData) => {
   }
 };
 
+interface UpdateLocationResponse {
+  status: {
+    code: number;
+    message: string;
+  };
+  data: [{
+    id: number;
+    created_at: string;
+    updated_at: string;
+    deleted_at: null | string;
+    code: string;
+    name: string;
+    type: string;
+    description: string;
+    status: boolean;
+  }];
+}
+
 export const updateLocation = async (id: number, data: LocationFormData) => {
-  const response = await axiosInstance.put(`/inventory-locations/${id}`, data);
-  return response.data;
+  try {
+    const response = await axiosInstance.put<UpdateLocationResponse>(
+      `/inventory-locations/${id}`,
+      {
+        ...data,
+        type: data.type.charAt(0).toUpperCase() + data.type.slice(1) // Capitalize first letter
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating location:", error);
+    throw error;
+  }
 };
 
 export const deleteLocation = async (id: number) => {
