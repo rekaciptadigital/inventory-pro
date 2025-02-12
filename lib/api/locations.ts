@@ -74,9 +74,38 @@ export const getLocations = async ({
   }
 };
 
+interface CreateLocationResponse {
+  status: {
+    code: number;
+    message: string;
+  };
+  data: {
+    id: number;
+    code: string;
+    name: string;
+    type: string;
+    description: string;
+    status: boolean;
+    created_at: string;
+    updated_at: string;
+    deleted_at: null | string;
+  };
+}
+
 export const createLocation = async (data: LocationFormData) => {
-  const response = await axiosInstance.post("/inventory-locations", data);
-  return response.data;
+  try {
+    const response = await axiosInstance.post<CreateLocationResponse>(
+      "/inventory-locations",
+      {
+        ...data,
+        type: data.type.charAt(0).toUpperCase() + data.type.slice(1) // Capitalize first letter
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error creating location:", error);
+    throw error;
+  }
 };
 
 export const updateLocation = async (id: number, data: LocationFormData) => {
