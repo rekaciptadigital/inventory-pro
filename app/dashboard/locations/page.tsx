@@ -115,7 +115,7 @@ export default function LocationsPage() {
           setIsDialogOpen(true);
         }}
         onDelete={deleteLocation}
-        onStatusChange={updateLocationStatus}
+        onStatusChange={(id, status) => updateLocationStatus({ id, status })}
         isLoading={isLoading}
       />
 
@@ -139,13 +139,30 @@ export default function LocationsPage() {
           </DialogHeader>
           <LocationForm
             onSubmit={async (data) => {
+              // Ensure code exists before submitting
+              if (!data.code) {
+                throw new Error('Location code is required');
+              }
+
               if (selectedLocation) {
                 await updateLocation({
                   id: selectedLocation.id,
-                  data,
+                  data: {
+                    code: data.code,
+                    name: data.name,
+                    type: data.type,
+                    description: data.description,
+                    status: data.status
+                  },
                 });
               } else {
-                await createLocation(data);
+                await createLocation({
+                  code: data.code,
+                  name: data.name,
+                  type: data.type,
+                  description: data.description,
+                  status: data.status
+                });
               }
               handleSuccess();
             }}

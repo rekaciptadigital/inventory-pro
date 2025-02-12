@@ -39,9 +39,9 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface LocationFormProps {
-  onSubmit: (data: FormValues) => Promise<void>;
-  initialData?: Location;
-  onClose: () => void;
+  readonly onSubmit: (data: FormValues) => Promise<void>;
+  readonly initialData?: Location;
+  readonly onClose: () => void;
 }
 
 export function LocationForm({ onSubmit, initialData, onClose }: LocationFormProps) {
@@ -80,6 +80,13 @@ export function LocationForm({ onSubmit, initialData, onClose }: LocationFormPro
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const getSubmitButtonLabel = () => {
+    if (isSubmitting) {
+      return initialData ? 'Updating...' : 'Creating...';
+    }
+    return initialData ? 'Update Location' : 'Create Location';
   };
 
   return (
@@ -207,10 +214,7 @@ export function LocationForm({ onSubmit, initialData, onClose }: LocationFormPro
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting 
-              ? (initialData ? 'Updating...' : 'Creating...') 
-              : (initialData ? 'Update Location' : 'Create Location')
-            }
+            {getSubmitButtonLabel()}
           </Button>
         </div>
       </form>

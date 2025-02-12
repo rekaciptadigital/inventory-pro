@@ -11,7 +11,7 @@ export interface Location {
 }
 
 export interface LocationFormData {
-  code: string;
+  code?: string;
   name: string;
   type: 'warehouse' | 'store' | 'affiliate' | 'others';
   description?: string;

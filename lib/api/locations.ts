@@ -41,7 +41,7 @@ export interface LocationFormData {
   status: boolean;
 }
 
-interface GetLocationsParams {
+export interface GetLocationsParams {
   search?: string;
   type?: "warehouse" | "store" | "affiliate" | "others";
   status?: boolean;
@@ -51,7 +51,7 @@ interface GetLocationsParams {
 
 export const getLocations = async ({
   search = "",
-  type = "",
+  type,
   status,
   page = 1,
   limit = 10,

@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { useLocationList } from "./use-location-list";
 import { useLocationMutations } from "./use-location-mutations";
 import type { GetLocationsParams } from "@/lib/api/locations";
 import type { Location } from "@/types/location";
 
 export function useLocations(filters: GetLocationsParams = {}) {
-  const [isLoading, setIsLoading] = useState(false);
   const { data, isLoading: isLoadingList, error } = useLocationList(filters);
   const mutations = useLocationMutations();
 
@@ -26,7 +24,7 @@ export function useLocations(filters: GetLocationsParams = {}) {
   return {
     locations,
     pagination: data?.pagination,
-    isLoading: isLoadingList || isLoading || mutations.isLoading,
+    isLoading: isLoadingList || mutations.isLoading,
     error,
     createLocation: mutations.createLocation,
     updateLocation: mutations.updateLocation,

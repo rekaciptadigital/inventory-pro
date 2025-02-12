@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Edit, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils/format";
 import type { Location } from "@/types/location";
@@ -109,18 +108,19 @@ export function LocationList({
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete Location</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this location? This
-                          action cannot be undone.
-                          <div className="mt-4 p-4 bg-muted/50 rounded-lg">
-                            <div>
-                              <strong>Code:</strong> {location.code}
-                            </div>
-                            <div>
-                              <strong>Name:</strong> {location.name}
-                            </div>
-                            <div>
-                              <strong>Type:</strong> {location.type}
+                        <AlertDialogDescription asChild>
+                          <div>
+                            Are you sure you want to delete this location? This action cannot be undone.
+                            <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-2">
+                              <p>
+                                <strong>Code:</strong> {location.code}
+                              </p>
+                              <p>
+                                <strong>Name:</strong> {location.name}
+                              </p>
+                              <p>
+                                <strong>Type:</strong> {location.type}
+                              </p>
                             </div>
                           </div>
                         </AlertDialogDescription>
