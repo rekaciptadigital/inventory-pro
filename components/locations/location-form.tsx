@@ -68,6 +68,10 @@ export function LocationForm({ onSubmit, initialData, onClose }: LocationFormPro
       if (isAutoGenerateCode && !initialData) {
         submissionData.code = generateLocationCode(values.type);
       }
+
+      if (!submissionData.code) {
+        throw new Error('Location code is required');
+      }
       
       await onSubmit(submissionData);
       form.reset();
