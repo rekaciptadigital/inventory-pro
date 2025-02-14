@@ -7,6 +7,7 @@ import {
   selectAuth,
 } from '@/lib/store/slices/authSlice';
 import type { LoginCredentials } from '@/lib/types/auth';
+import { STORAGE_KEYS } from '@/lib/config/constants';
 
 export function useAuth() {
   const dispatch = useAppDispatch();
@@ -14,13 +15,27 @@ export function useAuth() {
 
   const handleLogin = useCallback(
     async (credentials: LoginCredentials) => {
-      return dispatch(login(credentials)).unwrap();
+      try {
+        const result = await dispatch(login(credentials)).unwrap();
+        
+        // Store auth data in localStorage
+        localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(result.tokens));
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(result.user));
+        
+        return result;
+      } catch (error) {
+        throw error;
+      }
     },
     [dispatch]
   );
 
   const handleLogout = useCallback(() => {
     dispatch(logout());
+    
+    // Clear auth data from localStorage
+    localStorage.removeItem(STORAGE_KEYS.TOKENS);
+    localStorage.removeItem(STORAGE_KEYS.USER);
   }, [dispatch]);
 
   const handleClearError = useCallback(() => {
