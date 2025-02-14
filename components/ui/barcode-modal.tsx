@@ -34,20 +34,23 @@ interface BarcodeModalProps {
 }
 
 export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
+  // Inisialisasi hooks
   const { toast } = useToast();
   const barcodeRefs = useRef<(SVGSVGElement | null)[]>([]);
   
+  // Handler untuk menyimpan referensi SVG
   const setRef = (index: number) => (el: SVGSVGElement | null) => {
     barcodeRefs.current[index] = el;
   };
 
+  // State untuk manajemen UI
   const [selectedPageSize, setSelectedPageSize] = useState<string>('label-medium');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [dimensions, setDimensions] = useState<BarcodeLayout>(() => 
     calculateBarcodeLayout(PAGE_SIZES['label-medium'])
   );
 
-  // Update dimensions when page size changes
+  // Update dimensi saat ukuran kertas berubah
   useEffect(() => {
     const newDimensions = calculateBarcodeLayout(PAGE_SIZES[selectedPageSize]);
     setDimensions(newDimensions);
@@ -66,12 +69,17 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
               JsBarcode(ref, skus[index].sku, config);
             } catch (error) {
               console.error(`Error generating barcode for SKU ${skus[index].sku}:`, error);
+              toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to generate barcode preview",
+              });
             }
           }
         });
       }, 100);
     }
-  }, [open, skus, selectedPageSize]);
+  }, [open, skus, selectedPageSize, toast]);
 
   const generatePDF = async () => {
     setIsGeneratingPDF(true);
@@ -80,7 +88,7 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
       const layout = calculateBarcodeLayout(pageSize);
       
       const doc = new jsPDF({
-        orientation: 'landscape',
+        orientation: pageSize.height > pageSize.width ? 'portrait' : 'landscape',
         unit: 'mm',
         format: [pageSize.width, pageSize.height]
       });
@@ -89,40 +97,51 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
         const { sku, name } = skus[index];
         if (index > 0) doc.addPage();
 
-        // Start from top margin
-        let currentY = layout.margins.top;
+        // Calculate vertical center position with tighter spacing
+        const totalContentHeight = (
+          layout.fontSize + // Height for product name
+          layout.textSpacing + // Single spacing after name
+          layout.barcodeHeight + // Height of barcode
+          layout.textSpacing + // Single spacing after barcode
+          layout.fontSize // Height for SKU text
+        );
+        
+        // Start Y position to center content vertically
+        let startY = (pageSize.height - totalContentHeight) / 2;
+        const centerX = pageSize.width / 2;
 
-        // Draw product name with compact spacing
+        // Draw product name
         doc.setFontSize(layout.fontSize);
-        const splitName = doc.splitTextToSize(name, layout.barcodeWidth);
-        doc.text(splitName, layout.centerX, currentY, { 
+        const splitName = doc.splitTextToSize(name, pageSize.width - (layout.margins.left + layout.margins.right));
+        doc.text(splitName, centerX, startY, { 
           align: 'center',
           baseline: 'top'
         });
 
-        // Adjust spacing for barcode
-        currentY += (doc.getTextDimensions(splitName).h + layout.textSpacing);
+        // Update Y position for barcode with tighter spacing
+        startY += layout.fontSize + layout.textSpacing;
 
-        // Generate barcode
+        // Generate and place barcode
         const tempSvg = document.createElement('svg');
         JsBarcode(tempSvg, sku, getBarcodeConfig(layout));
-
-        // Position barcode
         await doc.svg(tempSvg, {
-          x: layout.centerX - (layout.barcodeWidth / 2),
-          y: currentY,
+          x: centerX - (layout.barcodeWidth / 2),
+          y: startY,
           width: layout.barcodeWidth,
           height: layout.barcodeHeight
         });
 
-        // Position SKU directly under barcode
-        currentY += layout.barcodeHeight + (layout.textSpacing / 2);
-        doc.text(sku, layout.centerX, currentY, {
+        // Update Y position for SKU with tighter spacing
+        startY += layout.barcodeHeight + layout.textSpacing;
+        
+        // Draw SKU
+        doc.text(sku, centerX, startY, {
           align: 'center',
           baseline: 'top'
         });
       }
 
+      // Output PDF
       const pdfBlob = doc.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
       window.open(pdfUrl, '_blank');
@@ -177,7 +196,6 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
                 </h3>
                 <svg
                   ref={setRef(index)}
-                  // Updated style to match the printed PDF canvas
                   style={{
                     height: '100px',
                     width: 'auto'
@@ -185,12 +203,6 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
                   xmlns="http://www.w3.org/2000/svg"
                   preserveAspectRatio="xMidYMid meet"
                 />
-                <span 
-                  className="text-sm text-muted-foreground"
-                  style={{ fontSize: `${dimensions.fontSize * 0.8}px` }}
-                >
-                  {sku}
-                </span>
               </div>
             ))}
           </div>

@@ -18,13 +18,13 @@ import {
 } from '@/components/ui/alert-dialog';
 
 interface ProductRowProps {
-  readonly product: InventoryProduct;
-  readonly isExpanded: boolean;
-  readonly isDeleting: boolean;
-  readonly onToggleExpand: () => void;
-  readonly onShowBarcode: () => void;
-  readonly onEdit: () => void;
-  readonly onDelete: () => void;
+  readonly product: InventoryProduct;      // Data produk yang akan ditampilkan
+  readonly isExpanded: boolean;            // Status expand/collapse
+  readonly isDeleting: boolean;            // Status proses delete
+  readonly onToggleExpand: () => void;     // Handler untuk expand/collapse
+  readonly onShowBarcode: () => void;      // Handler untuk menampilkan barcode
+  readonly onEdit: () => void;             // Handler untuk edit produk
+  readonly onDelete: () => void;           // Handler untuk delete produk
 }
 
 export function ProductRow({

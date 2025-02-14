@@ -130,12 +130,7 @@ function calculateBarcodeLayout(pageSize: PageSize): BarcodeLayout {
   };
 }
 
-export function VariantBarcodeModal({ 
-  open, 
-  onOpenChange, 
-  sku, 
-  name 
-}: VariantBarcodeModalProps) {
+export function VariantBarcodeModal({ open, onOpenChange, sku, name }: VariantBarcodeModalProps) {
   const { toast } = useToast();
   const barcodeRef = useRef<SVGSVGElement | null>(null);
   const [selectedPageSize, setSelectedPageSize] = useState<string>('label-medium');

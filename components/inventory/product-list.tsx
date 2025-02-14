@@ -23,22 +23,27 @@ interface ProductListProps {
   readonly onDelete?: (id: number) => Promise<void>;
 }
 
-// Loading state columns
+// Kolom yang ditampilkan saat loading
 const LOADING_COLUMNS = ['sku', 'name', 'brand', 'type', 'category', 'unit', 'date', 'actions'];
 
 export function ProductList({ products, isLoading, onDelete }: ProductListProps) {
+  // State untuk manajemen UI
   const router = useRouter();
   const { toast } = useToast();
   
-  // Add back the required state declarations
+  // State untuk manajemen expand/collapse produk
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
+  
+  // State untuk modal barcode
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
   const [variantBarcodeModalOpen, setVariantBarcodeModalOpen] = useState(false);
   const [selectedBarcodes, setSelectedBarcodes] = useState<Array<{ sku: string; name: string }>>([]);
   const [selectedVariantBarcode, setSelectedVariantBarcode] = useState<{ sku: string; name: string } | null>(null);
+  
+  // State untuk proses delete
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
 
-  // Add back the required handler functions
+  // Handler untuk expand/collapse produk
   const toggleExpand = (productId: number) => {
     const newExpanded = new Set(expandedProducts);
     if (newExpanded.has(productId)) {
@@ -49,6 +54,7 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
     setExpandedProducts(newExpanded);
   };
 
+  // Handler untuk menampilkan barcode produk dan variannya
   const handleShowBarcode = (product: InventoryProduct) => {
     const barcodes = [
       { sku: product.sku, name: product.full_product_name },
@@ -61,6 +67,7 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
     setBarcodeModalOpen(true);
   };
 
+  // Handler untuk menampilkan barcode varian
   const handleShowVariantBarcode = (variant: InventoryProductVariant) => {
     if (!variant.sku_product_variant || !variant.full_product_name) {
       toast({
@@ -78,6 +85,7 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
     setVariantBarcodeModalOpen(true);
   };
 
+  // Handler untuk menghapus produk
   const handleDelete = async (id: number) => {
     if (!onDelete) return;
     
@@ -89,6 +97,7 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
     }
   };
 
+  // Render loading state
   const renderLoadingState = () => (
     <div className="border rounded-lg">
       <Table>
@@ -110,10 +119,12 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
     </div>
   );
 
+  // Tampilkan loading state jika masih loading
   if (isLoading) {
     return renderLoadingState();
   }
 
+  // Tampilkan pesan jika tidak ada produk
   if (!products?.length) {
     return (
       <div className="border rounded-lg p-8 text-center text-muted-foreground">
@@ -122,6 +133,7 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
     );
   }
 
+  // Render utama daftar produk
   return (
     <div className="border rounded-lg">
       <Table>
