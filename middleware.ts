@@ -2,21 +2,18 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { STORAGE_KEYS } from '@/lib/config/constants';
 
-// Define protected routes that require authentication
-const protectedRoutes = [
-  '/dashboard',
-  '/inventory',
-  '/settings',
-  '/users',
-  '/profile',
-];
-
-// Define public routes that don't require authentication
-const publicRoutes = ['/login'];
-
 export function middleware(request: NextRequest) {
   // Get the pathname from the URL
   const { pathname } = request.nextUrl;
+
+  // Skip middleware for static files and API routes
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next();
+  }
 
   // Check if user has valid auth tokens
   const hasTokens = request.cookies.has(STORAGE_KEYS.TOKENS);
@@ -28,31 +25,29 @@ export function middleware(request: NextRequest) {
 
   // Handle expired tokens
   if (isAuthenticated && isTokenExpired) {
-    // Clear auth cookies
+    // Clear auth cookies and redirect to login
     const response = NextResponse.redirect(new URL('/login', request.url));
     response.cookies.delete(STORAGE_KEYS.TOKENS);
     response.cookies.delete(STORAGE_KEYS.USER);
     return response;
   }
 
-  // Redirect authenticated users away from public routes (like login)
-  if (isAuthenticated && publicRoutes.some(route => pathname.startsWith(route))) {
+  // Redirect authenticated users away from login page
+  if (isAuthenticated && pathname === '/login') {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   // Redirect unauthenticated users to login for protected routes
-  if (!isAuthenticated && protectedRoutes.some(route => pathname.startsWith(route))) {
+  if (!isAuthenticated && pathname !== '/login') {
     const searchParams = new URLSearchParams({
       callbackUrl: pathname,
     });
     return NextResponse.redirect(new URL(`/login?${searchParams}`, request.url));
   }
 
-  // Allow the request to continue
   return NextResponse.next();
 }
 
-// Configure which routes use this middleware
 export const config = {
   matcher: [
     /*

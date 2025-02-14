@@ -1,7 +1,8 @@
-import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
-import { authService } from "@/lib/services/auth.service";
-import type { AuthUser, AuthTokens, LoginCredentials } from "@/lib/types/auth";
-import type { RootState } from "../store";
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { authService } from '@/lib/services/auth.service';
+import { setTokens, setUser, clearAuthData } from '@/lib/services/auth/storage.service';
+import type { AuthUser, AuthTokens, LoginCredentials } from '@/lib/types/auth';
+import type { RootState } from '../store';
 
 interface AuthState {
   user: AuthUser | null;
@@ -11,19 +12,21 @@ interface AuthState {
 }
 
 const initialState: AuthState = {
-  user: authService.getCurrentUser(),
-  tokens: authService.getTokens(),
+  user: null,
+  tokens: null,
   isLoading: false,
   error: null,
 };
 
 export const login = createAsyncThunk(
-  "auth/login",
+  'auth/login',
   async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(credentials);
-      localStorage.setItem("user", JSON.stringify(response.data));
-      localStorage.setItem("tokens", JSON.stringify(response.tokens));
+      
+      // Store auth data
+      setTokens(response.tokens);
+      setUser(response.data);
 
       return {
         user: response.data,
@@ -31,33 +34,32 @@ export const login = createAsyncThunk(
       };
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to login"
+        error.response?.data?.message || 'Failed to login'
       );
     }
   }
 );
 
 export const logout = createAsyncThunk(
-  "auth/logout",
+  'auth/logout',
   async (_, { getState }) => {
     const state = getState() as RootState;
     const token = state.auth.tokens?.access_token;
-    await authService.logout(token);
+    
+    try {
+      await authService.logout(token);
+    } finally {
+      clearAuthData();
+    }
   }
 );
 
 const authSlice = createSlice({
-  name: "auth",
+  name: 'auth',
   initialState,
   reducers: {
     clearError: (state) => {
       state.error = null;
-    },
-    setUser: (state, action: PayloadAction<AuthUser>) => {
-      state.user = action.payload;
-    },
-    setTokens: (state, action: PayloadAction<AuthTokens>) => {
-      state.tokens = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -84,7 +86,7 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError, setUser, setTokens } = authSlice.actions;
+export const { clearError } = authSlice.actions;
 
 export const selectAuth = (state: RootState) => state.auth;
 export const selectUser = (state: RootState) => state.auth.user;

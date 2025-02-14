@@ -8,20 +8,20 @@ export interface AuthResponse {
 }
 
 export interface AuthUser {
-  id?: string;
-  nip?: string | null;
-  nik?: string | null;
-  first_name?: string;
-  last_name?: string;
-  photo_profile?: string | null;
-  email?: string;
-  phone_number?: string | null;
-  address?: string | null;
-  status?: boolean;
-  role?: UserRole;
-  role_feature_permissions?: RoleFeaturePermission[] | null;
-  created_at?: string;
-  updated_at?: string;
+  id: string;
+  nip: string | null;
+  nik: string | null;
+  first_name: string;
+  last_name: string;
+  photo_profile: string | null;
+  email: string;
+  phone_number: string | null;
+  address: string | null;
+  status: boolean;
+  role: UserRole;
+  role_feature_permissions: RoleFeaturePermission[] | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface UserRole {
@@ -68,4 +68,21 @@ export interface AuthTokens {
 export interface LoginCredentials {
   email: string;
   password: string;
+}
+
+export interface VerifyTokenResponse {
+  status: {
+    code: number;
+    message: string;
+  };
+  data: {
+    isValid: boolean;
+    user: {
+      id: string;
+      email: string;
+      first_name: string;
+      last_name: string;
+    };
+    expiresIn: number;
+  };
 }

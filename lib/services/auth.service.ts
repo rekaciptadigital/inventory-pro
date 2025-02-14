@@ -1,26 +1,46 @@
+import axios from 'axios';
 import { API_ENDPOINTS } from '@/lib/config/constants';
-import type { AuthResponse, LoginCredentials } from '@/lib/types/auth';
-import { api } from './api';
-import { logoutUser } from './auth/logout.service';
-import { getCurrentUser, getTokens, clearAuthData } from './auth/storage.service';
+import type { AuthResponse, LoginCredentials, VerifyTokenResponse } from '@/lib/types/auth';
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>(API_ENDPOINTS.AUTH.LOGIN, credentials);
+    const response = await axios.post<AuthResponse>(
+      `${process.env.NEXT_PUBLIC_API_URL}${API_ENDPOINTS.AUTH.LOGIN}`, 
+      credentials
+    );
+    return response.data;
+  }
+
+  async verifyToken(token: string): Promise<VerifyTokenResponse> {
+    const response = await axios.get<VerifyTokenResponse>(
+      `${process.env.NEXT_PUBLIC_API_URL}${API_ENDPOINTS.AUTH.VERIFY}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
     return response.data;
   }
 
   async logout(token?: string): Promise<void> {
+    if (!token) return;
+
     try {
-      await logoutUser(token);
-    } finally {
-      clearAuthData();
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}${API_ENDPOINTS.AUTH.LOGOUT}`,
+        null,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
     }
   }
-
-  getCurrentUser = getCurrentUser;
-  getTokens = getTokens;
-  clearAuth = clearAuthData;
 }
 
 export const authService = new AuthService();

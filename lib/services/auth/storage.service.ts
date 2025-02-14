@@ -1,4 +1,4 @@
-import { STORAGE_KEYS, SESSION_CONFIG } from "@/lib/config/constants";
+import { STORAGE_KEYS } from "@/lib/config/constants";
 import type { AuthUser, AuthTokens } from "@/lib/types/auth";
 import Cookies from 'js-cookie';
 
@@ -21,16 +21,14 @@ export function getTokens(): AuthTokens | null {
 }
 
 export function setTokens(tokens: AuthTokens): void {
-  // Calculate expiry time
-  const expiryDate = new Date(Date.now() + SESSION_CONFIG.ACCESS_TOKEN_EXPIRY);
-  
   // Set tokens in cookie with security options
   Cookies.set(STORAGE_KEYS.TOKENS, JSON.stringify({
     ...tokens,
-    expires_in: expiryDate.getTime(),
+    expires_in: Date.now() + tokens.expires_in,
   }), {
-    ...SESSION_CONFIG.COOKIE_OPTIONS,
-    expires: expiryDate,
+    expires: tokens.expires_in / (1000 * 60 * 60 * 24), // Convert ms to days
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax'
   });
 }
 
@@ -40,7 +38,7 @@ export function setUser(user: AuthUser): void {
 
 export function clearAuthData(): void {
   // Clear cookies
-  Cookies.remove(STORAGE_KEYS.TOKENS, SESSION_CONFIG.COOKIE_OPTIONS);
+  Cookies.remove(STORAGE_KEYS.TOKENS);
   
   // Clear localStorage
   localStorage.removeItem(STORAGE_KEYS.USER);
