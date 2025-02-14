@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react"; // Add useRef
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useFormContext } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
-import { Plus, X, RotateCcw } from "lucide-react";
+import { Plus, X, RotateCcw, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   updateForm,
@@ -14,6 +14,7 @@ import {
   removeVariantSelector,
   updateVariantSelectorValues,
 } from "@/lib/store/slices/formInventoryProductSlice";
+import { Switch } from "@/components/ui/switch";
 import { useVariantTypes } from "@/lib/hooks/use-variant-types";
 import {
   Table,
@@ -25,22 +26,20 @@ import {
 } from "@/components/ui/table";
 import {
   VariantTypeSelector as VariantType,
-  VariantValueSelector as VariantValueSelect, // Rename to avoid conflict
+  VariantValueSelector as VariantValueSelect,
 } from "./enhanced-selectors";
 import type { ProductFormValues } from "./form-schema";
-import type { VariantValue as VariantValueType } from "@/types/variant"; // Rename import
+import type { VariantValue as VariantValueType } from "@/types/variant";
 import type { SelectOption } from "@/components/ui/enhanced-select";
 import { Input } from "@/components/ui/input";
 import { RootState } from "@/lib/store";
 import { FormItem, FormLabel, FormControl, FormDescription } from '@/components/ui/form';
 
-// Add additional type for variant value
 interface VariantValueData {
   variant_value_id: string;
   variant_value_name: string;
 }
 
-// Update VariantType interface to include display_order
 interface VariantType {
   id: number;
   name: string;
@@ -48,7 +47,6 @@ interface VariantType {
   display_order: number;
 }
 
-// Add display_order to SelectedVariant
 interface SelectedVariant {
   id: string;
   typeId: number;
@@ -72,12 +70,11 @@ interface CurrentSelector {
   selected_values: string[];
 }
 
-// Update the ExistingVariant interface to match the expected types
 interface ExistingVariant {
   variant_id: number;
   variant_name: string;
   variant_values: Array<{
-    variant_value_id: string; // Changed from number to string
+    variant_value_id: string;
     variant_value_name: string;
   }>;
 }
@@ -89,7 +86,6 @@ interface VariantSelectorData {
   selected_values?: string[];
 }
 
-// Add new input state type
 interface InputStates {
   value: string;
   isDirty: boolean;
@@ -98,17 +94,18 @@ interface InputStates {
 export function VariantCombinations() {
   const form = useFormContext<ProductFormValues>();
   const dispatch = useDispatch();
-  const [selectedVariants, setSelectedVariants] = useState<SelectedVariant[]>(
-    []
-  );
+  const [selectedVariants, setSelectedVariants] = useState<SelectedVariant[]>([]);
   const { variantTypes } = useVariantTypes();
   const variantSelectors = useSelector(selectVariantSelectors);
-  const [variantUniqueCodes, setVariantUniqueCodes] = useState<
-    Record<string, string>
-  >({});
+  const [variantUniqueCodes, setVariantUniqueCodes] = useState<Record<string, string>>({});
   const { full_product_name } = useSelector(selectProductNames);
   const { sku: baseSku } = useSelector(selectSkuInfo);
   const existingVariants = useSelector((state: RootState) => state.formInventoryProduct.variants);
+  const [skuStatuses, setSkuStatuses] = useState<Record<string, boolean>>({});
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [skipReduxUpdate, setSkipReduxUpdate] = useState(false);
+  const updateTimeoutRef = useRef<NodeJS.Timeout>();
+  const [localValues, setLocalValues] = useState<Record<string, string>>({});
 
   const usedTypeIds = useMemo(
     () => selectedVariants.map((variant) => variant.typeId).filter(Boolean),
@@ -132,13 +129,10 @@ export function VariantCombinations() {
       setSelectedVariants((prev) => {
         const newVariants = prev.filter((v: SelectedVariant) => v.id !== variantId);
 
-        // Jika tidak ada variant yang tersisa, reset semua state terkait
         if (newVariants.length === 0) {
-          // Reset local states
           setVariantUniqueCodes({});
           setLocalValues({});
 
-          // Reset Redux states
           dispatch(
             updateForm({
               variants: [],
@@ -147,7 +141,6 @@ export function VariantCombinations() {
             })
           );
         } else {
-          // Update Redux untuk variant yang dihapus
           const variantToRemove = prev.find((v: SelectedVariant) => v.id === variantId);
           if (variantToRemove?.typeId) {
             dispatch(removeVariantSelector(variantToRemove.typeId));
@@ -161,7 +154,6 @@ export function VariantCombinations() {
   );
 
   useEffect(() => {
-    // Jika tidak ada variants yang dipilih, pastikan state Redux bersih
     if (selectedVariants.length === 0) {
       dispatch(
         updateForm({
@@ -173,14 +165,10 @@ export function VariantCombinations() {
     }
   }, [selectedVariants, dispatch]);
 
-  // Add initialization flag to prevent infinite loop
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  // Replace the existing initialization useEffect with this one
   useEffect(() => {
     if (!isInitialized && existingVariants?.length > 0 && variantTypes?.length > 0) {
       try {
-        setIsInitialized(true); // Set this first to prevent multiple initializations
+        setIsInitialized(true);
 
         const initialVariants = existingVariants.map((variant: ExistingVariant) => {
           const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
@@ -189,11 +177,10 @@ export function VariantCombinations() {
             typeId: variant.variant_id,
             values: variant.variant_values.map((v) => v.variant_value_name),
             availableValues: variantType?.values || [],
-            display_order: variantType?.display_order || 0, // Make sure to include display_order
+            display_order: variantType?.display_order || 0,
           };
         });
 
-        // Sort initialVariants by display_order
         initialVariants.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
         const variantSelectors = existingVariants.map((variant: ExistingVariant) => {
@@ -206,7 +193,6 @@ export function VariantCombinations() {
           };
         });
 
-        // Batch all updates together
         Promise.resolve().then(() => {
           setSelectedVariants(initialVariants);
           dispatch(updateForm({
@@ -217,12 +203,11 @@ export function VariantCombinations() {
 
       } catch (error) {
         console.error('Error initializing variants:', error);
-        setIsInitialized(false); // Reset on error
+        setIsInitialized(false);
       }
     }
   }, [existingVariants, variantTypes, isInitialized, dispatch]);
 
-  // Add reset effect
   useEffect(() => {
     return () => {
       setIsInitialized(false);
@@ -242,7 +227,6 @@ export function VariantCombinations() {
       );
 
       setSelectedVariants((prev) => {
-        // Reset all previously generated combinations when variant type changes
         setVariantUniqueCodes({});
         setLocalValues({});
 
@@ -259,7 +243,6 @@ export function VariantCombinations() {
         return newVariants;
       });
 
-      // Only add variant selector if it doesn't exist
       const existingSelector = variantSelectors.find(
         (selector) => selector.id === parseInt(selected.value)
       );
@@ -284,7 +267,6 @@ export function VariantCombinations() {
       const selectedValues = selected.map((option: SelectOption) => option.value);
 
       setSelectedVariants((prev) => {
-        // Reset generated combinations when values change
         setVariantUniqueCodes({});
         setLocalValues({});
 
@@ -325,20 +307,16 @@ export function VariantCombinations() {
     const generateCombinations = (variants: SelectedVariant[]) => {
       if (variants.length === 0) return [[]];
 
-      // Ensure stable sorting based on display_order
       const sortedVariants = [...variants].sort((a, b) => {
-        // Get variant types for each variant to access display_order
         const typeA = variantTypes?.find(vt => vt.id === a.typeId);
         const typeB = variantTypes?.find(vt => vt.id === b.typeId);
         
-        // Use the actual display_order from variantTypes
         const orderA = typeA?.display_order ?? Number.MAX_SAFE_INTEGER;
         const orderB = typeB?.display_order ?? Number.MAX_SAFE_INTEGER;
         
         return orderA - orderB;
       });
 
-      // Create combinations maintaining the sorted order
       let combinations: string[][] = [[]];
       
       sortedVariants.forEach(variant => {
@@ -354,7 +332,6 @@ export function VariantCombinations() {
       return combinations;
     };
 
-    // Filter variants and sort them by the actual display_order from variantTypes
     const validVariants = selectedVariants
       .filter((v) => v.typeId && v.values.length > 0)
       .sort((a, b) => {
@@ -384,7 +361,7 @@ export function VariantCombinations() {
   }, [
     canShowGeneratedSkus,
     selectedVariants,
-    variantTypes, // Add variantTypes as dependency
+    variantTypes,
     baseSku,
     full_product_name,
     variantUniqueCodes,
@@ -403,7 +380,7 @@ export function VariantCombinations() {
           variant_id: variant.typeId,
           variant_name: variantType?.name ?? "",
           variant_values: variant.values.map((value) => ({
-            variant_value_id: "0", // Convert to string
+            variant_value_id: "0",
             variant_value_name: value,
           })),
         };
@@ -411,7 +388,6 @@ export function VariantCombinations() {
 
     dispatch(updateForm({ variants: formattedVariants }));
 
-    // Update variant selectors after a small delay
     const timer = setTimeout(() => {
       selectedVariants.forEach((variant) => {
         if (variant.typeId) {
@@ -428,12 +404,6 @@ export function VariantCombinations() {
     return () => clearTimeout(timer);
   }, [selectedVariants, variantTypes, dispatch]);
 
-  // Modifikasi pada useEffect untuk variantData
-  const [skipReduxUpdate, setSkipReduxUpdate] = useState(false);
-  const updateTimeoutRef = useRef<NodeJS.Timeout>();
-  const [localValues, setLocalValues] = useState<Record<string, string>>({});
-
-  // Fungsi untuk update local state tetap sama
   const updateLocalValue = useCallback((key: string, value: string) => {
     setLocalValues((prev) => ({
       ...prev,
@@ -441,7 +411,6 @@ export function VariantCombinations() {
     }));
   }, []);
 
-  // Disabling immediate Redux update on change
   const handleUniqueCodeChange = useCallback(
     (originalSkuKey: string, value: string) => {
       if (!value.match(/^\d*$/)) return;
@@ -450,20 +419,17 @@ export function VariantCombinations() {
       setSkipReduxUpdate(true);
       if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = setTimeout(() => {
-        // Do nothing here; we'll update Redux upon blur
       }, 300);
     },
     [updateLocalValue]
   );
 
-  // On blur, re-enable Redux update and dispatch change
   const handleInputBlur = useCallback(
     (originalSkuKey: string, value: string) => {
       const cleanValue = value.replace(/\D/g, "").slice(0, 10);
       const paddedValue = cleanValue.length < 4 ? cleanValue.padStart(4, "0") : cleanValue;
       updateLocalValue(originalSkuKey, paddedValue);
       setSkipReduxUpdate(false);
-      // Dispatch Redux update now
       setVariantUniqueCodes((prev) => ({
         ...prev,
         [originalSkuKey]: paddedValue,
@@ -486,7 +452,6 @@ export function VariantCombinations() {
     [updateLocalValue, variantData, baseSku, dispatch]
   );
 
-  // Only update Redux if skipReduxUpdate is false
   useEffect(() => {
     if (variantData.length && !skipReduxUpdate) {
       dispatch(
@@ -502,23 +467,19 @@ export function VariantCombinations() {
     }
   }, [variantData, dispatch, skipReduxUpdate]);
 
-  // Add this new function to handle reset
   const handleResetUniqueCode = useCallback((originalSkuKey: string) => {
-    // Remove from local state
     setLocalValues((prev) => {
       const newValues = { ...prev };
       delete newValues[originalSkuKey];
       return newValues;
     });
 
-    // Remove from variant unique codes
     setVariantUniqueCodes((prev) => {
       const newValues = { ...prev };
       delete newValues[originalSkuKey];
       return newValues;
     });
 
-    // Reset in Redux state
     const defaultUniqueCode = variantData.find(
       (v) => v.originalSkuKey === originalSkuKey
     )?.uniqueCode || "0000";
@@ -541,7 +502,25 @@ export function VariantCombinations() {
     );
   }, [baseSku, variantData, dispatch]);
 
-  // Update the render input component
+  const handleStatusToggle = useCallback((sku: string, checked: boolean) => {
+    setSkuStatuses(prev => ({
+      ...prev,
+      [sku]: checked
+    }));
+    
+    dispatch(
+      updateForm({
+        product_by_variant: variantData.map((variant) => ({
+          originalSkuKey: variant.originalSkuKey,
+          sku: variant.skuKey,
+          sku_product_unique_code: variant.uniqueCode,
+          full_product_name: variant.productName,
+          status: variant.originalSkuKey === sku ? checked : (skuStatuses[variant.originalSkuKey] ?? true)
+        })),
+      })
+    );
+  }, [dispatch, variantData, skuStatuses]);
+
   const renderSkuFields = useCallback(
     (originalSkuKey: string, skuKey: string, uniqueCode: string) => {
       const defaultUniqueCode = String(
@@ -621,7 +600,7 @@ export function VariantCombinations() {
       }));
 
       return (
-        <VariantValueSelect // Use renamed component
+        <VariantValueSelect
           key={`value-${variant.id}-${variant.typeId}-${variant.values.join(
             ","
           )}`}
@@ -635,7 +614,6 @@ export function VariantCombinations() {
     [handleValuesChange]
   );
 
-  // Modify TableCell render
   return (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -644,12 +622,11 @@ export function VariantCombinations() {
             (selector) => selector.id === variant.typeId
           );
           
-          // Transform VariantSelectorData to CurrentSelector
           const currentSelector: CurrentSelector | undefined = selector ? {
             id: selector.id,
             name: selector.name,
             values: selector.values,
-            selected_values: selector.selected_values || [], // Provide default empty array
+            selected_values: selector.selected_values || [],
           } : undefined;
           
           const variantType = variantTypes?.find(
@@ -718,11 +695,10 @@ export function VariantCombinations() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[50%]">
-                        Full Product Name
-                      </TableHead>
-                      <TableHead className="w-[30%]">SKU Variant</TableHead>
-                      <TableHead className="w-[20%]">Unique Code</TableHead>
+                      <TableHead>Full Product Name</TableHead>
+                      <TableHead>SKU Variant</TableHead>
+                      <TableHead className="w-[200px]">Unique Code</TableHead>
+                      <TableHead className="w-[100px] text-center">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -732,6 +708,13 @@ export function VariantCombinations() {
                           <TableCell>{productName}</TableCell>
                           <TableCell colSpan={2}>
                             {renderSkuFields(originalSkuKey, skuKey, uniqueCode)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Switch
+                              checked={skuStatuses[originalSkuKey] ?? true}
+                              onCheckedChange={(checked) => handleStatusToggle(originalSkuKey, checked)}
+                              className="mx-auto"
+                            />
                           </TableCell>
                         </TableRow>
                       )

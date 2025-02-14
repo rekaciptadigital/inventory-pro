@@ -18,6 +18,7 @@ export interface ProductByVariant {
   full_product_name: string;
   sku: string;
   sku_product_unique_code: string;
+  status?: boolean;
 }
 
 export interface VariantSelectorData {
