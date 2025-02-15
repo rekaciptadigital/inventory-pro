@@ -26,7 +26,8 @@ export function useAuth() {
         
         return result;
       } catch (error) {
-        throw error;
+        // Rethrow with additional context
+        throw new Error('Login failed', { cause: error });
       }
     },
     [dispatch]

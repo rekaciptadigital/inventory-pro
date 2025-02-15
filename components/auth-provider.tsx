@@ -7,10 +7,14 @@ import { authService } from '@/lib/services/auth.service';
 import { getTokens, getCurrentUser } from '@/lib/services/auth/storage.service';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+interface AuthProviderProps {
+  readonly children: React.ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, tokens, logout, initializeAuth } = useAuth();
+  const { logout, initializeAuth } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
 
   // Single useEffect for auth check and routing

@@ -1,19 +1,24 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Provider } from 'react-redux';
 import { store } from '@/lib/store/store';
+import { ThemeProvider } from '@/components/theme-provider';
 
-const queryClient = new QueryClient();
+interface ProvidersProps {
+  readonly children: React.ReactNode;
+}
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children }: ProvidersProps) {
   return (
     <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
         {children}
-        <ReactQueryDevtools initialIsOpen={false} />
-      </QueryClientProvider>
+      </ThemeProvider>
     </Provider>
   );
 }
