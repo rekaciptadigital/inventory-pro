@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { getTokens } from "@/lib/services/auth/storage.service";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -27,8 +28,20 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { login, isLoading, error, clearError } = useAuth();
+  const { login, user, tokens, isLoading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkAuth = async () => {
+      const storedTokens = getTokens();
+      if (storedTokens?.access_token || (user && tokens)) {
+        router.replace('/dashboard');
+      }
+    };
+    
+    checkAuth();
+  }, [user, tokens, router]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -42,7 +55,7 @@ export default function LoginPage() {
     if (error) {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Login Failed",
         description: error,
       });
       clearError();
@@ -56,11 +69,12 @@ export default function LoginPage() {
         title: "Success",
         description: "Logged in successfully",
       });
-      router.push("/dashboard");
+      // No need for manual redirect, AuthProvider will handle it
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error?.status?.message,
+        variant: "destructive",
+        title: "Login Failed",
+        description: error?.response?.data?.status?.message || "An error occurred",
       });
     }
   };

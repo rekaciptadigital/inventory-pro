@@ -11,6 +11,11 @@ interface AuthState {
   error: string | null;
 }
 
+interface InitializeAuthPayload {
+  user: AuthUser;
+  tokens: AuthTokens;
+}
+
 const initialState: AuthState = {
   user: null,
   tokens: null,
@@ -47,9 +52,13 @@ export const logout = createAsyncThunk(
     const token = state.auth.tokens?.access_token;
     
     try {
-      await authService.logout(token);
+      if (token) {
+        await authService.logout(token);
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
     } finally {
-      clearAuthData();
+      clearAuthData(); // Ensure local storage is always cleared
     }
   }
 );
@@ -60,6 +69,10 @@ const authSlice = createSlice({
   reducers: {
     clearError: (state) => {
       state.error = null;
+    },
+    initializeAuth: (state, action: PayloadAction<InitializeAuthPayload>) => {
+      state.user = action.payload.user;
+      state.tokens = action.payload.tokens;
     },
   },
   extraReducers: (builder) => {
@@ -86,7 +99,7 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError } = authSlice.actions;
+export const { clearError, initializeAuth } = authSlice.actions;
 
 export const selectAuth = (state: RootState) => state.auth;
 export const selectUser = (state: RootState) => state.auth.user;

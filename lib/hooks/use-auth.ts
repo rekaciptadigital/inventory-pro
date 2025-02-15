@@ -4,10 +4,12 @@ import {
   login,
   logout,
   clearError,
+  initializeAuth,
   selectAuth,
 } from '@/lib/store/slices/authSlice';
-import type { LoginCredentials } from '@/lib/types/auth';
+import type { AuthUser, AuthTokens, LoginCredentials } from '@/lib/types/auth';
 import { STORAGE_KEYS } from '@/lib/config/constants';
+import { clearAuthData } from '@/lib/services/auth/storage.service';
 
 export function useAuth() {
   const dispatch = useAppDispatch();
@@ -30,17 +32,24 @@ export function useAuth() {
     [dispatch]
   );
 
-  const handleLogout = useCallback(() => {
-    dispatch(logout());
-    
-    // Clear auth data from localStorage
-    localStorage.removeItem(STORAGE_KEYS.TOKENS);
-    localStorage.removeItem(STORAGE_KEYS.USER);
+  const handleLogout = useCallback(async () => {
+    try {
+      await dispatch(logout()).unwrap();
+    } finally {
+      clearAuthData(); // Ensure local storage is always cleared
+    }
   }, [dispatch]);
 
   const handleClearError = useCallback(() => {
     dispatch(clearError());
   }, [dispatch]);
+
+  const handleInitializeAuth = useCallback(
+    (payload: { user: AuthUser; tokens: AuthTokens }) => {
+      dispatch(initializeAuth(payload));
+    },
+    [dispatch]
+  );
 
   return {
     user,
@@ -50,5 +59,6 @@ export function useAuth() {
     login: handleLogin,
     logout: handleLogout,
     clearError: handleClearError,
+    initializeAuth: handleInitializeAuth,
   };
 }

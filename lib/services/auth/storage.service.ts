@@ -1,19 +1,25 @@
 import { STORAGE_KEYS } from "@/lib/config/constants";
 import type { AuthUser, AuthTokens } from "@/lib/types/auth";
 
-export function getCurrentUser(): AuthUser | null {
+export function getTokens(): AuthTokens | null {
   try {
-    const userStr = localStorage.getItem(STORAGE_KEYS.USER);
-    return userStr ? JSON.parse(userStr) : null;
+    const tokensStr = localStorage.getItem(STORAGE_KEYS.TOKENS);
+    if (!tokensStr) return null;
+    
+    const tokens = JSON.parse(tokensStr);
+    return tokens;
   } catch {
     return null;
   }
 }
 
-export function getTokens(): AuthTokens | null {
+export function getCurrentUser(): AuthUser | null {
   try {
-    const tokensStr = localStorage.getItem(STORAGE_KEYS.TOKENS);
-    return tokensStr ? JSON.parse(tokensStr) : null;
+    const userStr = localStorage.getItem(STORAGE_KEYS.USER);
+    if (!userStr) return null;
+    
+    const user = JSON.parse(userStr);
+    return user;
   } catch {
     return null;
   }

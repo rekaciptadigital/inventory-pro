@@ -18,8 +18,8 @@ export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: '/auth/login',
     LOGOUT: '/auth/logout',
-    REFRESH: '/auth/refresh',
-    VERIFY: '/auth/verify',
+    REFRESH: '/auth/refresh-token',
+    VERIFY: '/auth/verify-token',
   },
   USERS: {
     PROFILE: '/users/profile',

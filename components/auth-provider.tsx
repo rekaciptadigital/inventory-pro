@@ -4,60 +4,55 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { authService } from '@/lib/services/auth.service';
-import { STORAGE_KEYS } from '@/lib/config/constants';
+import { getTokens, getCurrentUser } from '@/lib/services/auth/storage.service';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, tokens } = useAuth();
-  const [isValidating, setIsValidating] = useState(true);
+  const { user, tokens, logout, initializeAuth } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Single useEffect for auth check and routing
   useEffect(() => {
-    const validateSession = async () => {
+    const checkAuth = async () => {
       try {
-        const tokens = localStorage.getItem(STORAGE_KEYS.TOKENS);
-        if (!tokens) {
-          setIsValidating(false);
+        const storedTokens = getTokens();
+        const storedUser = getCurrentUser();
+
+        // No stored auth data
+        if (!storedTokens?.access_token || !storedUser) {
+          if (pathname !== '/login') {
+            router.replace('/login');
+          }
           return;
         }
 
-        const { access_token } = JSON.parse(tokens);
-        const response = await authService.verifyToken(access_token);
-
-        if (!response.data.isValid) {
-          // Clear invalid session
-          localStorage.removeItem(STORAGE_KEYS.TOKENS);
-          localStorage.removeItem(STORAGE_KEYS.USER);
+        // Verify token
+        const { data } = await authService.verifyToken(storedTokens.access_token);
+        
+        if (data.isValid) {
+          initializeAuth({ user: storedUser, tokens: storedTokens });
+          if (pathname === '/login') {
+            router.replace('/dashboard');
+          }
+        } else {
+          logout();
+          router.replace('/login');
         }
       } catch (error) {
-        // Clear session on error
-        localStorage.removeItem(STORAGE_KEYS.TOKENS);
-        localStorage.removeItem(STORAGE_KEYS.USER);
+        logout();
+        router.replace('/login');
       } finally {
-        setIsValidating(false);
+        setIsLoading(false);
       }
     };
 
-    validateSession();
-  }, []);
+    checkAuth();
+  }, [pathname, router, logout, initializeAuth]);
 
-  useEffect(() => {
-    if (isValidating) return;
-
-    const isAuthPage = pathname === '/login';
-    
-    if (user && tokens && isAuthPage) {
-      router.replace('/dashboard');
-    } else if ((!user || !tokens) && !isAuthPage) {
-      const searchParams = new URLSearchParams({
-        callbackUrl: pathname,
-      });
-      router.replace(`/login?${searchParams.toString()}`);
-    }
-  }, [user, tokens, pathname, router, isValidating]);
-
-  if (isValidating) {
-    return null; // Or a loading spinner
+  if (isLoading) {
+    return <LoadingScreen />;
   }
 
   return <>{children}</>;

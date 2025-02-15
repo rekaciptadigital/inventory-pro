@@ -6,7 +6,12 @@ class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await axios.post<AuthResponse>(
       `${process.env.NEXT_PUBLIC_API_URL}${API_ENDPOINTS.AUTH.LOGIN}`, 
-      credentials
+      JSON.stringify(credentials),
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
     );
     return response.data;
   }
