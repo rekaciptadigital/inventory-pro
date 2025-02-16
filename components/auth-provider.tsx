@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { authService } from '@/lib/services/auth.service';
@@ -19,46 +19,62 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { logout, initializeAuth } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const storedTokens = getTokens();
-        const storedUser = getCurrentUser();
+  const handleNavigation = useCallback((path: string) => {
+    try {
+      router.push(path);
+    } catch (error) {
+      console.error('Navigation failed:', error);
+    }
+  }, [router]);
 
-        if (!storedTokens || !storedUser) {
-          if (!PUBLIC_PATHS.includes(pathname)) {
-            router.replace('/login');
-          }
-          return;
-        }
+  const verifyAuth = useCallback(async () => {
+    const storedTokens = getTokens();
+    const storedUser = getCurrentUser();
 
-        try {
-          const { data } = await authService.verifyToken(storedTokens.access_token);
-          if (data.isValid) {
-            initializeAuth({ user: storedUser, tokens: storedTokens });
-            if (PUBLIC_PATHS.includes(pathname)) {
-              router.replace('/dashboard');
-            }
-          } else {
-            throw new Error('Invalid token');
-          }
-        } catch {
-          logout();
-          if (!PUBLIC_PATHS.includes(pathname)) {
-            router.replace('/login');
-          }
-        }
-      } finally {
-        setIsInitialized(true);
+    if (!storedTokens || !storedUser) {
+      return false;
+    }
+
+    try {
+      const { data } = await authService.verifyToken(storedTokens.access_token);
+      if (data.isValid) {
+        initializeAuth({ user: storedUser, tokens: storedTokens });
+        return true;
       }
+    } catch {
+      logout();
+    }
+
+    return false;
+  }, [initializeAuth, logout]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initAuth = async () => {
+      const isValid = await verifyAuth();
+
+      if (!isMounted) return;
+
+      if (!isValid && !PUBLIC_PATHS.includes(pathname)) {
+        handleNavigation('/login');
+      } else if (isValid && PUBLIC_PATHS.includes(pathname)) {
+        handleNavigation('/dashboard');
+      }
+
+      setIsInitialized(true);
     };
 
-    checkAuth();
-  }, []);
+    initAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname, verifyAuth, handleNavigation]);
 
   if (!isInitialized) {
     return <LoadingScreen />;
   }
 
-  return children;
+  return <>{children}</>;
 }

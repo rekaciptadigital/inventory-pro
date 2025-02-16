@@ -8,7 +8,7 @@ import {
   selectAuth,
 } from '@/lib/store/slices/authSlice';
 import type { AuthUser, AuthTokens, LoginCredentials } from '@/lib/types/auth';
-import { setAuthData, clearAuthData } from '@/lib/services/auth/storage.service';
+import { setTokens, setUser, clearAuthData } from '@/lib/services/auth/storage.service';
 
 export function useAuth() {
   const dispatch = useAppDispatch();
@@ -18,7 +18,8 @@ export function useAuth() {
     async (credentials: LoginCredentials) => {
       try {
         const result = await dispatch(login(credentials)).unwrap();
-        setAuthData(result.tokens, result.user);
+        setTokens(result.tokens);
+        setUser(result.user);
         return result;
       } catch (error) {
         throw new Error('Login failed', { cause: error });
