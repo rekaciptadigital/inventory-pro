@@ -76,7 +76,6 @@ const navigation = [
     href: "/dashboard/settings/categories",
     icon: Tags,
   },
-  { name: "Taxes", href: "/dashboard/taxes", icon: DollarSign },
   { name: "Users", href: "/dashboard/users", icon: Users },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];

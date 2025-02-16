@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -20,6 +20,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -30,8 +31,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/hooks/use-auth';
+import { useTaxes } from '@/lib/hooks/use-taxes';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const formSchema = z.object({
@@ -56,6 +59,73 @@ export default function SettingsPage() {
   const { language, setLanguage, t } = useLanguage();
   const { toast } = useToast();
   const { user, isLoading } = useAuth();
+  const { taxes, updateTax, isLoading: isLoadingTaxes } = useTaxes();
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [taxPercentage, setTaxPercentage] = useState<number>(11);
+  const [taxStatus, setTaxStatus] = useState<boolean>(true);
+  const ppnTax = taxes.find(tax => tax.name === 'PPN') || {
+    id: '1',
+    name: 'PPN',
+    percentage: 11,
+    status: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const handleTaxStatusChange = useCallback(async (checked: boolean) => {
+    try {
+      setIsUpdating(true);
+      setTaxStatus(checked);
+      await updateTax(ppnTax.id, {
+        ...ppnTax,
+        status: checked,
+      });
+      toast({
+        title: 'Success',
+        description: 'PPN status updated successfully',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update PPN status',
+      });
+      setTaxStatus(!checked); // Revert on error
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [ppnTax, updateTax, toast]);
+
+  const handleTaxPercentageChange = useCallback(async (value: number) => {
+    if (value === ppnTax.percentage) return;
+    try {
+      setIsUpdating(true);
+      await updateTax(ppnTax.id, {
+        ...ppnTax,
+        percentage: value,
+      });
+      toast({
+        title: 'Success',
+        description: 'PPN percentage updated successfully',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update PPN percentage',
+      });
+      setTaxPercentage(ppnTax.percentage); // Revert on error
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [ppnTax, updateTax, toast]);
+
+  useEffect(() => {
+    if (ppnTax) {
+      setTaxPercentage(ppnTax.percentage);
+      setTaxStatus(ppnTax.status);
+    }
+  }, [ppnTax]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -299,6 +369,57 @@ export default function SettingsPage() {
               </div>
             </form>
           </Form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tax Settings</CardTitle>
+          <CardDescription>
+            Configure value-added tax (PPN) settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between space-x-4">
+              <div className="flex-1 space-y-1">
+                <h4 className="text-sm font-medium">PPN Status</h4>
+                <p className="text-sm text-muted-foreground">
+                  Enable or disable PPN tax calculation
+                </p>
+              </div>
+              <Switch
+                checked={taxStatus}
+                disabled={isUpdating || isLoadingTaxes}
+                onCheckedChange={handleTaxStatusChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">PPN Percentage</h4>
+              <div className="flex items-center space-x-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={taxPercentage}
+                  disabled={isUpdating || isLoadingTaxes || !taxStatus}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    if (isNaN(value) || value < 0 || value > 100) return;
+                    setTaxPercentage(value);
+                  }}
+                  onBlur={() => handleTaxPercentageChange(taxPercentage)}
+                  className="w-24"
+                />
+                <span className="text-sm text-muted-foreground">%</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Current PPN rate applied to all transactions
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
