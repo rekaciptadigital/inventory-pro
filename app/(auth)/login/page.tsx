@@ -30,9 +30,9 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { login, isLoading, error, clearError } = useAuth();
+  const { login, isLoading, error, clearError, user } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const checkAuthDone = useRef(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -40,6 +40,14 @@ export default function LoginPage() {
       password: "",
     },
   });
+
+  useEffect(() => {
+    if (!checkAuthDone.current && user) {
+      console.log('User already logged in, redirecting to dashboard');
+      checkAuthDone.current = true;
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
 
   useEffect(() => {
     if (error) {
@@ -54,24 +62,24 @@ export default function LoginPage() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      setIsRedirecting(true);
       await login(values);
       toast({
         title: "Success",
         description: "Logged in successfully",
       });
-      router.push('/dashboard');
+      router.replace('/dashboard');
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: error?.response?.data?.status?.message || "An error occurred",
+        description: error?.message || "An error occurred",
       });
-    } finally {
-      setIsRedirecting(false);
     }
   };
 
+  if (user) {
+    return <LoadingScreen />;
+  }
 
   return (
     <div className="w-full max-w-md space-y-8 p-8">
@@ -143,7 +151,7 @@ export default function LoginPage() {
             {isLoading ? (
               <div className="flex items-center space-x-2">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <span>{isRedirecting ? 'Redirecting...' : 'Signing in...'}</span>
+                <span>Signing in...</span>
               </div>
             ) : (
               "Sign in"

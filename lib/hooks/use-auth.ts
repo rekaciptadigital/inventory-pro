@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
+import { useRouter } from 'next/navigation';
 import {
   login,
   logout,
@@ -12,6 +13,7 @@ import { setTokens, setUser, clearAuthData } from '@/lib/services/auth/storage.s
 
 export function useAuth() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const { user, tokens, isLoading, error } = useAppSelector(selectAuth);
 
   const handleLogin = useCallback(
@@ -41,10 +43,15 @@ export function useAuth() {
   const handleLogout = useCallback(async () => {
     try {
       await dispatch(logout()).unwrap();
-    } finally {
       clearAuthData();
+      router.replace('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Still try to clean up and redirect even if logout fails
+      clearAuthData();
+      router.replace('/login');
     }
-  }, [dispatch]);
+  }, [dispatch, router]);
 
   const handleClearError = useCallback(() => {
     dispatch(clearError());

@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { getTokens, getCurrentUser, clearAuthData } from '@/lib/services/auth/storage.service';
-import { useToast } from '@/components/ui/use-toast';
+import { getTokens, getCurrentUser } from '@/lib/services/auth/storage.service';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 
 const PUBLIC_PATHS = ['/login', '/register', '/forgot-password'];
@@ -17,40 +16,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { initializeAuth } = useAuth();
-  const [isInitialized, setIsInitialized] = useState<boolean>(false);
-  const [isNavigating, setIsNavigating] = useState(false);
-  const mountedRef = useRef(false);
-
-  const safeNavigate = useCallback((path: string) => {
-    setIsNavigating(true);
-    router.push(path);
-  }, [router]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    if (mountedRef.current) return;
-    mountedRef.current = true;
-
+    console.log('Auth initialization started', { pathname });
+    
     const storedTokens = getTokens();
     const storedUser = getCurrentUser();
     const isPublicPath = PUBLIC_PATHS.includes(pathname);
 
+    console.log('Auth state:', { 
+      hasTokens: !!storedTokens, 
+      hasUser: !!storedUser, 
+      isPublicPath 
+    });
+
     if (storedTokens && storedUser) {
       initializeAuth({ user: storedUser, tokens: storedTokens });
       if (isPublicPath) {
-        safeNavigate('/dashboard');
+        router.replace('/dashboard');
       }
-    } else {
-      if (!isPublicPath) {
-        safeNavigate('/login');
-      }
+    } else if (!isPublicPath) {
+      router.replace('/login');
     }
 
-    setIsInitialized(true);
-  }, [pathname, safeNavigate, initializeAuth]);
+    // Immediately set initialized if we're on the correct path
+    if ((storedTokens && storedUser && !isPublicPath) || 
+        (!storedTokens && isPublicPath)) {
+      setIsInitialized(true);
+    } else {
+      // Small delay only if we're redirecting
+      setTimeout(() => setIsInitialized(true), 100);
+    }
 
-  if (!isInitialized || isNavigating) {
+    console.log('Auth initialization completed');
+  }, [pathname, router, initializeAuth]);
+
+  if (!isInitialized) {
+    console.log('Showing loading screen');
     return <LoadingScreen />;
   }
 
+  console.log('Rendering children');
   return <>{children}</>;
 }

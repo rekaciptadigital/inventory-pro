@@ -50,23 +50,10 @@ export const login = createAsyncThunk(
   }
 );
 
-export const logout = createAsyncThunk(
-  'auth/logout',
-  async (_, { getState }) => {
-    const state = getState() as RootState;
-    const token = state.auth.tokens?.access_token;
-    
-    try {
-      if (token) {
-        await authService.logout(token);
-      }
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      clearAuthData(); // Ensure local storage is always cleared
-    }
-  }
-);
+export const logout = createAsyncThunk('auth/logout', async () => {
+  // Bisa ditambahkan logika call API logout di sini jika diperlukan
+  return null;
+});
 
 const authSlice = createSlice({
   name: 'auth',
@@ -99,6 +86,7 @@ const authSlice = createSlice({
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.tokens = null;
+        state.isLoading = false;
         state.error = null;
       });
   },
