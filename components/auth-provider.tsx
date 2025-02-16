@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { authService } from '@/lib/services/auth.service';
-import { getTokens, getCurrentUser } from '@/lib/services/auth/storage.service';
+import { getTokens, getCurrentUser, clearAuthData } from '@/lib/services/auth/storage.service';
+import { useToast } from '@/components/ui/use-toast';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 
 const PUBLIC_PATHS = ['/login', '/register', '/forgot-password'];
@@ -16,63 +16,39 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { logout, initializeAuth } = useAuth();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const { initializeAuth } = useAuth();
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const mountedRef = useRef(false);
 
-  const handleNavigation = useCallback((path: string) => {
-    try {
-      router.push(path);
-    } catch (error) {
-      console.error('Navigation failed:', error);
-    }
+  const safeNavigate = useCallback((path: string) => {
+    setIsNavigating(true);
+    router.push(path);
   }, [router]);
 
-  const verifyAuth = useCallback(async () => {
+  useEffect(() => {
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+
     const storedTokens = getTokens();
     const storedUser = getCurrentUser();
+    const isPublicPath = PUBLIC_PATHS.includes(pathname);
 
-    if (!storedTokens || !storedUser) {
-      return false;
+    if (storedTokens && storedUser) {
+      initializeAuth({ user: storedUser, tokens: storedTokens });
+      if (isPublicPath) {
+        safeNavigate('/dashboard');
+      }
+    } else {
+      if (!isPublicPath) {
+        safeNavigate('/login');
+      }
     }
 
-    try {
-      const { data } = await authService.verifyToken(storedTokens.access_token);
-      if (data.isValid) {
-        initializeAuth({ user: storedUser, tokens: storedTokens });
-        return true;
-      }
-    } catch {
-      logout();
-    }
+    setIsInitialized(true);
+  }, [pathname, safeNavigate, initializeAuth]);
 
-    return false;
-  }, [initializeAuth, logout]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const initAuth = async () => {
-      const isValid = await verifyAuth();
-
-      if (!isMounted) return;
-
-      if (!isValid && !PUBLIC_PATHS.includes(pathname)) {
-        handleNavigation('/login');
-      } else if (isValid && PUBLIC_PATHS.includes(pathname)) {
-        handleNavigation('/dashboard');
-      }
-
-      setIsInitialized(true);
-    };
-
-    initAuth();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [pathname, verifyAuth, handleNavigation]);
-
-  if (!isInitialized) {
+  if (!isInitialized || isNavigating) {
     return <LoadingScreen />;
   }
 

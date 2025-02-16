@@ -19,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { getTokens } from "@/lib/services/auth/storage.service";
+import { useRef } from "react";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -28,21 +30,9 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { login, user, tokens, isLoading, error, clearError } = useAuth();
+  const { login, isLoading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-
-  // Check if user is already logged in
-  useEffect(() => {
-    const checkAuth = async () => {
-      const storedTokens = getTokens();
-      if (storedTokens?.access_token || (user && tokens)) {
-        router.replace('/dashboard');
-      }
-    };
-    
-    checkAuth();
-  }, [user, tokens, router]);
-
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -64,20 +54,24 @@ export default function LoginPage() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      setIsRedirecting(true);
       await login(values);
       toast({
         title: "Success",
         description: "Logged in successfully",
       });
-      // No need for manual redirect, AuthProvider will handle it
+      router.push('/dashboard');
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Login Failed",
         description: error?.response?.data?.status?.message || "An error occurred",
       });
+    } finally {
+      setIsRedirecting(false);
     }
   };
+
 
   return (
     <div className="w-full max-w-md space-y-8 p-8">
@@ -149,7 +143,7 @@ export default function LoginPage() {
             {isLoading ? (
               <div className="flex items-center space-x-2">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <span>Signing in...</span>
+                <span>{isRedirecting ? 'Redirecting...' : 'Signing in...'}</span>
               </div>
             ) : (
               "Sign in"

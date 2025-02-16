@@ -26,6 +26,10 @@ const initialState: AuthState = {
 export const login = createAsyncThunk(
   'auth/login',
   async (credentials: LoginCredentials, { rejectWithValue }) => {
+    if (!credentials.email || !credentials.password) {
+      return rejectWithValue('Email and password are required');
+    }
+
     try {
       const response = await authService.login(credentials);
       
@@ -38,9 +42,10 @@ export const login = createAsyncThunk(
         tokens: response.tokens,
       };
     } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data?.message || 'Failed to login'
-      );
+      const errorMessage = error.response?.data?.status?.message 
+        || error.message 
+        || 'Failed to login';
+      return rejectWithValue(errorMessage);
     }
   }
 );

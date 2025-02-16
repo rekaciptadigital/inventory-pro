@@ -17,12 +17,22 @@ export function useAuth() {
   const handleLogin = useCallback(
     async (credentials: LoginCredentials) => {
       try {
+        // Validate credentials
+        if (!credentials.email || !credentials.password) {
+          throw new Error('Email and password are required');
+        }
+
+        // Dispatch login action
         const result = await dispatch(login(credentials)).unwrap();
+        
+        // Store auth data
         setTokens(result.tokens);
         setUser(result.user);
+        
         return result;
       } catch (error) {
-        throw new Error('Login failed', { cause: error });
+        const message = error instanceof Error ? error.message : 'Login failed';
+        throw new Error(message, { cause: error });
       }
     },
     [dispatch]
