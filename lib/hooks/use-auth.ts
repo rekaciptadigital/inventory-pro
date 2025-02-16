@@ -8,8 +8,7 @@ import {
   selectAuth,
 } from '@/lib/store/slices/authSlice';
 import type { AuthUser, AuthTokens, LoginCredentials } from '@/lib/types/auth';
-import { STORAGE_KEYS } from '@/lib/config/constants';
-import { clearAuthData } from '@/lib/services/auth/storage.service';
+import { setAuthData, clearAuthData } from '@/lib/services/auth/storage.service';
 
 export function useAuth() {
   const dispatch = useAppDispatch();
@@ -19,14 +18,9 @@ export function useAuth() {
     async (credentials: LoginCredentials) => {
       try {
         const result = await dispatch(login(credentials)).unwrap();
-        
-        // Store auth data in localStorage
-        localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(result.tokens));
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(result.user));
-        
+        setAuthData(result.tokens, result.user);
         return result;
       } catch (error) {
-        // Rethrow with additional context
         throw new Error('Login failed', { cause: error });
       }
     },
@@ -37,7 +31,7 @@ export function useAuth() {
     try {
       await dispatch(logout()).unwrap();
     } finally {
-      clearAuthData(); // Ensure local storage is always cleared
+      clearAuthData();
     }
   }, [dispatch]);
 

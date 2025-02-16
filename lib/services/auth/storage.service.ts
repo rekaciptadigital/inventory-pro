@@ -3,11 +3,8 @@ import type { AuthUser, AuthTokens } from "@/lib/types/auth";
 
 export function getTokens(): AuthTokens | null {
   try {
-    const tokensStr = localStorage.getItem(STORAGE_KEYS.TOKENS);
-    if (!tokensStr) return null;
-    
-    const tokens = JSON.parse(tokensStr);
-    return tokens;
+    const tokens = localStorage.getItem(STORAGE_KEYS.TOKENS);
+    return tokens ? JSON.parse(tokens) : null;
   } catch {
     return null;
   }
@@ -15,24 +12,15 @@ export function getTokens(): AuthTokens | null {
 
 export function getCurrentUser(): AuthUser | null {
   try {
-    const userStr = localStorage.getItem(STORAGE_KEYS.USER);
-    if (!userStr) return null;
-    
-    const user = JSON.parse(userStr);
-    return user;
+    const user = localStorage.getItem(STORAGE_KEYS.USER);
+    return user ? JSON.parse(user) : null;
   } catch {
     return null;
   }
 }
 
-export function setTokens(tokens: AuthTokens): void {
-  localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify({
-    ...tokens,
-    expires_in: Date.now() + tokens.expires_in,
-  }));
-}
-
-export function setUser(user: AuthUser): void {
+export function setAuthData(tokens: AuthTokens, user: AuthUser): void {
+  localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(tokens));
   localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
 }
 

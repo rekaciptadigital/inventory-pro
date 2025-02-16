@@ -3,6 +3,7 @@
 import { Provider } from 'react-redux';
 import { store } from '@/lib/store/store';
 import { ThemeProvider } from '@/components/theme-provider';
+import { AuthProvider } from '@/components/auth-provider';
 
 interface ProvidersProps {
   readonly children: React.ReactNode;
@@ -17,7 +18,7 @@ export function Providers({ children }: ProvidersProps) {
         enableSystem
         disableTransitionOnChange
       >
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </ThemeProvider>
     </Provider>
   );

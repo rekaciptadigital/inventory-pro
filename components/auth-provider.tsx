@@ -7,6 +7,8 @@ import { authService } from '@/lib/services/auth.service';
 import { getTokens, getCurrentUser } from '@/lib/services/auth/storage.service';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 
+const PUBLIC_PATHS = ['/login', '/register', '/forgot-password'];
+
 interface AuthProviderProps {
   readonly children: React.ReactNode;
 }
@@ -15,49 +17,48 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { logout, initializeAuth } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Single useEffect for auth check and routing
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const storedTokens = getTokens();
         const storedUser = getCurrentUser();
 
-        // No stored auth data
-        if (!storedTokens?.access_token || !storedUser) {
-          if (pathname !== '/login') {
+        if (!storedTokens || !storedUser) {
+          if (!PUBLIC_PATHS.includes(pathname)) {
             router.replace('/login');
           }
           return;
         }
 
-        // Verify token
-        const { data } = await authService.verifyToken(storedTokens.access_token);
-        
-        if (data.isValid) {
-          initializeAuth({ user: storedUser, tokens: storedTokens });
-          if (pathname === '/login') {
-            router.replace('/dashboard');
+        try {
+          const { data } = await authService.verifyToken(storedTokens.access_token);
+          if (data.isValid) {
+            initializeAuth({ user: storedUser, tokens: storedTokens });
+            if (PUBLIC_PATHS.includes(pathname)) {
+              router.replace('/dashboard');
+            }
+          } else {
+            throw new Error('Invalid token');
           }
-        } else {
+        } catch {
           logout();
-          router.replace('/login');
+          if (!PUBLIC_PATHS.includes(pathname)) {
+            router.replace('/login');
+          }
         }
-      } catch (error) {
-        logout();
-        router.replace('/login');
       } finally {
-        setIsLoading(false);
+        setIsInitialized(true);
       }
     };
 
     checkAuth();
-  }, [pathname, router, logout, initializeAuth]);
+  }, []);
 
-  if (isLoading) {
+  if (!isInitialized) {
     return <LoadingScreen />;
   }
 
-  return <>{children}</>;
+  return children;
 }
