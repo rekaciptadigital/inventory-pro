@@ -13,7 +13,7 @@ export function ActivityCards() {
     <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
+          <CardTitle>Recent Transactions</CardTitle>
           <CardDescription>Latest inventory changes</CardDescription>
         </CardHeader>
         <CardContent>

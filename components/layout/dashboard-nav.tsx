@@ -43,7 +43,6 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Target },
-  { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   {
     name: "Products",
     icon: Box,
