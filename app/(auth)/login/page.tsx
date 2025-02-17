@@ -18,9 +18,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { getTokens } from "@/lib/services/auth/storage.service";
-import { useRef } from "react";
-import { LoadingScreen } from "@/components/ui/loading-screen";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -32,7 +29,6 @@ export default function LoginPage() {
   const { toast } = useToast();
   const { login, isLoading, error, clearError, user } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const checkAuthDone = useRef(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -42,9 +38,7 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    if (!checkAuthDone.current && user) {
-      console.log('User already logged in, redirecting to dashboard');
-      checkAuthDone.current = true;
+    if (user) {
       router.replace('/dashboard');
     }
   }, [user, router]);
@@ -76,10 +70,6 @@ export default function LoginPage() {
       });
     }
   };
-
-  if (user) {
-    return <LoadingScreen />;
-  }
 
   return (
     <div className="w-full max-w-md space-y-8 p-8">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { getTokens, getCurrentUser } from '@/lib/services/auth/storage.service';
@@ -16,47 +16,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { initializeAuth } = useAuth();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    console.log('Auth initialization started', { pathname });
-    
-    const storedTokens = getTokens();
-    const storedUser = getCurrentUser();
-    const isPublicPath = PUBLIC_PATHS.includes(pathname);
+    const initialize = () => {
+      const storedTokens = getTokens();
+      const storedUser = getCurrentUser();
+      const isPublicPath = PUBLIC_PATHS.includes(pathname);
 
-    console.log('Auth state:', { 
-      hasTokens: !!storedTokens, 
-      hasUser: !!storedUser, 
-      isPublicPath 
-    });
-
-    if (storedTokens && storedUser) {
-      initializeAuth({ user: storedUser, tokens: storedTokens });
-      if (isPublicPath) {
-        router.replace('/dashboard');
+      if (storedTokens && storedUser) {
+        initializeAuth({ user: storedUser, tokens: storedTokens });
+        if (isPublicPath && pathname !== '/') {
+          router.replace('/dashboard');
+        }
+      } else if (!isPublicPath && pathname !== '/') {
+        router.replace('/login');
       }
-    } else if (!isPublicPath) {
-      router.replace('/login');
-    }
 
-    // Immediately set initialized if we're on the correct path
-    if ((storedTokens && storedUser && !isPublicPath) || 
-        (!storedTokens && isPublicPath)) {
-      setIsInitialized(true);
-    } else {
-      // Small delay only if we're redirecting
-      setTimeout(() => setIsInitialized(true), 100);
-    }
+      setIsChecking(false);
+    };
 
-    console.log('Auth initialization completed');
-  }, [pathname, router, initializeAuth]);
+    initialize();
+  }, [pathname]);
 
-  if (!isInitialized) {
-    console.log('Showing loading screen');
+  // Don't show loading screen for root path
+  if (isChecking && pathname !== '/') {
     return <LoadingScreen />;
   }
 
-  console.log('Rendering children');
   return <>{children}</>;
 }

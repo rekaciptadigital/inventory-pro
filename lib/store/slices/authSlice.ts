@@ -51,7 +51,7 @@ export const login = createAsyncThunk(
 );
 
 export const logout = createAsyncThunk('auth/logout', async () => {
-  // Bisa ditambahkan logika call API logout di sini jika diperlukan
+  clearAuthData(); // Make sure this clears both tokens and user
   return null;
 });
 
