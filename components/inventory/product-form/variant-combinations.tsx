@@ -532,7 +532,7 @@ export function VariantCombinations() {
       const formGroupId = `variant-group-${originalSkuKey}`;
 
       return (
-        <div id={formGroupId} className="grid grid-cols-2 gap-4" role="group" aria-labelledby={`${formGroupId}-heading`}>
+        <div id={formGroupId} className="grid grid-cols-3 gap-4" role="group" aria-labelledby={`${formGroupId}-heading`}>
           <FormItem className="space-y-2">
             <FormControl>
               <div className="space-y-1">
@@ -583,7 +583,31 @@ export function VariantCombinations() {
               </div>
             </FormControl>
             <FormDescription>
-              <span className="block">Enter 1-10 numeric or use the default code</span>
+              Enter 1-10 numeric or use the default code
+            </FormDescription>
+          </FormItem>
+
+          <FormItem className="space-y-2">
+            <FormControl>
+              <div className="space-y-1">
+                <FormLabel htmlFor={`vendor-sku-${originalSkuKey}`}>Vendor SKU</FormLabel>
+                <Input
+                  id={`vendor-sku-${originalSkuKey}`}
+                  name={`vendor-sku-${originalSkuKey}`}
+                  value={localValues[`vendor-${originalSkuKey}`] || ''}
+                  onChange={(e) => {
+                    const value = e.target.value.slice(0, 50);
+                    updateLocalValue(`vendor-${originalSkuKey}`, value);
+                  }}
+                  onBlur={(e) => handleInputBlur(originalSkuKey, e.target.value)}
+                  placeholder="(Optional)"
+                  maxLength={50}
+                  title="Enter vendor's SKU reference number"
+                />
+              </div>
+            </FormControl>
+            <FormDescription>
+              Vendor's SKU reference number
             </FormDescription>
           </FormItem>
         </div>
@@ -708,25 +732,8 @@ export function VariantCombinations() {
                       ({ originalSkuKey, skuKey, productName, uniqueCode }: VariantTableData) => (
                         <TableRow key={skuKey}>
                           <TableCell>{productName}</TableCell>
-                          <TableCell colSpan={2}>
+                          <TableCell colSpan={3}>
                             {renderSkuFields(originalSkuKey, skuKey, uniqueCode)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="relative">
-                              <Input
-                                type="text"
-                                value={localValues[`vendor-${originalSkuKey}`] || ''}
-                                onChange={(e) => {
-                                  const value = e.target.value.slice(0, 50);
-                                  updateLocalValue(`vendor-${originalSkuKey}`, value);
-                                }}
-                                onBlur={(e) => handleInputBlur(originalSkuKey, e.target.value)}
-                                placeholder="Enter vendor SKU"
-                                className="w-full"
-                                maxLength={50}
-                                title="Enter vendor's SKU reference number"
-                              />
-                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <Switch
