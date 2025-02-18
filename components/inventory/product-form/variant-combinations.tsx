@@ -445,6 +445,7 @@ export function VariantCombinations() {
               ? paddedValue
               : variant.uniqueCode,
             full_product_name: variant.productName,
+            vendor_sku: localValues[`vendor-${variant.originalSkuKey}`] || '',
           })),
         })
       );
@@ -698,6 +699,7 @@ export function VariantCombinations() {
                       <TableHead>Full Product Name</TableHead>
                       <TableHead>SKU Variant</TableHead>
                       <TableHead className="w-[200px]">Unique Code</TableHead>
+                      <TableHead>Vendor SKU</TableHead>
                       <TableHead className="w-[100px] text-center">Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -708,6 +710,23 @@ export function VariantCombinations() {
                           <TableCell>{productName}</TableCell>
                           <TableCell colSpan={2}>
                             {renderSkuFields(originalSkuKey, skuKey, uniqueCode)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="relative">
+                              <Input
+                                type="text"
+                                value={localValues[`vendor-${originalSkuKey}`] || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value.slice(0, 50);
+                                  updateLocalValue(`vendor-${originalSkuKey}`, value);
+                                }}
+                                onBlur={(e) => handleInputBlur(originalSkuKey, e.target.value)}
+                                placeholder="Enter vendor SKU"
+                                className="w-full"
+                                maxLength={50}
+                                title="Enter vendor's SKU reference number"
+                              />
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <Switch
