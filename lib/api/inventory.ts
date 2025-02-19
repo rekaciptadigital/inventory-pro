@@ -8,37 +8,35 @@ export async function getInventoryProduct(id: string): Promise<ApiResponse<Inven
 }
 
 export interface CreateInventoryData {
-  brand_id: string;
+  brand_id: number;
   brand_code: string;
   brand_name: string;
-  product_type_id: string;
+  product_type_id: number;
   product_type_code: string;
   product_type_name: string;
   unique_code: string;
   sku: string;
   product_name: string;
   full_product_name: string;
+  vendor_sku?: string;
+  description?: string;
   unit: string;
   slug: string;
   categories: Array<{
-    product_category_id: string;
-    product_category_parent: string | null;
+    product_category_id: number;
+    product_category_parent: number | null;
     product_category_name: string;
     category_hierarchy: number;
   }>;
-  vendor_sku?: string; // Optional
-  description?: string; // Optional
-  variants?: Array<{
-    // Optional
-    variant_id: string;
+  variants: Array<{
+    variant_id: number;
     variant_name: string;
     variant_values: Array<{
-      variant_value_id: string;
+      variant_value_id: number;
       variant_value_name: string;
     }>;
   }>;
-  product_by_variant?: Array<{
-    // Optional
+  product_by_variant: Array<{
     full_product_name: string;
     sku: string;
     sku_product_unique_code: string;
@@ -100,20 +98,43 @@ export async function getInventoryProducts(
   return response.data;
 }
 
-export async function createInventoryProduct(
-  data: CreateInventoryData
-): Promise<InventoryApiSuccessResponse> {
+export async function handleInventoryProduct(
+  data: CreateInventoryData,
+  id?: string
+): Promise<InventoryProduct> {
   try {
-    const response = await axiosInstance.post("/inventory", data);
+    const isUpdate = Boolean(id);
+    const endpoint = isUpdate ? `/inventory/${id}` : '/inventory';
+    const method = isUpdate ? 'put' : 'post';
+    
+    const response = await axiosInstance({
+      method,
+      url: endpoint,
+      data,
+      validateStatus: (status) => 
+        isUpdate ? status === 200 : status === 201
+    });
+
+    if (!response.data) {
+      throw new Error('No data received from server');
+    }
+
     return response.data;
-  } catch (error: any) {
-    if (error.response?.data) {
-      const errorResponse = error.response.data as InventoryApiErrorResponse;
-      throw new Error(errorResponse.error.join("\n"));
+  } catch (error) {
+    if (axiosInstance.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message;
+      throw new Error(`Inventory API Error: ${message}`);
     }
     throw error;
   }
 }
+
+// Convenience wrappers for type safety
+export const createInventoryProduct = (data: CreateInventoryData) => 
+  handleInventoryProduct(data);
+
+export const updateInventoryProduct = (id: string, data: CreateInventoryData) => 
+  handleInventoryProduct(data, id);
 
 export async function deleteInventoryProduct(id: number): Promise<void> {
   try {
