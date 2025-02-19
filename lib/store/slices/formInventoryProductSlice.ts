@@ -36,6 +36,14 @@ interface InventoryProductForm {
   variant_selectors: VariantSelectorData[];
 }
 
+interface ProductByVariant {
+  originalSkuKey: string;
+  sku: string;
+  sku_product_unique_code: string;
+  full_product_name: string;
+  vendor_sku?: string; // Add optional vendor SKU
+}
+
 const initialState: InventoryProductForm = {
   brand_id: null,
   brand_code: "",
@@ -66,6 +74,15 @@ const formInventoryProductSlice = createSlice({
       state,
       action: PayloadAction<Partial<InventoryProductForm>>
     ) => {
+      if (action.payload.product_by_variant) {
+        // Preserve existing vendor SKUs when updating product_by_variant
+        action.payload.product_by_variant = action.payload.product_by_variant.map(variant => ({
+          ...variant,
+          vendor_sku: variant.vendor_sku || state.product_by_variant.find(
+            v => v.originalSkuKey === variant.originalSkuKey
+          )?.vendor_sku
+        }));
+      }
       return { ...state, ...action.payload };
     },
     setBrand: (

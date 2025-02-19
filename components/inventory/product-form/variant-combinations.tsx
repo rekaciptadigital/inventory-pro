@@ -60,7 +60,7 @@ interface VariantTableData {
   skuKey: string;
   productName: string;
   uniqueCode: string;
-  combo: string[];
+  vendorSku?: string; // Add optional vendor SKU
 }
 
 interface CurrentSelector {
@@ -522,6 +522,23 @@ export function VariantCombinations() {
     );
   }, [dispatch, variantData, skuStatuses]);
 
+  const handleVendorSkuChange = useCallback((originalSkuKey: string, value: string) => {
+    updateLocalValue(`vendor-${originalSkuKey}`, value);
+  }, [updateLocalValue]);
+
+  const handleVendorSkuBlur = useCallback((originalSkuKey: string, value: string) => {
+    dispatch(
+      updateForm({
+        product_by_variant: variantData.map((variant) => ({
+          ...variant,
+          vendor_sku: variant.originalSkuKey === originalSkuKey 
+            ? value 
+            : localValues[`vendor-${variant.originalSkuKey}`] || undefined
+        }))
+      })
+    );
+  }, [dispatch, variantData, localValues]);
+
   const renderSkuFields = useCallback(
     (originalSkuKey: string, skuKey: string, uniqueCode: string) => {
       const defaultUniqueCode = String(
@@ -595,25 +612,19 @@ export function VariantCombinations() {
                   id={`vendor-sku-${originalSkuKey}`}
                   name={`vendor-sku-${originalSkuKey}`}
                   value={localValues[`vendor-${originalSkuKey}`] || ''}
-                  onChange={(e) => {
-                    const value = e.target.value.slice(0, 50);
-                    updateLocalValue(`vendor-${originalSkuKey}`, value);
-                  }}
-                  onBlur={(e) => handleInputBlur(originalSkuKey, e.target.value)}
+                  onChange={(e) => handleVendorSkuChange(originalSkuKey, e.target.value.slice(0, 50))}
+                  onBlur={(e) => handleVendorSkuBlur(originalSkuKey, e.target.value)}
                   placeholder="(Optional)"
                   maxLength={50}
-                  title="Enter vendor's SKU reference number"
                 />
               </div>
             </FormControl>
-            <FormDescription>
-              Vendor's SKU reference number
-            </FormDescription>
+            <FormDescription>Optional vendor reference number</FormDescription>
           </FormItem>
         </div>
       );
     },
-    [localValues, handleUniqueCodeChange, handleInputBlur, handleResetUniqueCode, variantData]
+    [localValues, handleUniqueCodeChange, handleInputBlur, handleVendorSkuChange, handleVendorSkuBlur]
   );
 
   const renderVariantValue = useCallback(

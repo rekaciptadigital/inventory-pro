@@ -70,6 +70,7 @@ export interface InventoryProductVariant {
   full_product_name: string;
   sku_product_variant: string;
   sku_product_unique_code: number;
+  vendor_sku?: string; // Add optional vendor SKU
   deleted_at: string | null;
 }
 

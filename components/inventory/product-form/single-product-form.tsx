@@ -17,7 +17,6 @@ import type { RootState } from "@/lib/store/store";
 import {
   createInventoryProduct,
   CreateInventoryData,
-  updateInventoryProduct,
 } from "@/lib/api/inventory";
 import { 
   setBrand, 
@@ -226,8 +225,8 @@ export function SingleProductForm({
   const onSubmit = async (values: ProductFormValues) => {
     try {
       setIsSubmitting(true);
-      
-      const submissionData: CreateInventoryData = {
+      await createInventoryProduct({
+        // Convert string IDs to numbers for API
         brand_id: parseInt(formData.brand_id?.toString() || "0"),
         brand_code: formData.brand_code || "",
         brand_name: formData.brand_name || "",
@@ -241,6 +240,7 @@ export function SingleProductForm({
         unit: formData.unit || "",
         slug: formData.slug || "",
         categories: formData.categories.map((cat) => ({
+          // Convert string IDs to numbers
           product_category_id: parseInt(cat.product_category_id.toString()),
           product_category_parent: cat.product_category_parent
             ? parseInt(cat.product_category_parent.toString())
@@ -249,6 +249,7 @@ export function SingleProductForm({
           category_hierarchy: cat.category_hierarchy,
         })),
         variants: formData.variants.map((variant) => ({
+          // Convert string IDs to numbers
           variant_id: parseInt(variant.variant_id.toString()),
           variant_name: variant.variant_name,
           variant_values: variant.variant_values.map((value) => ({
@@ -261,33 +262,24 @@ export function SingleProductForm({
           sku: variant.sku,
           sku_product_unique_code: variant.sku_product_unique_code,
         })),
-      };
-
-      if (formData.vendor_sku) {
-        submissionData.vendor_sku = formData.vendor_sku;
-      }
-      if (formData.description) {
-        submissionData.description = formData.description;
-      }
-
-      // Use the new API handler functions
-      const result = initialData
-        ? await updateInventoryProduct(initialData.id.toString(), submissionData)
-        : await createInventoryProduct(submissionData);
+        ...(formData.vendor_sku && { vendor_sku: formData.vendor_sku }),
+        ...(formData.description && { description: formData.description }),
+      });
 
       toast({
         variant: "default",
         title: "Success",
-        description: `Product has been ${initialData ? 'updated' : 'created'} successfully`,
+        description: "Product has been created successfully",
       });
 
       router.push("/dashboard/inventory");
     } catch (error) {
-      console.error("Error handling product:", error);
+      console.error("Error creating product:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to handle product",
+        description:
+          error instanceof Error ? error.message : "Failed to create product",
       });
     } finally {
       setIsSubmitting(false);
