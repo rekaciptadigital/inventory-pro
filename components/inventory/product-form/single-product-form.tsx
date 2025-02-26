@@ -127,10 +127,10 @@ export function SingleProductForm({
         // Create a batch of updates
         const updates: Array<() => void> = [];
 
-        if (initialData.brand_id && initialData.brand_code && initialData.brand_name) {
+        if (initialData?.brand_id && initialData?.brand_code && initialData?.brand_name) {
           updates.push(() => {
             dispatch(setBrand({
-              id: parseInt(initialData.brand_id),
+              id: parseInt(initialData.brand_id!.toString()),
               code: initialData.brand_code,
               name: initialData.brand_name,
             }));
@@ -142,8 +142,8 @@ export function SingleProductForm({
           updates.push(() => {
             dispatch(setProductType({
               id: parseInt(initialData.product_type_id),
-              code: initialData.product_type_code,
-              name: initialData.product_type_name,
+              code: initialData.product_type_code || "",
+              name: initialData.product_type_name || "",
             }));
             form.setValue('productTypeId', initialData.product_type_id.toString(), { shouldValidate: true });
           });
