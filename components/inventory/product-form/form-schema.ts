@@ -62,18 +62,7 @@ export const productFormSchema = z.object({
       })
     )
     .default([]),
-  variantCount: z.number().default(0),
-  variantOptions: z.array(z.string()).default([]), // Add variantOptions field
-  variantValues: z.record(z.string(), z.array(z.string())).optional(), // Add variantValues field
   variantPrices: z.record(z.string(), z.number()).optional(),
-  product_by_variant: z.array(
-    z.object({
-      full_product_name: z.string(),
-      sku: z.string(),
-      sku_product_unique_code: z.string(),
-      vendor_sku: z.string().optional()
-    })
-  ).default([]) // Add product_by_variant field with default empty array
 });
 
 // Use direct interface mapping for API fields

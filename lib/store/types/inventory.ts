@@ -26,7 +26,6 @@ export interface VariantSelectorData {
   name: string;
   values: string[];
   selected_values?: string[];
-  display_order?: number; // Add this property
 }
 
 export interface InventoryProductForm {

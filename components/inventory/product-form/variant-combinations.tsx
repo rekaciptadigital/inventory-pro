@@ -32,9 +32,8 @@ import type { ProductFormValues } from "./form-schema";
 import type { VariantValue as VariantValueType } from "@/types/variant";
 import type { SelectOption } from "@/components/ui/enhanced-select";
 import { Input } from "@/components/ui/input";
-import type { RootState } from "@/lib/store/store"; // Update this import
+import { RootState } from "@/lib/store";
 import { FormItem, FormLabel, FormControl, FormDescription } from '@/components/ui/form';
-import type { ProductByVariant } from "@/lib/store/types/inventory";
 
 interface VariantValueData {
   variant_value_id: string;
@@ -92,45 +91,6 @@ interface InputStates {
   isDirty: boolean;
 }
 
-/**
- * Helper function to convert variant values to strings
- */
-function convertToStringValues(values: (string | VariantValueType)[] | undefined): string[] {
-  if (!values) return [];
-  return values.map((v: string | VariantValueType) => {
-    if (typeof v === 'string') return v;
-    // Changed to use 'name' instead of 'variant_value_name' for VariantValue type
-    return v.name;
-  });
-}
-
-/**
- * Helper function to convert variant values to strings
- */
-function convertVariantValues(values: any[] | undefined): string[] {
-  if (!values) return [];
-  return values.map(v => {
-    if (typeof v === 'string') return v;
-    if (v.variant_value_name) return v.variant_value_name;  // For ExistingVariant values
-    if (v.name) return v.name;  // For VariantValue type
-    return String(v);
-  });
-}
-
-interface VariantSortData {
-  display_order?: number;
-}
-
-// Add type for local product variant that includes originalSkuKey
-interface LocalProductByVariant {
-  sku: string;
-  sku_product_unique_code: string;
-  full_product_name: string;
-  vendor_sku?: string;
-  status?: boolean;
-  originalSkuKey: string;
-}
-
 export function VariantCombinations() {
   const form = useFormContext<ProductFormValues>();
   const dispatch = useDispatch();
@@ -146,15 +106,6 @@ export function VariantCombinations() {
   const [skipReduxUpdate, setSkipReduxUpdate] = useState(false);
   const updateTimeoutRef = useRef<NodeJS.Timeout>();
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
-  const [removedVariantId, setRemovedVariantId] = useState<number | null>(null);
-
-  // Move dispatch to an effect
-  useEffect(() => {
-    if (removedVariantId !== null) {
-      dispatch(removeVariantSelector(removedVariantId));
-      setRemovedVariantId(null);
-    }
-  }, [removedVariantId, dispatch]);
 
   const usedTypeIds = useMemo(
     () => selectedVariants.map((variant) => variant.typeId).filter(Boolean),
@@ -192,7 +143,7 @@ export function VariantCombinations() {
         } else {
           const variantToRemove = prev.find((v: SelectedVariant) => v.id === variantId);
           if (variantToRemove?.typeId) {
-            setRemovedVariantId(variantToRemove.typeId); // Set the ID to remove instead of dispatching directly
+            dispatch(removeVariantSelector(variantToRemove.typeId));
           }
         }
 
@@ -225,22 +176,19 @@ export function VariantCombinations() {
             id: `variant-${variant.variant_id}`,
             typeId: variant.variant_id,
             values: variant.variant_values.map((v) => v.variant_value_name),
-            availableValues: convertToStringValues(variantType?.values),
+            availableValues: variantType?.values || [],
             display_order: variantType?.display_order || 0,
           };
         });
 
-        // Fix: Add explicit typing to sort parameters
-        initialVariants.sort((a: VariantSortData, b: VariantSortData) => 
-          (a.display_order || 0) - (b.display_order || 0)
-        );
+        initialVariants.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
         const variantSelectors = existingVariants.map((variant: ExistingVariant) => {
           const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
           return {
             id: variant.variant_id,
             name: variantType?.name ?? variant.variant_name,
-            values: convertToStringValues(variantType?.values),
+            values: variantType?.values || [],
             selected_values: variant.variant_values.map((v) => v.variant_value_name),
           };
         });
@@ -304,8 +252,8 @@ export function VariantCombinations() {
           addVariantSelector({
             id: parseInt(selected.value),
             name: selectedVariantType.name,
-            values: convertToStringValues(selectedVariantType.values), // Convert values to strings
-            selected_values: existingVariant?.variant_values.map((v: { variant_value_id: string; variant_value_name: string; }) => v.variant_value_name) || [],
+            values: selectedVariantType.values || [],
+            selected_values: existingVariant?.variant_values.map((v) => v.variant_value_name) || [],
             display_order: selectedVariantType.display_order,
           })
         );
@@ -507,22 +455,18 @@ export function VariantCombinations() {
 
   useEffect(() => {
     if (variantData.length && !skipReduxUpdate) {
-      const productVariants: LocalProductByVariant[] = variantData.map((variant) => ({
-        sku: variant.skuKey,
-        sku_product_unique_code: variant.uniqueCode,
-        full_product_name: variant.productName,
-        vendor_sku: localValues[`vendor-${variant.originalSkuKey}`],
-        status: skuStatuses[variant.originalSkuKey] ?? true,
-        originalSkuKey: variant.originalSkuKey
-      }));
-
       dispatch(
         updateForm({
-          product_by_variant: productVariants
+          product_by_variant: variantData.map((variant) => ({
+            originalSkuKey: variant.originalSkuKey,
+            sku: variant.skuKey,
+            sku_product_unique_code: variant.uniqueCode,
+            full_product_name: variant.productName,
+          })),
         })
       );
     }
-  }, [variantData, dispatch, skipReduxUpdate, localValues, skuStatuses]);
+  }, [variantData, dispatch, skipReduxUpdate]);
 
   const handleResetUniqueCode = useCallback((originalSkuKey: string) => {
     setLocalValues((prev) => {
@@ -583,28 +527,22 @@ export function VariantCombinations() {
   }, [updateLocalValue]);
 
   const handleVendorSkuBlur = useCallback((originalSkuKey: string, value: string) => {
-    const updatedVariants: LocalProductByVariant[] = variantData.map((variant) => ({
-      sku: variant.skuKey,
-      sku_product_unique_code: variant.uniqueCode,
-      full_product_name: variant.productName,
-      vendor_sku: variant.originalSkuKey === originalSkuKey 
-        ? value 
-        : localValues[`vendor-${variant.originalSkuKey}`] || undefined,
-      status: skuStatuses[variant.originalSkuKey] ?? true,
-      originalSkuKey: variant.originalSkuKey
-    }));
-
     dispatch(
       updateForm({
-        product_by_variant: updatedVariants
+        product_by_variant: variantData.map((variant) => ({
+          ...variant,
+          vendor_sku: variant.originalSkuKey === originalSkuKey 
+            ? value 
+            : localValues[`vendor-${variant.originalSkuKey}`] || undefined
+        }))
       })
     );
-  }, [dispatch, variantData, localValues, skuStatuses]);
+  }, [dispatch, variantData, localValues]);
 
   const renderSkuFields = useCallback(
     (originalSkuKey: string, skuKey: string, uniqueCode: string) => {
       const defaultUniqueCode = String(
-        variantData.findIndex((v: VariantTableData) => v.originalSkuKey === originalSkuKey) + 1
+        variantData.findIndex((v) => v.originalSkuKey === originalSkuKey) + 1
       ).padStart(4, "0");
 
       const inputValue = localValues[originalSkuKey] ?? uniqueCode;
