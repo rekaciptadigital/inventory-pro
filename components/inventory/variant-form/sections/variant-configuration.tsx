@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { useDebounce } from '@/lib/hooks/use-debounce';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { UseFormReturn } from 'react-hook-form';
-import { Plus, X, Check } from 'lucide-react';
+import { Plus, X, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Command,
@@ -17,8 +20,9 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { useVariantTypes } from '@/lib/hooks/use-variant-types';
+import { useVariants } from '@/lib/hooks/variants/use-variants';
 import { ProductFormValues } from '../../product-form/form-schema';
+import { useToast } from '@/components/ui/use-toast';
 
 // Interface untuk struktur data varian
 interface Variant {
@@ -45,19 +49,90 @@ export function VariantConfiguration({
   onVariantsChange,
   form,
 }: Readonly<VariantConfigurationProps>) {
-  // Hook kustom untuk mengambil data tipe varian
-  const { variantTypes = [] } = useVariantTypes() || {}; // Fallback to empty array
-  
-  // Pengelolaan state untuk pemilihan varian
+  const { toast } = useToast();
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+  const loadMoreRef = useRef(null);
   const [selectedTypeId, setSelectedTypeId] = useState<string>('');
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
 
+  const { 
+    data: variantsResponse,
+    isLoading, 
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetching 
+  } = useInfiniteQuery({
+    queryKey: ['variants', { search: debouncedSearch }],
+    queryFn: ({ pageParam = 1 }) => getVariants({ 
+      search: debouncedSearch,
+      page: pageParam,
+      limit: 10,
+      status: true 
+    }),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.pagination.hasNext) {
+        return lastPage.pagination.currentPage + 1;
+      }
+      return undefined;
+    },
+    keepPreviousData: true
+  });
+
+  // Reset page when search changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  // Setup intersection observer for infinite scrolling
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting && !isFetching && hasNextPage) {
+          setPage(prev => prev + 1);
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    const currentRef = loadMoreRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [loadMoreRef, isFetching, hasNextPage, fetchNextPage]);
+
+  // Flatten and combine all pages of variants
+  const variants = useMemo(() => {
+    return variantsResponse?.pages.flatMap(page => page.data) ?? [];
+  }, [variantsResponse]);
+
+  // Sort variants by display_order
+  const sortedVariants = useMemo(() => {
+    return [...variants].sort((a, b) => a.display_order - b.display_order);
+  }, [variants]);
+
   // Filter tipe varian yang tersedia dengan mengecualikan yang sudah dipilih
-  const availableTypes = variantTypes.filter(type => 
-    type.status === 'active' && 
+  const availableTypes = sortedVariants.filter(type => 
     !selectedVariants.some((v: Variant) => v.typeId === type.id)
   );
+
+  if (error) {
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: "Failed to load variant types"
+    });
+  }
 
   // Fungsi untuk menambahkan kombinasi varian baru
   const handleAddVariant = () => {
@@ -139,6 +214,17 @@ export function VariantConfiguration({
         </div>
       ))}
 
+      {isLoading ? (
+        <div className="flex items-center justify-center p-4 border rounded-lg">
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          <span>Loading variants...</span>
+        </div>
+      ) : error ? (
+        <div className="p-4 border border-destructive text-destructive rounded-lg">
+          Failed to load variants. Please try again.
+        </div>
+      ) : (
+
       <div className="flex gap-4 items-end">
         <div className="flex-1 space-y-4">
           {/* Bagian Pemilihan Tipe Varian */}
@@ -152,36 +238,67 @@ export function VariantConfiguration({
                   id="variant-type"
                   variant="outline"
                   className="w-full justify-between"
-                  disabled={availableTypes.length === 0} // Disabled if no available types
+                  disabled={availableTypes.length === 0 || isLoading}
                 >
-                  {getVariantTypeButtonText()}
-                  <Plus className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Loading...</span>
+                    </div>
+                  ) : (
+                    <>
+                      {getVariantTypeButtonText()}
+                      <Plus className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </>
+                  )}
                 </Button>
               </PopoverTrigger>
               {availableTypes.length > 0 && (
                 <PopoverContent className="w-full p-0">
                   <Command>
-                    <CommandInput placeholder="Search variant type..." />
-                    <CommandEmpty>No variant type found.</CommandEmpty>
+                    <CommandInput 
+                      placeholder="Search variant type..." 
+                      value={search}
+                      onValueChange={setSearch}
+                    />
+                    <CommandEmpty>
+                      {isLoading ? (
+                        <div className="flex items-center justify-center p-4">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          <span>Loading variants...</span>
+                        </div>
+                      ) : (
+                        "No variant type found."
+                      )}
+                    </CommandEmpty>
                     <CommandGroup>
-                      {availableTypes.map((type) => (
-                        <CommandItem
-                          key={type.id}
-                          value={type.id}
-                          onSelect={() => {
-                            setSelectedTypeId(type.id);
-                            setSelectedValues([]);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedTypeId === type.id ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {type.name}
-                        </CommandItem>
-                      ))}
+                      <ScrollArea className="h-[200px]">
+                        {sortedVariants.map((type) => (
+                          <CommandItem
+                            key={type.id}
+                            value={type.id}
+                            onSelect={() => {
+                              setSelectedTypeId(type.id);
+                              setSelectedValues([]);
+                              setOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedTypeId === type.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {type.name}
+                          </CommandItem>
+                        ))}
+                        {isFetching && (
+                          <div className="py-2 text-center text-sm text-muted-foreground">
+                            Loading more...
+                          </div>
+                        )}
+                        <div ref={loadMoreRef} className="h-1" />
+                      </ScrollArea>
                     </CommandGroup>
                   </Command>
                 </PopoverContent>
@@ -202,11 +319,18 @@ export function VariantConfiguration({
                     variant="outline"
                     className="w-full justify-between"
                     aria-expanded={open}
-                    disabled={availableTypes.length === 0} // Disabled if no available types
+                    disabled={!selectedTypeId || isLoading}
                   >
-                    {selectedValues.length > 0
-                      ? `${selectedValues.length} selected`
-                      : "Select values"}
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Loading...</span>
+                      </div>
+                    ) : selectedValues.length > 0 ? (
+                      `${selectedValues.length} selected`
+                    ) : (
+                      "Select values"
+                    )}
                     <Plus className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -215,27 +339,30 @@ export function VariantConfiguration({
                     <CommandInput placeholder="Search values..." />
                     <CommandEmpty>No values found.</CommandEmpty>
                     <CommandGroup>
-                      {variantTypes
+                      {sortedVariants
                         .find(t => t.id === selectedTypeId)
-                        ?.values.map((value: VariantValue) => (
+                        ?.values.map((value) => (
                           <CommandItem
-                            key={value.id}
-                            value={value.id}
-                            onSelect={() => toggleValue(value.id)}
+                            key={value}
+                            value={value}
+                            onSelect={() => toggleValue(value)}
                           >
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                selectedValues.includes(value.id) ? "opacity-100" : "opacity-0"
+                                selectedValues.includes(value) ? "opacity-100" : "opacity-0"
                               )}
                             />
-                            {value.name}
+                            {value}
                           </CommandItem>
                         ))}
                     </CommandGroup>
                   </Command>
                 </PopoverContent>
               </Popover>
+              <p className="text-sm text-muted-foreground mt-1">
+                Select one or more values for this variant type
+              </p>
             </div>
           )}
         </div>
