@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { ClientSelect } from "@/components/ui/enhanced-select/client-select";
-import { useVariants } from "@/lib/hooks/use-variants";
+import { getVariants } from "@/lib/api/variants";
 import type { SelectOption } from "@/components/ui/enhanced-select";
 
 interface VariantSelectorProps {
@@ -15,35 +15,48 @@ export function VariantSelector({
   onChange,
   excludeIds = [],
   error,
-}: VariantSelectorProps) {
-  const { variants } = useVariants();
-
+}: Readonly<VariantSelectorProps>) {
   const loadOptions = useCallback(
-    async (search: string) => {
-      const filteredVariants = variants
-        .filter((variant) => !excludeIds.includes(variant.id))
-        .filter((variant) =>
-          variant.name.toLowerCase().includes(search.toLowerCase())
-        )
-        .map((variant) => ({
-          value: variant.id.toString(),
-          label: variant.name,
-          data: {
-            id: variant.id,
-            name: variant.name,
-            values: variant.values, // Make sure values are included in the data
-          },
-        }));
+    async (search: string, loadedOptions: SelectOption[], { page }: { page: number }) => {
+      try {
+        const response = await getVariants({
+          search,
+          page,
+          limit: 10,
+          sort: "created_at",
+          order: "DESC",
+        });
 
-      return {
-        options: filteredVariants,
-        hasMore: false,
-        additional: {
-          page: 1,
-        },
-      };
+        const filteredVariants = response.data
+          .filter((variant) => !excludeIds.includes(variant.id))
+          .map((variant) => ({
+            value: variant.id.toString(),
+            label: variant.name,
+            data: {
+              id: variant.id,
+              name: variant.name,
+              values: variant.values,
+            },
+          }));
+
+        return {
+          options: filteredVariants,
+          hasMore: response.pagination?.hasNext || false,
+          additional: {
+            page: page + 1,
+            hasMore: response.pagination?.hasNext || false,
+          },
+        };
+      } catch (error) {
+        console.error("Error loading variants:", error);
+        return {
+          options: [],
+          hasMore: false,
+          additional: { page: 1, hasMore: false },
+        };
+      }
     },
-    [variants, excludeIds]
+    [excludeIds]
   );
 
   return (
@@ -55,12 +68,7 @@ export function VariantSelector({
       placeholder="Select variant type..."
       error={error}
       isClearable={false}
-      classNames={{
-        control: () => "h-10",
-        placeholder: () => "text-sm",
-        input: () => "text-sm",
-        option: () => "text-sm",
-      }}
+      className="w-full" // Changed from classNames to className
     />
   );
 }
