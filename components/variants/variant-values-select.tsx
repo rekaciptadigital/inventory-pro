@@ -1,28 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, ChevronsUpDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useVariantTypes } from '@/lib/hooks/use-variant-types';
 
 interface VariantValuesSelectProps {
-  variantTypeId: number;
-  value: string[];
-  onChange: (value: string[]) => void;
-  disabled?: boolean;
+  readonly variantTypeId: number;
+  readonly value: readonly string[];
+  readonly onChange: (value: string[]) => void;
+  readonly disabled?: boolean;
 }
 
 export function VariantValuesSelect({
@@ -30,67 +16,52 @@ export function VariantValuesSelect({
   value = [],
   onChange,
   disabled = false,
-}: VariantValuesSelectProps) {
-  const [open, setOpen] = useState(false);
+}: Readonly<VariantValuesSelectProps>) {
   const [search, setSearch] = useState('');
-  const { data: response } = useVariantTypes();
+  const { variantTypes } = useVariantTypes();
   
-  const variantType = response?.data.find(t => t.id === variantTypeId);
+  const variantType = variantTypes.find(t => t.id === variantTypeId);
   const values = variantType?.values || [];
 
   const filteredValues = values.filter(v => 
     v.toLowerCase().includes(search.toLowerCase())
   );
 
-  const toggleValue = (selectedValue: string) => {
-    const newValues = value.includes(selectedValue)
-      ? value.filter(v => v !== selectedValue)
-      : [...value, selectedValue];
-    onChange(newValues);
+  const handleSelectionChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedOptions = Array.from(event.target.selectedOptions).map(opt => opt.value);
+    onChange(selectedOptions);
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          className="w-full justify-between"
-          disabled={disabled || !variantTypeId}
-        >
-          {value.length > 0
-            ? `${value.length} selected`
-            : "Select values"}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
-        <Command>
-          <CommandInput 
-            placeholder="Search values..."
-            value={search}
-            onValueChange={setSearch}
-          />
-          <CommandEmpty>No values found</CommandEmpty>
-          <CommandGroup>
-            {filteredValues.map((v) => (
-              <CommandItem
-                key={v}
-                value={v}
-                onSelect={() => toggleValue(v)}
-              >
-                <Check
-                  className={cn(
-                    "mr-2 h-4 w-4",
-                    value.includes(v) ? "opacity-100" : "opacity-0"
-                  )}
-                />
-                {v}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <div className="relative w-full">
+      <input
+        type="text"
+        placeholder="Search values..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        className="w-full px-3 py-2 mb-2 border rounded-md"
+        disabled={disabled || !variantTypeId}
+      />
+      <select
+        multiple
+        value={value}
+        onChange={handleSelectionChange}
+        className={cn(
+          "w-full min-h-[120px] border rounded-md p-1",
+          disabled && "opacity-50 cursor-not-allowed"
+        )}
+        disabled={disabled || !variantTypeId}
+        aria-label="Select variant values"
+      >
+        {filteredValues.map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
+      </select>
+      <div className="mt-2 text-sm text-muted-foreground">
+        {value.length} values selected
+      </div>
+    </div>
   );
 }

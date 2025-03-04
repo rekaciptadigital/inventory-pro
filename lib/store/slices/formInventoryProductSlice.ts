@@ -6,44 +6,12 @@ import type {
   ProductByVariant,
   VariantSelectorData,
   ProductVariant,
-} from "../types/inventory";
+} from "@/lib/types/inventory";
 
 // Define the VariantValue type based on ProductVariant interface
 type VariantValue = ProductVariant['variant_values'][number];
 
-// Remove redundant type alias
-// type CategoryHierarchy = number;
-
-interface InventoryProductForm {
-  brand_id: number | null;
-  brand_code: string;
-  brand_name: string;
-  product_type_id: number | null;
-  product_type_code: string;
-  product_type_name: string;
-  unique_code: string;
-  sku: string;
-  product_name: string;
-  full_product_name: string;
-  vendor_sku: string;
-  description: string;
-  unit: string;
-  slug: string;
-  categories: ProductCategory[];
-  availableCategories: ProductCategory[]; // Add this new field
-  variants: ProductVariant[];
-  product_by_variant: ProductByVariant[];
-  variant_selectors: VariantSelectorData[];
-}
-
-interface ProductByVariant {
-  originalSkuKey: string;
-  sku: string;
-  sku_product_unique_code: string;
-  full_product_name: string;
-  vendor_sku?: string; // Add optional vendor SKU
-}
-
+// Remove duplicate interface and use the imported one instead
 const initialState: InventoryProductForm = {
   brand_id: null,
   brand_code: "",
@@ -78,7 +46,7 @@ const formInventoryProductSlice = createSlice({
         // Preserve existing vendor SKUs when updating product_by_variant
         action.payload.product_by_variant = action.payload.product_by_variant.map(variant => ({
           ...variant,
-          vendor_sku: variant.vendor_sku || state.product_by_variant.find(
+          vendor_sku: variant.vendor_sku ?? state.product_by_variant.find(
             v => v.originalSkuKey === variant.originalSkuKey
           )?.vendor_sku
         }));
@@ -117,7 +85,7 @@ const formInventoryProductSlice = createSlice({
         category_hierarchy: hierarchyToMatch
       });
       
-      // Sort categories by hierarchy in a separate operation
+      // Create new sorted array without mutating original
       state.categories = filteredCategories.toSorted(
         (a, b) => Number(a.category_hierarchy) - Number(b.category_hierarchy)
       );
@@ -150,7 +118,7 @@ const formInventoryProductSlice = createSlice({
         typeof cat.category_hierarchy === 'number'
       );
       
-      state.categories = validCategories.sort(
+      state.categories = validCategories.toSorted(
         (a, b) => a.category_hierarchy - b.category_hierarchy
       );
     },
@@ -328,7 +296,7 @@ export const selectVariantsWithValues = createSelector(
 // Add new memoized selector for sorted categories
 export const selectSortedCategories = createSelector(
   selectFormInventoryProduct,
-  (form) => [...form.categories].sort((a, b) => a.category_hierarchy - b.category_hierarchy)
+  (form) => form.categories.toSorted((a, b) => a.category_hierarchy - b.category_hierarchy)
 );
 
 // Add new selector

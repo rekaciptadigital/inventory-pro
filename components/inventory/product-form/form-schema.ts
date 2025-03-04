@@ -1,6 +1,3 @@
-// Schema validasi untuk form produk
-// Menggunakan Zod untuk validasi tipe data dan aturan validasi
-
 import * as z from "zod";
 
 // Schema for API data format
@@ -84,5 +81,3 @@ interface ApiFields {
     category_hierarchy: number;
   }>;
 }
-
-export type ProductFormValues = z.infer<typeof productFormSchema> & ApiFields;

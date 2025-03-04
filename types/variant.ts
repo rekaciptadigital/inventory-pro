@@ -30,12 +30,8 @@ export interface VariantValue {
 export interface VariantType {
   id: number;
   name: string;
+  values: string[];
   display_order: number;
-  status: boolean;
-  values: VariantValue[];
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
 }
 
 /**

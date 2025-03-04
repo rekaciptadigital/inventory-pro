@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { useFormContext } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
-import { Plus, X, RotateCcw, Power } from "lucide-react";
+import { Plus, X, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   updateForm,
@@ -28,12 +27,15 @@ import {
   VariantTypeSelector as VariantType,
   VariantValueSelector as VariantValueSelect,
 } from "./enhanced-selectors";
-import type { ProductFormValues } from "./form-schema";
-import type { VariantValue as VariantValueType } from "@/types/variant";
 import type { SelectOption } from "@/components/ui/enhanced-select";
 import { Input } from "@/components/ui/input";
-import { RootState } from "@/lib/store";
+import { RootState } from "@/lib/store/index";
 import { FormItem, FormLabel, FormControl, FormDescription } from '@/components/ui/form';
+import type {
+  ProductByVariant,
+  VariantSelectorData,
+  VariantValue
+} from "@/lib/types/inventory";
 
 interface VariantValueData {
   variant_value_id: string;
@@ -51,12 +53,11 @@ interface SelectedVariant {
   id: string;
   typeId: number;
   values: string[];
-  availableValues?: string[];
+  availableValues?: VariantValue[];
   display_order?: number;
 }
 
 interface VariantTableData {
-  originalSkuKey: string;
   skuKey: string;
   productName: string;
   uniqueCode: string;
@@ -79,20 +80,12 @@ interface ExistingVariant {
   }>;
 }
 
-interface VariantSelectorData {
-  id: number;
-  name: string;
-  values: string[];
-  selected_values?: string[];
-}
-
 interface InputStates {
   value: string;
   isDirty: boolean;
 }
 
 export function VariantCombinations() {
-  const form = useFormContext<ProductFormValues>();
   const dispatch = useDispatch();
   const [selectedVariants, setSelectedVariants] = useState<SelectedVariant[]>([]);
   const { variantTypes } = useVariantTypes();
@@ -113,7 +106,11 @@ export function VariantCombinations() {
   );
 
   const generateVariantId = useCallback(
-    () => `variant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    () => {
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).slice(2);
+      return `variant-${timestamp}-${randomString}`;
+    },
     []
   );
 
@@ -176,21 +173,25 @@ export function VariantCombinations() {
             id: `variant-${variant.variant_id}`,
             typeId: variant.variant_id,
             values: variant.variant_values.map((v) => v.variant_value_name),
-            availableValues: variantType?.values || [],
-            display_order: variantType?.display_order || 0,
-          };
+            availableValues: variantType?.values.map(value => ({
+              variant_value_id: String(value),
+              variant_value_name: String(value)
+            })) || [],
+            display_order: variantType?.display_order ?? 0,
+          } satisfies SelectedVariant;
         });
 
         initialVariants.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
+        // Fix the variantSelectors mapping to ensure string[] values
         const variantSelectors = existingVariants.map((variant: ExistingVariant) => {
           const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
           return {
             id: variant.variant_id,
             name: variantType?.name ?? variant.variant_name,
-            values: variantType?.values || [],
+            values: variantType?.values.map(String) || [], // Convert values to string[]
             selected_values: variant.variant_values.map((v) => v.variant_value_name),
-          };
+          } satisfies VariantSelectorData;
         });
 
         Promise.resolve().then(() => {
@@ -222,7 +223,7 @@ export function VariantCombinations() {
         vt => vt.id === parseInt(selected.value)
       );
 
-      const existingVariant = existingVariants.find(
+      const existingVariant = existingVariants?.find(
         (v: ExistingVariant) => v.variant_id === parseInt(selected.value)
       );
 
@@ -235,15 +236,17 @@ export function VariantCombinations() {
             ? {
                 ...v,
                 typeId: parseInt(selected.value),
-                values: existingVariant?.variant_values.map((value: VariantValueData) => value.variant_value_name) || [],
-                display_order: selectedVariantType?.display_order || 0,
+                values: existingVariant?.variant_values?.map(
+                  (value: VariantValueData) => value.variant_value_name
+                ) ?? [],
+                display_order: selectedVariantType?.display_order ?? 0,
               }
             : v
         );
         return newVariants;
       });
 
-      const existingSelector = variantSelectors.find(
+      const existingSelector = variantSelectors?.find(
         (selector) => selector.id === parseInt(selected.value)
       );
 
@@ -252,9 +255,8 @@ export function VariantCombinations() {
           addVariantSelector({
             id: parseInt(selected.value),
             name: selectedVariantType.name,
-            values: selectedVariantType.values || [],
-            selected_values: existingVariant?.variant_values.map((v) => v.variant_value_name) || [],
-            display_order: selectedVariantType.display_order,
+            values: selectedVariantType.values?.map(String) ?? [],
+            selected_values: existingVariant?.variant_values?.map((v: VariantValueData) => v.variant_value_name) ?? []
           })
         );
       }
@@ -282,7 +284,7 @@ export function VariantCombinations() {
       });
 
       const variant = selectedVariants.find((v) => v.id === variantId);
-      if (variant && variant.typeId) {
+      if (variant?.typeId) {
         dispatch(
           updateVariantSelectorValues({
             id: variant.typeId,
@@ -390,7 +392,7 @@ export function VariantCombinations() {
 
     const timer = setTimeout(() => {
       selectedVariants.forEach((variant) => {
-        if (variant.typeId) {
+        if (variant?.typeId) {
           dispatch(
             updateVariantSelectorValues({
               id: variant.typeId,
@@ -413,13 +415,17 @@ export function VariantCombinations() {
 
   const handleUniqueCodeChange = useCallback(
     (originalSkuKey: string, value: string) => {
-      if (!value.match(/^\d*$/)) return;
+      const numericPattern = /^\d*$/;
+      if (!numericPattern.exec(value)) return;
+      
       const cleanValue = value.replace(/\D/g, "").slice(0, 10);
       updateLocalValue(originalSkuKey, cleanValue);
       setSkipReduxUpdate(true);
-      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
-      updateTimeoutRef.current = setTimeout(() => {
-      }, 300);
+      
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+      updateTimeoutRef.current = setTimeout(() => {}, 300);
     },
     [updateLocalValue]
   );
@@ -437,7 +443,7 @@ export function VariantCombinations() {
       dispatch(
         updateForm({
           product_by_variant: variantData.map((variant) => ({
-            originalSkuKey: variant.originalSkuKey,
+            originalSkuKey: variant.originalSkuKey, // Add this field
             sku: variant.originalSkuKey === originalSkuKey
               ? `${baseSku}-${paddedValue}`
               : variant.skuKey,
@@ -445,12 +451,12 @@ export function VariantCombinations() {
               ? paddedValue
               : variant.uniqueCode,
             full_product_name: variant.productName,
-            vendor_sku: localValues[`vendor-${variant.originalSkuKey}`] || '',
+            vendor_sku: localValues[`vendor-${variant.originalSkuKey}`]
           })),
         })
       );
     },
-    [updateLocalValue, variantData, baseSku, dispatch]
+    [updateLocalValue, variantData, baseSku, dispatch, localValues, skuStatuses]
   );
 
   useEffect(() => {
@@ -458,15 +464,17 @@ export function VariantCombinations() {
       dispatch(
         updateForm({
           product_by_variant: variantData.map((variant) => ({
-            originalSkuKey: variant.originalSkuKey,
+            originalSkuKey: variant.originalSkuKey, // Add this required field
             sku: variant.skuKey,
             sku_product_unique_code: variant.uniqueCode,
             full_product_name: variant.productName,
-          })),
+            vendor_sku: localValues[`vendor-${variant.originalSkuKey}`] || undefined,
+            status: skuStatuses[variant.originalSkuKey] ?? true
+          } satisfies ProductByVariant))
         })
       );
     }
-  }, [variantData, dispatch, skipReduxUpdate]);
+  }, [variantData, dispatch, skipReduxUpdate, localValues, skuStatuses]);
 
   const handleResetUniqueCode = useCallback((originalSkuKey: string) => {
     setLocalValues((prev) => {
@@ -483,25 +491,25 @@ export function VariantCombinations() {
 
     const defaultUniqueCode = variantData.find(
       (v) => v.originalSkuKey === originalSkuKey
-    )?.uniqueCode || "0000";
+    )?.uniqueCode ?? "0000";
 
     dispatch(
       updateForm({
         product_by_variant: variantData.map((variant) => ({
-          originalSkuKey: variant.originalSkuKey,
-          sku:
-            variant.originalSkuKey === originalSkuKey
-              ? `${baseSku}-${defaultUniqueCode}`
-              : variant.skuKey,
-          sku_product_unique_code:
-            variant.originalSkuKey === originalSkuKey
-              ? defaultUniqueCode
-              : variant.uniqueCode,
+          originalSkuKey: variant.originalSkuKey, // Add this field
+          sku: variant.originalSkuKey === originalSkuKey
+            ? `${baseSku}-${defaultUniqueCode}`
+            : variant.skuKey,
+          sku_product_unique_code: variant.originalSkuKey === originalSkuKey
+            ? defaultUniqueCode
+            : variant.uniqueCode,
           full_product_name: variant.productName,
-        })),
+          vendor_sku: localValues[`vendor-${variant.originalSkuKey}`],
+          status: skuStatuses[variant.originalSkuKey] ?? true
+        } satisfies ProductByVariant))
       })
     );
-  }, [baseSku, variantData, dispatch]);
+  }, [baseSku, variantData, dispatch, localValues, skuStatuses]);
 
   const handleStatusToggle = useCallback((sku: string, checked: boolean) => {
     setSkuStatuses(prev => ({
@@ -512,15 +520,16 @@ export function VariantCombinations() {
     dispatch(
       updateForm({
         product_by_variant: variantData.map((variant) => ({
-          originalSkuKey: variant.originalSkuKey,
+          originalSkuKey: variant.originalSkuKey, // Add this field
           sku: variant.skuKey,
           sku_product_unique_code: variant.uniqueCode,
           full_product_name: variant.productName,
+          vendor_sku: localValues[`vendor-${variant.originalSkuKey}`] || undefined,
           status: variant.originalSkuKey === sku ? checked : (skuStatuses[variant.originalSkuKey] ?? true)
-        })),
+        } satisfies ProductByVariant))
       })
     );
-  }, [dispatch, variantData, skuStatuses]);
+  }, [dispatch, variantData, localValues, skuStatuses]);
 
   const handleVendorSkuChange = useCallback((originalSkuKey: string, value: string) => {
     updateLocalValue(`vendor-${originalSkuKey}`, value);
@@ -530,14 +539,18 @@ export function VariantCombinations() {
     dispatch(
       updateForm({
         product_by_variant: variantData.map((variant) => ({
-          ...variant,
+          originalSkuKey: variant.originalSkuKey, // Add this field
+          sku: variant.skuKey,
+          sku_product_unique_code: variant.uniqueCode,
+          full_product_name: variant.productName,
           vendor_sku: variant.originalSkuKey === originalSkuKey 
             ? value 
-            : localValues[`vendor-${variant.originalSkuKey}`] || undefined
-        }))
+            : localValues[`vendor-${variant.originalSkuKey}`] || undefined,
+          status: skuStatuses[variant.originalSkuKey] ?? true
+        } satisfies ProductByVariant))
       })
     );
-  }, [dispatch, variantData, localValues]);
+  }, [dispatch, variantData, localValues, skuStatuses]);
 
   const renderSkuFields = useCallback(
     (originalSkuKey: string, skuKey: string, uniqueCode: string) => {
@@ -549,7 +562,10 @@ export function VariantCombinations() {
       const formGroupId = `variant-group-${originalSkuKey}`;
 
       return (
-        <div id={formGroupId} className="grid grid-cols-3 gap-4" role="group" aria-labelledby={`${formGroupId}-heading`}>
+        <fieldset className="grid grid-cols-3 gap-4" aria-labelledby={`${formGroupId}-legend`}>
+          <legend id={`${formGroupId}-legend`} className="sr-only">
+            SKU variant fields for {skuKey}
+          </legend>
           <FormItem className="space-y-2">
             <FormControl>
               <div className="space-y-1">
@@ -621,7 +637,7 @@ export function VariantCombinations() {
             </FormControl>
             <FormDescription>Optional vendor reference number</FormDescription>
           </FormItem>
-        </div>
+        </fieldset>
       );
     },
     [localValues, handleUniqueCodeChange, handleInputBlur, handleVendorSkuChange, handleVendorSkuBlur]
@@ -740,16 +756,16 @@ export function VariantCombinations() {
                   </TableHeader>
                   <TableBody>
                     {variantData.map(
-                      ({ originalSkuKey, skuKey, productName, uniqueCode }: VariantTableData) => (
+                      ({ skuKey, productName, uniqueCode }) => (
                         <TableRow key={skuKey}>
                           <TableCell>{productName}</TableCell>
                           <TableCell colSpan={3}>
-                            {renderSkuFields(originalSkuKey, skuKey, uniqueCode)}
+                            {renderSkuFields(variantData.find(v => v.skuKey === skuKey)?.originalSkuKey ?? '', skuKey, uniqueCode)}
                           </TableCell>
                           <TableCell className="text-center">
                             <Switch
-                              checked={skuStatuses[originalSkuKey] ?? true}
-                              onCheckedChange={(checked) => handleStatusToggle(originalSkuKey, checked)}
+                              checked={skuStatuses[variantData.find(v => v.skuKey === skuKey)?.originalSkuKey ?? ''] ?? true}
+                              onCheckedChange={(checked) => handleStatusToggle(variantData.find(v => v.skuKey === skuKey)?.originalSkuKey ?? '', checked)}
                               className="mx-auto"
                             />
                           </TableCell>

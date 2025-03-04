@@ -1,14 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { getVariantTypes } from "@/lib/api/variant-types";
+import type { VariantType } from "@/types/variant";
+
+export interface VariantTypesResponse {
+  data: VariantType[];
+}
 
 /**
  * Custom hook untuk mengambil data tipe varian
- * Menggunakan React Query untuk state management dan caching
- *
- * @returns Query object yang berisi data tipe varian, status loading, dan error
  */
 export function useVariantTypes() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<VariantTypesResponse>({
     queryKey: ["variantTypes"],
     queryFn: () => getVariantTypes(),
   });
