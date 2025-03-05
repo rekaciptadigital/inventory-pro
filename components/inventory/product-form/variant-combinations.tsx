@@ -14,7 +14,7 @@ import {
   updateVariantSelectorValues,
 } from "@/lib/store/slices/formInventoryProductSlice";
 import { Switch } from "@/components/ui/switch";
-import { useVariantTypes } from "@/lib/hooks/use-variant-types";
+import { useVariants } from "@/lib/hooks/use-variants";
 import {
   Table,
   TableBody,
@@ -88,7 +88,7 @@ interface InputStates {
 export function VariantCombinations() {
   const dispatch = useDispatch();
   const [selectedVariants, setSelectedVariants] = useState<SelectedVariant[]>([]);
-  const { variantTypes } = useVariantTypes();
+  const { variants: variantTypes, findVariantById } = useVariants();
   const variantSelectors = useSelector(selectVariantSelectors);
   const [variantUniqueCodes, setVariantUniqueCodes] = useState<Record<string, string>>({});
   const { full_product_name } = useSelector(selectProductNames);
@@ -219,49 +219,51 @@ export function VariantCombinations() {
     (variantId: string, selected: SelectOption | null) => {
       if (!selected?.data) return;
 
-      const selectedVariantType = variantTypes?.find(
-        vt => vt.id === parseInt(selected.value)
-      );
+      const selectedTypeId = parseInt(selected.value);
+      const selectedVariantType = findVariantById(selectedTypeId);
 
-      const existingVariant = existingVariants?.find(
-        (v: ExistingVariant) => v.variant_id === parseInt(selected.value)
-      );
+      if (!selectedVariantType) return;
 
-      setSelectedVariants((prev) => {
+      // Batch state updates together
+      const updates = () => {
         setVariantUniqueCodes({});
         setLocalValues({});
 
-        const newVariants = prev.map((v: SelectedVariant) =>
-          v.id === variantId
-            ? {
-                ...v,
-                typeId: parseInt(selected.value),
-                values: existingVariant?.variant_values?.map(
-                  (value: VariantValueData) => value.variant_value_name
-                ) ?? [],
-                display_order: selectedVariantType?.display_order ?? 0,
-              }
-            : v
-        );
-        return newVariants;
-      });
+        setSelectedVariants((prev) => {
+          const newVariants = prev.map((v: SelectedVariant) =>
+            v.id === variantId
+              ? {
+                  ...v,
+                  typeId: selectedTypeId,
+                  values: [],  // Reset values when type changes
+                  display_order: selectedVariantType.display_order,
+                }
+              : v
+          );
+          return newVariants;
+        });
 
-      const existingSelector = variantSelectors?.find(
-        (selector) => selector.id === parseInt(selected.value)
-      );
-
-      if (!existingSelector && selectedVariantType) {
-        dispatch(
-          addVariantSelector({
-            id: parseInt(selected.value),
-            name: selectedVariantType.name,
-            values: selectedVariantType.values?.map(String) ?? [],
-            selected_values: existingVariant?.variant_values?.map((v: VariantValueData) => v.variant_value_name) ?? []
-          })
+        // Only dispatch if we have a new variant type
+        const existingSelector = variantSelectors?.find(
+          (selector) => selector.id === selectedTypeId
         );
-      }
+
+        if (!existingSelector) {
+          dispatch(
+            addVariantSelector({
+              id: selectedTypeId,
+              name: selectedVariantType.name,
+              values: selectedVariantType.values.map(String),
+              selected_values: []  // Reset selected values
+            })
+          );
+        }
+      };
+
+      // Execute updates in next tick to avoid React batching issues
+      Promise.resolve().then(updates);
     },
-    [dispatch, existingVariants, variantSelectors, variantTypes]
+    [dispatch, variantSelectors, findVariantById]
   );
 
   const handleValuesChange = useCallback(
@@ -372,25 +374,33 @@ export function VariantCombinations() {
   useEffect(() => {
     if (!selectedVariants.length) return;
 
-    const formattedVariants = selectedVariants
-      .filter((v) => v.typeId)
-      .map((variant) => {
-        const variantType = variantTypes?.find(
-          (vt) => vt.id === variant.typeId
-        );
-        return {
-          variant_id: variant.typeId,
-          variant_name: variantType?.name ?? "",
-          variant_values: variant.values.map((value) => ({
-            variant_value_id: "0",
-            variant_value_name: value,
-          })),
-        };
-      });
+    const debouncedUpdate = setTimeout(() => {
+      const formattedVariants = selectedVariants
+        .filter((v) => v.typeId)
+        .map((variant) => {
+          const variantType = variantTypes?.find(
+            (vt) => vt.id === variant.typeId
+          );
+          return {
+            variant_id: variant.typeId,
+            variant_name: variantType?.name ?? "",
+            variant_values: variant.values.map((value) => ({
+              variant_value_id: "0",
+              variant_value_name: value,
+            })),
+          };
+        });
 
-    dispatch(updateForm({ variants: formattedVariants }));
+      dispatch(updateForm({ variants: formattedVariants }));
+    }, 100); // Add small delay to prevent rapid updates
 
-    const timer = setTimeout(() => {
+    return () => clearTimeout(debouncedUpdate);
+  }, [selectedVariants, variantTypes, dispatch]);
+
+  useEffect(() => {
+    if (!selectedVariants.length) return;
+
+    const debouncedUpdate = setTimeout(() => {
       selectedVariants.forEach((variant) => {
         if (variant?.typeId) {
           dispatch(
@@ -401,10 +411,10 @@ export function VariantCombinations() {
           );
         }
       });
-    }, 0);
+    }, 100); // Add small delay to prevent rapid updates
 
-    return () => clearTimeout(timer);
-  }, [selectedVariants, variantTypes, dispatch]);
+    return () => clearTimeout(debouncedUpdate);
+  }, [selectedVariants, dispatch]);
 
   const updateLocalValue = useCallback((key: string, value: string) => {
     setLocalValues((prev) => ({
