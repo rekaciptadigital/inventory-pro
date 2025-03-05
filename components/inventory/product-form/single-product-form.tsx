@@ -14,6 +14,7 @@ import { useBrands } from "@/lib/hooks/use-brands";
 import { useProductTypeList } from "@/lib/hooks/product-types/use-product-type-list";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "@/lib/store/store";
+import axios from 'axios'; // Add this import for axios
 import {
   createInventoryProduct,
   CreateInventoryData,
