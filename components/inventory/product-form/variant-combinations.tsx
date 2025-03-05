@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, batch } from "react-redux";
 import { Plus, X, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -84,6 +84,74 @@ interface InputStates {
   value: string;
   isDirty: boolean;
 }
+
+// Utility functions outside component
+const generateCombinations = (variants: SelectedVariant[], variantTypes: VariantType[]) => {
+  if (variants.length === 0) return [[]];
+
+  const sortedVariants = [...variants].sort((a, b) => {
+    const typeA = variantTypes?.find(vt => vt.id === a.typeId);
+    const typeB = variantTypes?.find(vt => vt.id === b.typeId);
+    
+    const orderA = typeA?.display_order ?? Number.MAX_SAFE_INTEGER;
+    const orderB = typeB?.display_order ?? Number.MAX_SAFE_INTEGER;
+    
+    return orderA - orderB;
+  });
+
+  let combinations: string[][] = [[]];
+  
+  sortedVariants.forEach(variant => {
+    const newCombinations: string[][] = [];
+    combinations.forEach(combo => {
+      variant.values.forEach(value => {
+        newCombinations.push([...combo, value]);
+      });
+    });
+    combinations = newCombinations;
+  });
+
+  return combinations;
+};
+
+const generateVariantCombinations = (
+  variantData: {
+    selectedVariants: SelectedVariant[],
+    variantTypes: VariantType[],
+    baseSku: string,
+    full_product_name: string,
+    variantUniqueCodes: Record<string, string>
+  }
+) => {
+  const { selectedVariants, variantTypes, baseSku, full_product_name, variantUniqueCodes } = variantData;
+
+  const validVariants = selectedVariants
+    .filter((v) => v.typeId && v.values.length > 0)
+    .sort((a, b) => {
+      const typeA = variantTypes?.find(vt => vt.id === a.typeId);
+      const typeB = variantTypes?.find(vt => vt.id === b.typeId);
+      const orderA = typeA?.display_order ?? Number.MAX_SAFE_INTEGER;
+      const orderB = typeB?.display_order ?? Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
+
+  const combinations = generateCombinations(validVariants, variantTypes);
+
+  return combinations.map((combo, index) => {
+    const defaultUniqueCode = String(index + 1).padStart(4, "0");
+    const originalSkuKey = `${baseSku}-${index + 1}`;
+    const storedUniqueCode = variantUniqueCodes[originalSkuKey];
+    const uniqueCode = storedUniqueCode || defaultUniqueCode;
+
+    return {
+      originalSkuKey,
+      skuKey: `${baseSku}-${uniqueCode}`,
+      productName: `${full_product_name} ${combo.join(" ")}`,
+      uniqueCode,
+      combo,
+    };
+  });
+};
 
 export function VariantCombinations() {
   const dispatch = useDispatch();
@@ -269,31 +337,29 @@ export function VariantCombinations() {
   const handleValuesChange = useCallback(
     (variantId: string, selected: SelectOption[]) => {
       const selectedValues = selected.map((option: SelectOption) => option.value);
-
-      setSelectedVariants((prev) => {
-        setVariantUniqueCodes({});
-        setLocalValues({});
-
-        const newVariants = prev.map((v: SelectedVariant) =>
-          v.id === variantId
-            ? {
-                ...v,
-                values: selectedValues,
-              }
-            : v
-        );
-        return newVariants;
-      });
-
+      
       const variant = selectedVariants.find((v) => v.id === variantId);
-      if (variant?.typeId) {
+      if (!variant?.typeId) return;
+      
+      // Use Redux batch to group updates
+      batch(() => {
+        // Update selected variants in component state without triggering other state updates
+        setSelectedVariants((prev) => 
+          prev.map((v) =>
+            v.id === variantId
+              ? { ...v, values: selectedValues }
+              : v
+          )
+        );
+
+        // Dispatch single Redux action that contains all necessary updates
         dispatch(
           updateVariantSelectorValues({
             id: variant.typeId,
             selected_values: selectedValues,
           })
         );
-      }
+      });
     },
     [dispatch, selectedVariants]
   );
@@ -308,59 +374,12 @@ export function VariantCombinations() {
   const variantData = useMemo(() => {
     if (!canShowGeneratedSkus) return [];
 
-    const generateCombinations = (variants: SelectedVariant[]) => {
-      if (variants.length === 0) return [[]];
-
-      const sortedVariants = [...variants].sort((a, b) => {
-        const typeA = variantTypes?.find(vt => vt.id === a.typeId);
-        const typeB = variantTypes?.find(vt => vt.id === b.typeId);
-        
-        const orderA = typeA?.display_order ?? Number.MAX_SAFE_INTEGER;
-        const orderB = typeB?.display_order ?? Number.MAX_SAFE_INTEGER;
-        
-        return orderA - orderB;
-      });
-
-      let combinations: string[][] = [[]];
-      
-      sortedVariants.forEach(variant => {
-        const newCombinations: string[][] = [];
-        combinations.forEach(combo => {
-          variant.values.forEach(value => {
-            newCombinations.push([...combo, value]);
-          });
-        });
-        combinations = newCombinations;
-      });
-
-      return combinations;
-    };
-
-    const validVariants = selectedVariants
-      .filter((v) => v.typeId && v.values.length > 0)
-      .sort((a, b) => {
-        const typeA = variantTypes?.find(vt => vt.id === a.typeId);
-        const typeB = variantTypes?.find(vt => vt.id === b.typeId);
-        const orderA = typeA?.display_order ?? Number.MAX_SAFE_INTEGER;
-        const orderB = typeB?.display_order ?? Number.MAX_SAFE_INTEGER;
-        return orderA - orderB;
-      });
-
-    const combinations = generateCombinations(validVariants);
-
-    return combinations.map((combo, index) => {
-      const defaultUniqueCode = String(index + 1).padStart(4, "0");
-      const originalSkuKey = `${baseSku}-${index + 1}`;
-      const storedUniqueCode = variantUniqueCodes[originalSkuKey];
-      const uniqueCode = storedUniqueCode || defaultUniqueCode;
-
-      return {
-        originalSkuKey,
-        skuKey: `${baseSku}-${uniqueCode}`,
-        productName: `${full_product_name} ${combo.join(" ")}`,
-        uniqueCode,
-        combo,
-      };
+    return generateVariantCombinations({
+      selectedVariants,
+      variantTypes,
+      baseSku,
+      full_product_name,
+      variantUniqueCodes,
     });
   }, [
     canShowGeneratedSkus,
@@ -373,28 +392,32 @@ export function VariantCombinations() {
 
   useEffect(() => {
     if (!selectedVariants.length) return;
+    
+    const timer = setTimeout(() => {
+      batch(() => {
+        // Format and update variants in Redux
+        const formattedVariants = selectedVariants
+          .filter((v) => v.typeId)
+          .map((variant) => {
+            const variantType = variantTypes?.find(
+              (vt) => vt.id === variant.typeId
+            );
+            return {
+              variant_id: variant.typeId,
+              variant_name: variantType?.name ?? "",
+              variant_values: variant.values.map((value) => ({
+                variant_value_id: "0",
+                variant_value_name: value,
+              })),
+            };
+          });
 
-    const debouncedUpdate = setTimeout(() => {
-      const formattedVariants = selectedVariants
-        .filter((v) => v.typeId)
-        .map((variant) => {
-          const variantType = variantTypes?.find(
-            (vt) => vt.id === variant.typeId
-          );
-          return {
-            variant_id: variant.typeId,
-            variant_name: variantType?.name ?? "",
-            variant_values: variant.values.map((value) => ({
-              variant_value_id: "0",
-              variant_value_name: value,
-            })),
-          };
-        });
-
-      dispatch(updateForm({ variants: formattedVariants }));
-    }, 100); // Add small delay to prevent rapid updates
-
-    return () => clearTimeout(debouncedUpdate);
+        // Single dispatch for all variants
+        dispatch(updateForm({ variants: formattedVariants }));
+      });
+    }, 200);  // Longer delay to ensure less frequent updates
+    
+    return () => clearTimeout(timer);
   }, [selectedVariants, variantTypes, dispatch]);
 
   useEffect(() => {
@@ -471,18 +494,22 @@ export function VariantCombinations() {
 
   useEffect(() => {
     if (variantData.length && !skipReduxUpdate) {
-      dispatch(
-        updateForm({
-          product_by_variant: variantData.map((variant) => ({
-            originalSkuKey: variant.originalSkuKey, // Add this required field
-            sku: variant.skuKey,
-            sku_product_unique_code: variant.uniqueCode,
-            full_product_name: variant.productName,
-            vendor_sku: localValues[`vendor-${variant.originalSkuKey}`] || undefined,
-            status: skuStatuses[variant.originalSkuKey] ?? true
-          } satisfies ProductByVariant))
-        })
-      );
+      const timer = setTimeout(() => {
+        dispatch(
+          updateForm({
+            product_by_variant: variantData.map((variant) => ({
+              originalSkuKey: variant.originalSkuKey,
+              sku: variant.skuKey,
+              sku_product_unique_code: variant.uniqueCode,
+              full_product_name: variant.productName,
+              vendor_sku: localValues[`vendor-${variant.originalSkuKey}`] || undefined,
+              status: skuStatuses[variant.originalSkuKey] ?? true
+            } satisfies ProductByVariant))
+          })
+        );
+      }, 300);
+      
+      return () => clearTimeout(timer);
     }
   }, [variantData, dispatch, skipReduxUpdate, localValues, skuStatuses]);
 
