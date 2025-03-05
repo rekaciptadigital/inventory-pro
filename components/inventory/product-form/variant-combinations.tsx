@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { useDispatch, useSelector, batch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Plus, X, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -341,25 +341,23 @@ export function VariantCombinations() {
       const variant = selectedVariants.find((v) => v.id === variantId);
       if (!variant?.typeId) return;
       
-      // Use Redux batch to group updates
-      batch(() => {
-        // Update selected variants in component state without triggering other state updates
-        setSelectedVariants((prev) => 
-          prev.map((v) =>
-            v.id === variantId
-              ? { ...v, values: selectedValues }
-              : v
-          )
-        );
+      // React 18 automatically batches updates, so we don't need explicit batching
+      // Update selected variants in component state
+      setSelectedVariants((prev) => 
+        prev.map((v) =>
+          v.id === variantId
+            ? { ...v, values: selectedValues }
+            : v
+        )
+      );
 
-        // Dispatch single Redux action that contains all necessary updates
-        dispatch(
-          updateVariantSelectorValues({
-            id: variant.typeId,
-            selected_values: selectedValues,
-          })
-        );
-      });
+      // Dispatch Redux action
+      dispatch(
+        updateVariantSelectorValues({
+          id: variant.typeId,
+          selected_values: selectedValues,
+        })
+      );
     },
     [dispatch, selectedVariants]
   );
@@ -394,27 +392,25 @@ export function VariantCombinations() {
     if (!selectedVariants.length) return;
     
     const timer = setTimeout(() => {
-      batch(() => {
-        // Format and update variants in Redux
-        const formattedVariants = selectedVariants
-          .filter((v) => v.typeId)
-          .map((variant) => {
-            const variantType = variantTypes?.find(
-              (vt) => vt.id === variant.typeId
-            );
-            return {
-              variant_id: variant.typeId,
-              variant_name: variantType?.name ?? "",
-              variant_values: variant.values.map((value) => ({
-                variant_value_id: "0",
-                variant_value_name: value,
-              })),
-            };
-          });
+      // Format and update variants in Redux
+      const formattedVariants = selectedVariants
+        .filter((v) => v.typeId)
+        .map((variant) => {
+          const variantType = variantTypes?.find(
+            (vt) => vt.id === variant.typeId
+          );
+          return {
+            variant_id: variant.typeId,
+            variant_name: variantType?.name ?? "",
+            variant_values: variant.values.map((value) => ({
+              variant_value_id: "0",
+              variant_value_name: value,
+            })),
+          };
+        });
 
-        // Single dispatch for all variants
-        dispatch(updateForm({ variants: formattedVariants }));
-      });
+      // Single dispatch for all variants
+      dispatch(updateForm({ variants: formattedVariants }));
     }, 200);  // Longer delay to ensure less frequent updates
     
     return () => clearTimeout(timer);
