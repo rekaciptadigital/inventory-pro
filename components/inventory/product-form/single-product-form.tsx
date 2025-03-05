@@ -210,7 +210,7 @@ export function SingleProductForm({
             full_product_name: variant.full_product_name,
             sku: variant.sku,
             sku_product_unique_code: variant.sku_product_unique_code,
-            vendor_sku: variant.vendor_sku || ''
+            vendor_sku: variant.sku_vendor || '' // Use sku_vendor from API response
           }));
           
           dispatch(updateForm({
