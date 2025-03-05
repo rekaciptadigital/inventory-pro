@@ -3,6 +3,7 @@
 import { FormField, FormItem, FormLabel, FormControl, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { UniqueCodeInput } from '../unique-code-input';
+import { Switch } from "@/components/ui/switch";
 
 interface VariantSkuFieldProps {
   index: number;
@@ -11,8 +12,10 @@ interface VariantSkuFieldProps {
   defaultUniqueCode: string;
   existingCodes: string[];
   error?: string;
+  status?: boolean;  // Add status prop
   onUniqueCodeChange: (code: string) => void;
   onReset: () => void;
+  onStatusChange?: (checked: boolean) => void;  // Add status change handler
 }
 
 export function VariantSkuField({
@@ -22,11 +25,13 @@ export function VariantSkuField({
   defaultUniqueCode,
   existingCodes,
   error,
+  status = true,  // Default to true
   onUniqueCodeChange,
   onReset,
+  onStatusChange,
 }: VariantSkuFieldProps) {
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-3 gap-4">
       <FormItem>
         <FormLabel>SKU Variant</FormLabel>
         <FormControl>
@@ -54,6 +59,20 @@ export function VariantSkuField({
         </FormControl>
         <FormDescription>
           Enter 1-10 alphanumeric characters or use the default code
+        </FormDescription>
+      </FormItem>
+
+      <FormItem>
+        <FormLabel>Status</FormLabel>
+        <FormControl>
+          <Switch
+            checked={status ?? true}
+            onCheckedChange={onStatusChange}
+            aria-label="Toggle variant status"
+          />
+        </FormControl>
+        <FormDescription>
+          Toggle to enable or disable this variant
         </FormDescription>
       </FormItem>
     </div>

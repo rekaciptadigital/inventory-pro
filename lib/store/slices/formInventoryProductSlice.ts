@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction, createSelector } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction, createSelector, createAction } from "@reduxjs/toolkit";
 import type { RootState } from "../store";
 import type {
   InventoryProductForm,
@@ -197,7 +197,24 @@ const formInventoryProductSlice = createSlice({
       state.availableCategories = action.payload;
     },
   },
+  extraReducers: (builder) => {
+    builder.addCase(updateProductByVariant, (state, action) => {
+      state.product_by_variant = action.payload.product_by_variant;
+    });
+  },
 });
+
+// Add this action to your slice
+export const updateProductByVariant = createAction(
+  'formInventoryProduct/updateProductByVariant',
+  (productByVariant: Array<any>) => {
+    return {
+      payload: {
+        product_by_variant: productByVariant
+      }
+    }
+  }
+);
 
 // Export actions
 export const {

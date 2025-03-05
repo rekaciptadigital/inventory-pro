@@ -24,7 +24,9 @@ import {
   setProductType, 
   updateProductCategories, 
   setVariants,
-  resetFormState
+  resetFormState,
+  updateForm,  // Add this import
+  updateProductByVariant
 } from "@/lib/store/slices/formInventoryProductSlice";
 
 // Update interfaces at the top
@@ -200,6 +202,21 @@ export function SingleProductForm({
           unit: initialData.unit ?? 'PC',
         }, { keepDefaultValues: true });
 
+        // Initialize product variants with their status
+        if (initialData.product_by_variant?.length > 0) {
+          const variantData = initialData.product_by_variant.map(variant => ({
+            ...variant,
+            status: variant.status ?? true, // Ensure status is properly loaded from API
+            full_product_name: variant.full_product_name,
+            sku: variant.sku,
+            sku_product_unique_code: variant.sku_product_unique_code,
+            vendor_sku: variant.vendor_sku || ''
+          }));
+          
+          dispatch(updateForm({
+            product_by_variant: variantData
+          }));
+        }
       } catch (error) {
         console.error('Error initializing form data:', error);
         setIsInitialized(false); // Reset on error
@@ -227,6 +244,39 @@ export function SingleProductForm({
     try {
       setIsSubmitting(true);
       
+      // For debugging only - remove in production
+      if (initialData) {
+        console.log('Update mode for product ID:', initialData.id);
+      }
+      
+      // Add detailed logging to diagnose
+      console.log('Original variant data:', formData.product_by_variant);
+      
+      // Fix the mapping to handle API inconsistency - try using 'sku' field name instead
+      const apiCompatibleVariants = formData.product_by_variant.map((variant) => {
+        // Start with the ID if it exists
+        const result: any = {};
+        
+        if (variant.id) {
+          result.id = variant.id;
+        }
+        
+        // Add required fields as per API example
+        result.full_product_name = variant.full_product_name;
+        
+        // Use "sku" here instead of "sku_product_variant" to match the example API request
+        result.sku = variant.sku || `${formData.sku}-${variant.sku_product_unique_code}`;
+        
+        result.sku_product_unique_code = variant.sku_product_unique_code;
+        result.sku_vendor = variant.vendor_sku?.trim() || null;
+        result.status = variant.status ?? true;
+        
+        return result;
+      });
+      
+      // Log the first variant for debugging
+      console.log('First variant payload:', apiCompatibleVariants[0]);
+
       const submissionData: CreateInventoryData = {
         brand_id: parseInt(formData.brand_id?.toString() || "0"),
         brand_code: formData.brand_code || "",
@@ -256,19 +306,19 @@ export function SingleProductForm({
             variant_value_name: value.variant_value_name,
           })),
         })),
-        product_by_variant: formData.product_by_variant.map((variant) => ({
-          full_product_name: variant.full_product_name,
-          sku: variant.sku,
-          sku_product_unique_code: variant.sku_product_unique_code,
-        })),
+        product_by_variant: apiCompatibleVariants,
       };
 
-      if (formData.vendor_sku) {
-        submissionData.vendor_sku = formData.vendor_sku;
+      // Only conditionally add optional fields at the root level
+      if (formData.vendor_sku && formData.vendor_sku.trim() !== '') {
+        submissionData.vendor_sku = formData.vendor_sku.trim();
       }
-      if (formData.description) {
-        submissionData.description = formData.description;
+      
+      if (formData.description && formData.description.trim() !== '') {
+        submissionData.description = formData.description.trim();
       }
+
+      console.log('Sending API payload:', JSON.stringify(submissionData, null, 2));
 
       // Use the new API handler functions
       const result = initialData
@@ -284,6 +334,9 @@ export function SingleProductForm({
       router.push("/dashboard/inventory");
     } catch (error) {
       console.error("Error handling product:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("API response error:", error.response.data);
+      }
       toast({
         variant: "destructive",
         title: "Error",

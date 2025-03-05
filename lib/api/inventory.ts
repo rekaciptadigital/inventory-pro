@@ -1,3 +1,4 @@
+import axios from "axios"; // Add this import for the isAxiosError method
 import axiosInstance from "./axios";
 import type { ApiResponse } from "@/types/api";
 import type { InventoryProduct } from "@/types/inventory";
@@ -37,9 +38,12 @@ export interface CreateInventoryData {
     }>;
   }>;
   product_by_variant: Array<{
+    id?: string; // Optional for create, required for update
     full_product_name: string;
-    sku: string;
+    sku_product_variant: string; // Changed from sku to sku_product_variant
     sku_product_unique_code: string;
+    sku_vendor?: string | null; // Match API field name
+    status: boolean; // Always include status
   }>;
 }
 
@@ -121,7 +125,7 @@ export async function handleInventoryProduct(
 
     return response.data;
   } catch (error) {
-    if (axiosInstance.isAxiosError(error)) {
+    if (axios.isAxiosError(error)) {  // Use axios instead of axiosInstance
       const message = error.response?.data?.message || error.message;
       throw new Error(`Inventory API Error: ${message}`);
     }

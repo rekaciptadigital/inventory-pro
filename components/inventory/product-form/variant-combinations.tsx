@@ -1,20 +1,13 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Plus, X, RotateCcw } from "lucide-react";
+import { RootState } from "@/lib/store/store";
+import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  updateForm,
-  selectProductNames,
-  selectSkuInfo,
-  selectVariantSelectors,
-  addVariantSelector,
-  removeVariantSelector,
-  updateVariantSelectorValues,
-} from "@/lib/store/slices/formInventoryProductSlice";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { useVariants } from "@/lib/hooks/use-variants";
+import { updateProductByVariant } from "@/lib/store/slices/formInventoryProductSlice";
 import {
   Table,
   TableBody,
@@ -23,795 +16,194 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  VariantTypeSelector as VariantType,
-  VariantValueSelector as VariantValueSelect,
-} from "./enhanced-selectors";
-import type { SelectOption } from "@/components/ui/enhanced-select";
-import { Input } from "@/components/ui/input";
-import { RootState } from "@/lib/store/index";
 import { FormItem, FormLabel, FormControl, FormDescription } from '@/components/ui/form';
-import type {
-  ProductByVariant,
-  VariantSelectorData,
-  VariantValue
-} from "@/lib/types/inventory";
-
-interface VariantValueData {
-  variant_value_id: string;
-  variant_value_name: string;
-}
-
-interface VariantType {
-  id: number;
-  name: string;
-  values: string[];
-  display_order: number;
-}
-
-interface SelectedVariant {
-  id: string;
-  typeId: number;
-  values: string[];
-  availableValues?: VariantValue[];
-  display_order?: number;
-}
-
-interface VariantTableData {
-  skuKey: string;
-  productName: string;
-  uniqueCode: string;
-  vendorSku?: string; // Add optional vendor SKU
-}
-
-interface CurrentSelector {
-  id: number;
-  name: string;
-  values: string[];
-  selected_values: string[];
-}
-
-interface ExistingVariant {
-  variant_id: number;
-  variant_name: string;
-  variant_values: Array<{
-    variant_value_id: string;
-    variant_value_name: string;
-  }>;
-}
-
-interface InputStates {
-  value: string;
-  isDirty: boolean;
-}
-
-// Utility functions outside component
-const generateCombinations = (variants: SelectedVariant[], variantTypes: VariantType[]) => {
-  if (variants.length === 0) return [[]];
-
-  const sortedVariants = [...variants].sort((a, b) => {
-    const typeA = variantTypes?.find(vt => vt.id === a.typeId);
-    const typeB = variantTypes?.find(vt => vt.id === b.typeId);
-    
-    const orderA = typeA?.display_order ?? Number.MAX_SAFE_INTEGER;
-    const orderB = typeB?.display_order ?? Number.MAX_SAFE_INTEGER;
-    
-    return orderA - orderB;
-  });
-
-  let combinations: string[][] = [[]];
-  
-  sortedVariants.forEach(variant => {
-    const newCombinations: string[][] = [];
-    combinations.forEach(combo => {
-      variant.values.forEach(value => {
-        newCombinations.push([...combo, value]);
-      });
-    });
-    combinations = newCombinations;
-  });
-
-  return combinations;
-};
-
-const generateVariantCombinations = (
-  variantData: {
-    selectedVariants: SelectedVariant[],
-    variantTypes: VariantType[],
-    baseSku: string,
-    full_product_name: string,
-    variantUniqueCodes: Record<string, string>
-  }
-) => {
-  const { selectedVariants, variantTypes, baseSku, full_product_name, variantUniqueCodes } = variantData;
-
-  const validVariants = selectedVariants
-    .filter((v) => v.typeId && v.values.length > 0)
-    .sort((a, b) => {
-      const typeA = variantTypes?.find(vt => vt.id === a.typeId);
-      const typeB = variantTypes?.find(vt => vt.id === b.typeId);
-      const orderA = typeA?.display_order ?? Number.MAX_SAFE_INTEGER;
-      const orderB = typeB?.display_order ?? Number.MAX_SAFE_INTEGER;
-      return orderA - orderB;
-    });
-
-  const combinations = generateCombinations(validVariants, variantTypes);
-
-  return combinations.map((combo, index) => {
-    const defaultUniqueCode = String(index + 1).padStart(4, "0");
-    const originalSkuKey = `${baseSku}-${index + 1}`;
-    const storedUniqueCode = variantUniqueCodes[originalSkuKey];
-    const uniqueCode = storedUniqueCode || defaultUniqueCode;
-
-    return {
-      originalSkuKey,
-      skuKey: `${baseSku}-${uniqueCode}`,
-      productName: `${full_product_name} ${combo.join(" ")}`,
-      uniqueCode,
-      combo,
-    };
-  });
-};
 
 export function VariantCombinations() {
   const dispatch = useDispatch();
-  const [selectedVariants, setSelectedVariants] = useState<SelectedVariant[]>([]);
-  const { variants: variantTypes, findVariantById } = useVariants();
-  const variantSelectors = useSelector(selectVariantSelectors);
-  const [variantUniqueCodes, setVariantUniqueCodes] = useState<Record<string, string>>({});
-  const { full_product_name } = useSelector(selectProductNames);
-  const { sku: baseSku } = useSelector(selectSkuInfo);
-  const existingVariants = useSelector((state: RootState) => state.formInventoryProduct.variants);
-  const [skuStatuses, setSkuStatuses] = useState<Record<string, boolean>>({});
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [skipReduxUpdate, setSkipReduxUpdate] = useState(false);
-  const updateTimeoutRef = useRef<NodeJS.Timeout>();
+  const variants = useSelector((state: RootState) => state.formInventoryProduct.product_by_variant);
+  const mainSku = useSelector((state: RootState) => state.formInventoryProduct.sku);
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
-
-  const usedTypeIds = useMemo(
-    () => selectedVariants.map((variant) => variant.typeId).filter(Boolean),
-    [selectedVariants]
-  );
-
-  const generateVariantId = useCallback(
-    () => {
-      const timestamp = Date.now();
-      const randomString = Math.random().toString(36).slice(2);
-      return `variant-${timestamp}-${randomString}`;
-    },
-    []
-  );
-
-  const handleAddVariant = useCallback(() => {
-    setSelectedVariants((prev) => [
-      ...prev,
-      { id: generateVariantId(), typeId: 0, values: [] },
-    ]);
-  }, [generateVariantId]);
-
-  const handleRemoveVariant = useCallback(
-    (variantId: string) => {
-      setSelectedVariants((prev) => {
-        const newVariants = prev.filter((v: SelectedVariant) => v.id !== variantId);
-
-        if (newVariants.length === 0) {
-          setVariantUniqueCodes({});
-          setLocalValues({});
-
-          dispatch(
-            updateForm({
-              variants: [],
-              variant_selectors: [],
-              product_by_variant: [],
-            })
-          );
-        } else {
-          const variantToRemove = prev.find((v: SelectedVariant) => v.id === variantId);
-          if (variantToRemove?.typeId) {
-            dispatch(removeVariantSelector(variantToRemove.typeId));
-          }
-        }
-
-        return newVariants;
-      });
-    },
-    [dispatch]
-  );
-
-  useEffect(() => {
-    if (selectedVariants.length === 0) {
-      dispatch(
-        updateForm({
-          variants: [],
-          variant_selectors: [],
-          product_by_variant: [],
-        })
-      );
-    }
-  }, [selectedVariants, dispatch]);
-
-  useEffect(() => {
-    if (!isInitialized && existingVariants?.length > 0 && variantTypes?.length > 0) {
-      try {
-        setIsInitialized(true);
-
-        const initialVariants = existingVariants.map((variant: ExistingVariant) => {
-          const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
-          return {
-            id: `variant-${variant.variant_id}`,
-            typeId: variant.variant_id,
-            values: variant.variant_values.map((v) => v.variant_value_name),
-            availableValues: variantType?.values.map(value => ({
-              variant_value_id: String(value),
-              variant_value_name: String(value)
-            })) || [],
-            display_order: variantType?.display_order ?? 0,
-          } satisfies SelectedVariant;
-        });
-
-        initialVariants.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-
-        // Fix the variantSelectors mapping to ensure string[] values
-        const variantSelectors = existingVariants.map((variant: ExistingVariant) => {
-          const variantType = variantTypes.find(vt => vt.id === variant.variant_id);
-          return {
-            id: variant.variant_id,
-            name: variantType?.name ?? variant.variant_name,
-            values: variantType?.values.map(String) || [], // Convert values to string[]
-            selected_values: variant.variant_values.map((v) => v.variant_value_name),
-          } satisfies VariantSelectorData;
-        });
-
-        Promise.resolve().then(() => {
-          setSelectedVariants(initialVariants);
-          dispatch(updateForm({
-            variants: existingVariants,
-            variant_selectors: variantSelectors,
-          }));
-        });
-
-      } catch (error) {
-        console.error('Error initializing variants:', error);
-        setIsInitialized(false);
-      }
-    }
-  }, [existingVariants, variantTypes, isInitialized, dispatch]);
-
-  useEffect(() => {
-    return () => {
-      setIsInitialized(false);
+  
+  // Handler to update status of a variant
+  const handleStatusToggle = (index: number, checked: boolean) => {
+    if (!variants || !variants[index]) return;
+    
+    const updatedVariants = [...variants];
+    updatedVariants[index] = {
+      ...updatedVariants[index],
+      status: checked
     };
-  }, []);
-
-  const handleTypeChange = useCallback(
-    (variantId: string, selected: SelectOption | null) => {
-      if (!selected?.data) return;
-
-      const selectedTypeId = parseInt(selected.value);
-      const selectedVariantType = findVariantById(selectedTypeId);
-
-      if (!selectedVariantType) return;
-
-      // Batch state updates together
-      const updates = () => {
-        setVariantUniqueCodes({});
-        setLocalValues({});
-
-        setSelectedVariants((prev) => {
-          const newVariants = prev.map((v: SelectedVariant) =>
-            v.id === variantId
-              ? {
-                  ...v,
-                  typeId: selectedTypeId,
-                  values: [],  // Reset values when type changes
-                  display_order: selectedVariantType.display_order,
-                }
-              : v
-          );
-          return newVariants;
-        });
-
-        // Only dispatch if we have a new variant type
-        const existingSelector = variantSelectors?.find(
-          (selector) => selector.id === selectedTypeId
-        );
-
-        if (!existingSelector) {
-          dispatch(
-            addVariantSelector({
-              id: selectedTypeId,
-              name: selectedVariantType.name,
-              values: selectedVariantType.values.map(String),
-              selected_values: []  // Reset selected values
-            })
-          );
-        }
-      };
-
-      // Execute updates in next tick to avoid React batching issues
-      Promise.resolve().then(updates);
-    },
-    [dispatch, variantSelectors, findVariantById]
-  );
-
-  const handleValuesChange = useCallback(
-    (variantId: string, selected: SelectOption[]) => {
-      const selectedValues = selected.map((option: SelectOption) => option.value);
-      
-      const variant = selectedVariants.find((v) => v.id === variantId);
-      if (!variant?.typeId) return;
-      
-      // React 18 automatically batches updates, so we don't need explicit batching
-      // Update selected variants in component state
-      setSelectedVariants((prev) => 
-        prev.map((v) =>
-          v.id === variantId
-            ? { ...v, values: selectedValues }
-            : v
-        )
-      );
-
-      // Dispatch Redux action
-      dispatch(
-        updateVariantSelectorValues({
-          id: variant.typeId,
-          selected_values: selectedValues,
-        })
-      );
-    },
-    [dispatch, selectedVariants]
-  );
-
-  const canShowGeneratedSkus = useMemo(() => {
-    const hasValidVariants = selectedVariants.some(
-      (v) => v.typeId && v.values.length > 0
-    );
-    return Boolean(full_product_name && baseSku && hasValidVariants);
-  }, [full_product_name, baseSku, selectedVariants]);
-
-  const variantData = useMemo(() => {
-    if (!canShowGeneratedSkus) return [];
-
-    return generateVariantCombinations({
-      selectedVariants,
-      variantTypes,
-      baseSku,
-      full_product_name,
-      variantUniqueCodes,
-    });
-  }, [
-    canShowGeneratedSkus,
-    selectedVariants,
-    variantTypes,
-    baseSku,
-    full_product_name,
-    variantUniqueCodes,
-  ]);
-
-  useEffect(() => {
-    if (!selectedVariants.length) return;
     
-    const timer = setTimeout(() => {
-      // Format and update variants in Redux
-      const formattedVariants = selectedVariants
-        .filter((v) => v.typeId)
-        .map((variant) => {
-          const variantType = variantTypes?.find(
-            (vt) => vt.id === variant.typeId
-          );
-          return {
-            variant_id: variant.typeId,
-            variant_name: variantType?.name ?? "",
-            variant_values: variant.values.map((value) => ({
-              variant_value_id: "0",
-              variant_value_name: value,
-            })),
-          };
-        });
+    dispatch(updateProductByVariant(updatedVariants));
+  };
+  
+  // Get unique codes for validation
+  const getExistingCodes = (currentIndex: number) => {
+    return variants
+      .map((variant, idx) => (idx !== currentIndex ? variant.sku_product_unique_code : null))
+      .filter(Boolean) as string[];
+  };
 
-      // Single dispatch for all variants
-      dispatch(updateForm({ variants: formattedVariants }));
-    }, 200);  // Longer delay to ensure less frequent updates
+  // Handler to update unique code
+  const handleUniqueCodeChange = (index: number, code: string) => {
+    if (!variants || !variants[index]) return;
     
-    return () => clearTimeout(timer);
-  }, [selectedVariants, variantTypes, dispatch]);
+    const updatedVariants = [...variants];
+    const variant = updatedVariants[index];
+    
+    updatedVariants[index] = {
+      ...variant,
+      sku_product_unique_code: code,
+      sku: `${mainSku}-${code}`
+    };
+    
+    dispatch(updateProductByVariant(updatedVariants));
+  };
 
-  useEffect(() => {
-    if (!selectedVariants.length) return;
-
-    const debouncedUpdate = setTimeout(() => {
-      selectedVariants.forEach((variant) => {
-        if (variant?.typeId) {
-          dispatch(
-            updateVariantSelectorValues({
-              id: variant.typeId,
-              selected_values: variant.values,
-            })
-          );
-        }
-      });
-    }, 100); // Add small delay to prevent rapid updates
-
-    return () => clearTimeout(debouncedUpdate);
-  }, [selectedVariants, dispatch]);
-
-  const updateLocalValue = useCallback((key: string, value: string) => {
-    setLocalValues((prev) => ({
+  // Handler to update vendor SKU
+  const handleVendorSkuChange = (index: number, value: string) => {
+    if (!variants || !variants[index]) return;
+    
+    // Store in local state first
+    const key = `vendor-${index}`;
+    setLocalValues(prev => ({
       ...prev,
-      [key]: value,
+      [key]: value
     }));
-  }, []);
+  };
 
-  const handleUniqueCodeChange = useCallback(
-    (originalSkuKey: string, value: string) => {
-      const numericPattern = /^\d*$/;
-      if (!numericPattern.exec(value)) return;
-      
-      const cleanValue = value.replace(/\D/g, "").slice(0, 10);
-      updateLocalValue(originalSkuKey, cleanValue);
-      setSkipReduxUpdate(true);
-      
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
-      updateTimeoutRef.current = setTimeout(() => {}, 300);
-    },
-    [updateLocalValue]
-  );
-
-  const handleInputBlur = useCallback(
-    (originalSkuKey: string, value: string) => {
-      const cleanValue = value.replace(/\D/g, "").slice(0, 10);
-      const paddedValue = cleanValue.length < 4 ? cleanValue.padStart(4, "0") : cleanValue;
-      updateLocalValue(originalSkuKey, paddedValue);
-      setSkipReduxUpdate(false);
-      setVariantUniqueCodes((prev) => ({
-        ...prev,
-        [originalSkuKey]: paddedValue,
-      }));
-      dispatch(
-        updateForm({
-          product_by_variant: variantData.map((variant) => ({
-            originalSkuKey: variant.originalSkuKey, // Add this field
-            sku: variant.originalSkuKey === originalSkuKey
-              ? `${baseSku}-${paddedValue}`
-              : variant.skuKey,
-            sku_product_unique_code: variant.originalSkuKey === originalSkuKey
-              ? paddedValue
-              : variant.uniqueCode,
-            full_product_name: variant.productName,
-            vendor_sku: localValues[`vendor-${variant.originalSkuKey}`]
-          })),
-        })
-      );
-    },
-    [updateLocalValue, variantData, baseSku, dispatch, localValues, skuStatuses]
-  );
-
-  useEffect(() => {
-    if (variantData.length && !skipReduxUpdate) {
-      const timer = setTimeout(() => {
-        dispatch(
-          updateForm({
-            product_by_variant: variantData.map((variant) => ({
-              originalSkuKey: variant.originalSkuKey,
-              sku: variant.skuKey,
-              sku_product_unique_code: variant.uniqueCode,
-              full_product_name: variant.productName,
-              vendor_sku: localValues[`vendor-${variant.originalSkuKey}`] || undefined,
-              status: skuStatuses[variant.originalSkuKey] ?? true
-            } satisfies ProductByVariant))
-          })
-        );
-      }, 300);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [variantData, dispatch, skipReduxUpdate, localValues, skuStatuses]);
-
-  const handleResetUniqueCode = useCallback((originalSkuKey: string) => {
-    setLocalValues((prev) => {
-      const newValues = { ...prev };
-      delete newValues[originalSkuKey];
-      return newValues;
-    });
-
-    setVariantUniqueCodes((prev) => {
-      const newValues = { ...prev };
-      delete newValues[originalSkuKey];
-      return newValues;
-    });
-
-    const defaultUniqueCode = variantData.find(
-      (v) => v.originalSkuKey === originalSkuKey
-    )?.uniqueCode ?? "0000";
-
-    dispatch(
-      updateForm({
-        product_by_variant: variantData.map((variant) => ({
-          originalSkuKey: variant.originalSkuKey, // Add this field
-          sku: variant.originalSkuKey === originalSkuKey
-            ? `${baseSku}-${defaultUniqueCode}`
-            : variant.skuKey,
-          sku_product_unique_code: variant.originalSkuKey === originalSkuKey
-            ? defaultUniqueCode
-            : variant.uniqueCode,
-          full_product_name: variant.productName,
-          vendor_sku: localValues[`vendor-${variant.originalSkuKey}`],
-          status: skuStatuses[variant.originalSkuKey] ?? true
-        } satisfies ProductByVariant))
-      })
-    );
-  }, [baseSku, variantData, dispatch, localValues, skuStatuses]);
-
-  const handleStatusToggle = useCallback((sku: string, checked: boolean) => {
-    setSkuStatuses(prev => ({
-      ...prev,
-      [sku]: checked
-    }));
+  // Update redux when focus leaves the field
+  const handleVendorSkuBlur = (index: number) => {
+    if (!variants || !variants[index]) return;
     
-    dispatch(
-      updateForm({
-        product_by_variant: variantData.map((variant) => ({
-          originalSkuKey: variant.originalSkuKey, // Add this field
-          sku: variant.skuKey,
-          sku_product_unique_code: variant.uniqueCode,
-          full_product_name: variant.productName,
-          vendor_sku: localValues[`vendor-${variant.originalSkuKey}`] || undefined,
-          status: variant.originalSkuKey === sku ? checked : (skuStatuses[variant.originalSkuKey] ?? true)
-        } satisfies ProductByVariant))
-      })
+    const updatedVariants = [...variants];
+    const variant = updatedVariants[index];
+    const key = `vendor-${index}`;
+    
+    updatedVariants[index] = {
+      ...variant,
+      vendor_sku: localValues[key] || variant.vendor_sku
+    };
+    
+    dispatch(updateProductByVariant(updatedVariants));
+  };
+  
+  // Generate default code
+  const getDefaultCode = (index: number) => {
+    return `V${String(index + 1).padStart(2, '0')}`;
+  };
+  
+  // Reset unique code to default
+  const handleResetUniqueCode = (index: number) => {
+    const defaultCode = getDefaultCode(index);
+    handleUniqueCodeChange(index, defaultCode);
+  };
+  
+  // If there are no variants yet, show a placeholder
+  if (!variants || variants.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No variants configured. Add variants in the Basic Information section first.
+      </div>
     );
-  }, [dispatch, variantData, localValues, skuStatuses]);
-
-  const handleVendorSkuChange = useCallback((originalSkuKey: string, value: string) => {
-    updateLocalValue(`vendor-${originalSkuKey}`, value);
-  }, [updateLocalValue]);
-
-  const handleVendorSkuBlur = useCallback((originalSkuKey: string, value: string) => {
-    dispatch(
-      updateForm({
-        product_by_variant: variantData.map((variant) => ({
-          originalSkuKey: variant.originalSkuKey, // Add this field
-          sku: variant.skuKey,
-          sku_product_unique_code: variant.uniqueCode,
-          full_product_name: variant.productName,
-          vendor_sku: variant.originalSkuKey === originalSkuKey 
-            ? value 
-            : localValues[`vendor-${variant.originalSkuKey}`] || undefined,
-          status: skuStatuses[variant.originalSkuKey] ?? true
-        } satisfies ProductByVariant))
-      })
-    );
-  }, [dispatch, variantData, localValues, skuStatuses]);
-
-  const renderSkuFields = useCallback(
-    (originalSkuKey: string, skuKey: string, uniqueCode: string) => {
-      const defaultUniqueCode = String(
-        variantData.findIndex((v) => v.originalSkuKey === originalSkuKey) + 1
-      ).padStart(4, "0");
-
-      const inputValue = localValues[originalSkuKey] ?? uniqueCode;
-      const formGroupId = `variant-group-${originalSkuKey}`;
-
-      return (
-        <fieldset className="grid grid-cols-3 gap-4" aria-labelledby={`${formGroupId}-legend`}>
-          <legend id={`${formGroupId}-legend`} className="sr-only">
-            SKU variant fields for {skuKey}
-          </legend>
-          <FormItem className="space-y-2">
-            <FormControl>
-              <div className="space-y-1">
-                <FormLabel htmlFor={`sku-variant-${originalSkuKey}`}>SKU Variant</FormLabel>
-                <Input
-                  id={`sku-variant-${originalSkuKey}`}
-                  name={`sku-variant-${originalSkuKey}`}
-                  value={skuKey}
-                  className="font-mono bg-muted"
-                  readOnly
-                />
-              </div>
-            </FormControl>
-            <FormDescription>
-              Generated SKU based on main SKU and unique code
-            </FormDescription>
-          </FormItem>
-
-          <FormItem className="space-y-2">
-            <FormControl>
-              <div className="space-y-1">
-                <FormLabel htmlFor={`unique-code-${originalSkuKey}`}>Unique Code</FormLabel>
-                <div className="relative">
-                  <Input
-                    id={`unique-code-${originalSkuKey}`}
-                    name={`unique-code-${originalSkuKey}`}
-                    value={inputValue}
-                    onChange={(e) => handleUniqueCodeChange(originalSkuKey, e.target.value)}
-                    onBlur={(e) => handleInputBlur(originalSkuKey, e.target.value)}
-                    className="font-mono pr-8"
-                    placeholder="0000"
-                    maxLength={10}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\d*"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
-                    onClick={() => handleResetUniqueCode(originalSkuKey)}
-                    title={`Reset to default (${defaultUniqueCode})`}
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </FormControl>
-            <FormDescription>
-              Enter 1-10 numeric or use the default code
-            </FormDescription>
-          </FormItem>
-
-          <FormItem className="space-y-2">
-            <FormControl>
-              <div className="space-y-1">
-                <FormLabel htmlFor={`vendor-sku-${originalSkuKey}`}>Vendor SKU</FormLabel>
-                <Input
-                  id={`vendor-sku-${originalSkuKey}`}
-                  name={`vendor-sku-${originalSkuKey}`}
-                  value={localValues[`vendor-${originalSkuKey}`] || ''}
-                  onChange={(e) => handleVendorSkuChange(originalSkuKey, e.target.value.slice(0, 50))}
-                  onBlur={(e) => handleVendorSkuBlur(originalSkuKey, e.target.value)}
-                  placeholder="(Optional)"
-                  maxLength={50}
-                />
-              </div>
-            </FormControl>
-            <FormDescription>Optional vendor reference number</FormDescription>
-          </FormItem>
-        </fieldset>
-      );
-    },
-    [localValues, handleUniqueCodeChange, handleInputBlur, handleVendorSkuChange, handleVendorSkuBlur]
-  );
-
-  const renderVariantValue = useCallback(
-    (variant: SelectedVariant, currentSelector?: CurrentSelector) => {
-      const valueOptions = variant.values.map((value) => ({
-        value: value,
-        label: value,
-        data: value,
-      }));
-
-      return (
-        <VariantValueSelect
-          key={`value-${variant.id}-${variant.typeId}-${variant.values.join(
-            ","
-          )}`}
-          values={currentSelector?.values || []}
-          value={valueOptions}
-          onChange={(selected) => handleValuesChange(variant.id, selected)}
-          isDisabled={!variant.typeId}
-        />
-      );
-    },
-    [handleValuesChange]
-  );
-
+  }
+  
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        {selectedVariants.map((variant) => {
-          const selector = variantSelectors.find(
-            (selector) => selector.id === variant.typeId
-          );
-          
-          const currentSelector: CurrentSelector | undefined = selector ? {
-            id: selector.id,
-            name: selector.name,
-            values: selector.values,
-            selected_values: selector.selected_values || [],
-          } : undefined;
-          
-          const variantType = variantTypes?.find(
-            (vt) => vt.id === variant.typeId
-          );
-
-          return (
-            <div key={variant.id} className="flex flex-col md:grid md:grid-cols-[2fr,3fr,auto] gap-3 items-start">
-              <div className="w-full min-w-[180px]">
-                <VariantType
-                  key={`type-${variant.id}`}
-                  value={variant.typeId ? {
-                    value: variant.typeId.toString(),
-                    label: variantType?.name ?? currentSelector?.name ?? "",
-                    data: {
-                      id: variant.typeId,
-                      name: variantType?.name ?? currentSelector?.name ?? "",
-                      values: variantType?.values ?? currentSelector?.values ?? [],
-                    },
-                  } : null}
-                  onChange={(selected) => handleTypeChange(variant.id, selected)}
-                  excludeIds={usedTypeIds.filter((id) => id !== variant.typeId)}
-                />
-              </div>
-              <div className="w-full min-w-[200px]">
-                {renderVariantValue(variant, currentSelector)}
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="self-start mt-0"
-                onClick={() => handleRemoveVariant(variant.id)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          );
-        })}
-
-        <Button type="button" variant="outline" onClick={handleAddVariant}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Variant
-        </Button>
+      <h3 className="text-md font-medium">Variant SKUs</h3>
+      
+      <div className="overflow-auto">
+        <div className="rounded-md border min-w-[640px]">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Full Product Name</TableHead>
+                <TableHead>SKU Variant</TableHead>
+                <TableHead className="w-[200px]">Unique Code</TableHead>
+                <TableHead>Vendor SKU</TableHead>
+                <TableHead className="w-[100px] text-center">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {variants.map((variant, index) => (
+                <TableRow key={index}>
+                  <TableCell>{variant.full_product_name}</TableCell>
+                  <TableCell>
+                    <FormItem className="space-y-2 mb-0">
+                      <FormControl>
+                        <Input
+                          value={`${mainSku}-${variant.sku_product_unique_code}`}
+                          className="font-mono bg-muted"
+                          readOnly
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Generated SKU based on main SKU and unique code
+                      </FormDescription>
+                    </FormItem>
+                  </TableCell>
+                  <TableCell>
+                    <FormItem className="space-y-2 mb-0">
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            value={variant.sku_product_unique_code}
+                            onChange={(e) => handleUniqueCodeChange(index, e.target.value)}
+                            className="font-mono pr-8"
+                            placeholder="0000"
+                            maxLength={10}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
+                            onClick={() => handleResetUniqueCode(index)}
+                            title={`Reset to default (${getDefaultCode(index)})`}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Enter 1-10 numeric or use the default code
+                      </FormDescription>
+                    </FormItem>
+                  </TableCell>
+                  <TableCell>
+                    <FormItem className="space-y-2 mb-0">
+                      <FormControl>
+                        <Input
+                          value={localValues[`vendor-${index}`] || variant.vendor_sku || ''}
+                          onChange={(e) => handleVendorSkuChange(index, e.target.value)}
+                          onBlur={() => handleVendorSkuBlur(index)}
+                          placeholder="(Optional)"
+                          maxLength={50}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Optional vendor reference number
+                      </FormDescription>
+                    </FormItem>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <Switch
+                        checked={variant.status ?? true}
+                        onCheckedChange={(checked) => handleStatusToggle(index, checked)}
+                        className="mx-auto"
+                      />
+                      <span className="text-xs mt-1 text-muted-foreground">
+                        {(variant.status ?? true) ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
-
-      {!canShowGeneratedSkus && variantSelectors.length > 0 && (
-        <div className="text-sm text-muted-foreground">
-          Please complete the following to generate SKUs:
-          <ul className="list-disc list-inside mt-2">
-            {!full_product_name && <li>Product name is required</li>}
-            {!baseSku && <li>Base SKU is required</li>}
-            {!selectedVariants.some((v) => v.typeId && v.values.length > 0) && (
-              <li>At least one variant with selected values is required</li>
-            )}
-          </ul>
-        </div>
-      )}
-
-      {canShowGeneratedSkus && variantData.length > 0 && (
-        <div className="border rounded-lg p-4">
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Generated SKUs</h4>
-            <div className="overflow-auto">
-              <div className="rounded-md border min-w-[640px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Full Product Name</TableHead>
-                      <TableHead>SKU Variant</TableHead>
-                      <TableHead className="w-[200px]">Unique Code</TableHead>
-                      <TableHead>Vendor SKU</TableHead>
-                      <TableHead className="w-[100px] text-center">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {variantData.map(
-                      ({ skuKey, productName, uniqueCode }) => (
-                        <TableRow key={skuKey}>
-                          <TableCell>{productName}</TableCell>
-                          <TableCell colSpan={3}>
-                            {renderSkuFields(variantData.find(v => v.skuKey === skuKey)?.originalSkuKey ?? '', skuKey, uniqueCode)}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Switch
-                              checked={skuStatuses[variantData.find(v => v.skuKey === skuKey)?.originalSkuKey ?? ''] ?? true}
-                              onCheckedChange={(checked) => handleStatusToggle(variantData.find(v => v.skuKey === skuKey)?.originalSkuKey ?? '', checked)}
-                              className="mx-auto"
-                            />
-                          </TableCell>
-                        </TableRow>
-                      )
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
