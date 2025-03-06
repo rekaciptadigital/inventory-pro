@@ -24,8 +24,8 @@ const apiFieldsSchema = z.object({
 // Menentukan tipe data dan aturan validasi untuk setiap field
 export const productFormSchema = z.object({
   // Data utama produk
-  brand: z.string().min(1, "Brand is required"),
-  productTypeId: z.string().min(1, "Product type is required"),
+  brand: z.string().min(1, { message: "Brand is required" }),
+  productTypeId: z.string().min(1, { message: "Product type is required" }),
 
   // Struktur kategori bertingkat
   categoryId: z.string().min(1, "Product category is required"),
@@ -36,9 +36,8 @@ export const productFormSchema = z.object({
   // Informasi identifikasi produk
   sku: z.string(),
   uniqueCode: z.string().optional(),
-  fullProductName: z.string(),
+  fullProductName: z.string().min(1, { message: "Product name is required" }),
   vendorSku: z.string().optional(),
-  productName: z.string().min(1, "Product name is required"),
 
   // Informasi tambahan
   description: z.string().optional(),
@@ -61,6 +60,8 @@ export const productFormSchema = z.object({
     .default([]),
   variantPrices: z.record(z.string(), z.number()).optional(),
 });
+
+export type ProductFormValues = z.infer<typeof productFormSchema>;
 
 // Use direct interface mapping for API fields
 interface ApiFields {

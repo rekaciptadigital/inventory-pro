@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -14,7 +14,6 @@ import { useBrands } from "@/lib/hooks/use-brands";
 import { useProductTypeList } from "@/lib/hooks/product-types/use-product-type-list";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "@/lib/store/store";
-import axios from 'axios'; // Add this import for axios
 import {
   createInventoryProduct,
   CreateInventoryData,
@@ -361,11 +360,14 @@ export function SingleProductForm({
     }
   };
 
-  const isFormValid =
-    form.formState.isValid &&
-    form.watch("brand") &&
-    form.watch("productName") &&
-    !isLoadingProductTypes;
+  // Perbaiki kondisi validasi form - tetap pertahankan logikanya
+  const isFormValid = useMemo(() => {
+    const isBrandValid = Boolean(form.watch("brand"));
+    const isProductNameValid = Boolean(form.watch("productName") || form.watch("fullProductName"));
+    const isFormValid = !form.formState.errors || Object.keys(form.formState.errors).length === 0;
+    
+    return isBrandValid && isProductNameValid && isFormValid && !isLoadingProductTypes;
+  }, [form.formState, form.watch, isLoadingProductTypes]);
 
   return (
     <Form {...form}>
@@ -419,6 +421,15 @@ export function SingleProductForm({
               type="submit"
               disabled={isSubmitting || !isFormValid || isLoadingProductTypes}
               data-testid="submit-button"
+              title={
+                isSubmitting 
+                  ? "Form is submitting..." 
+                  : !isFormValid 
+                    ? "Please fill in all required fields" 
+                    : isLoadingProductTypes 
+                      ? "Loading product types..." 
+                      : ""
+              }
             >
               {isLoadingProductTypes
                 ? "Loading..."
@@ -430,6 +441,7 @@ export function SingleProductForm({
                 ? "Update Product"
                 : "Add Product"}
             </Button>
+            
           </div>
         </div>
       </form>

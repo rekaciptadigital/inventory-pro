@@ -43,10 +43,10 @@ export function VariantSelector({
         <VariantTypeSelector
           value={typeId ? {
             value: typeId.toString(),
-            label: variantTypeName || "",
+            label: variantTypeName ?? "",
             data: {
               id: typeId,
-              name: variantTypeName || "",
+              name: variantTypeName ?? "",
               values: availableValues || [],
             },
           } : null}

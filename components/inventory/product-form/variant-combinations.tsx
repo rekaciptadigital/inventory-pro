@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/lib/store/store";
 import { Plus, RotateCcw } from "lucide-react";
@@ -15,8 +15,7 @@ import {
   selectVariantSelectors,
   addVariantSelector,
   removeVariantSelector,
-  updateVariantSelectorValues,
-  setVariants 
+  updateVariantSelectorValues 
 } from "@/lib/store/slices/formInventoryProductSlice";
 import {
   Table,
@@ -26,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FormItem, FormLabel, FormControl, FormDescription } from '@/components/ui/form';
+import { FormItem, FormControl, FormDescription } from '@/components/ui/form';
 import type { SelectOption } from "@/components/ui/enhanced-select";
 import { VariantSelector } from "@/components/inventory/variant-form/variant-selector";
 import { useVariants } from "@/lib/hooks/use-variants";
@@ -291,10 +290,10 @@ export function VariantCombinations() {
     
     // Map combinations to variant objects
     const variantsList = combinations.map((combo, index) => {
-      // Change here: use numeric format like the old script
-      const defaultUniqueCode = String(index + 1).padStart(4, "0"); // Now produces "0001", "0002", etc.
-      const originalKey = `variant-${index}`;
-      const storedUniqueCode = variantUniqueCodes[originalKey] || defaultUniqueCode;
+      // Use numeric format (4 digits with padding)
+      const defaultUniqueCode = String(index + 1).padStart(4, "0"); // "0001", "0002", etc.
+      const originalSkuKey = `variant-${index}`; // Fix: Use originalSkuKey instead of originalKey
+      const storedUniqueCode = variantUniqueCodes[originalSkuKey] ?? defaultUniqueCode;
       
       // Construct product name with variant values
       const variantNameParts = combo.filter(Boolean);
@@ -304,12 +303,12 @@ export function VariantCombinations() {
       }
       
       return {
-        originalKey,
+        originalSkuKey, // Fix: Use originalSkuKey consistently
         sku: `${baseSku}-${storedUniqueCode}`,
         sku_product_unique_code: storedUniqueCode,
         full_product_name: productName,
-        vendor_sku: vendorSkus[originalKey] || '',
-        status: skuStatuses[originalKey] !== undefined ? skuStatuses[originalKey] : true,
+        vendor_sku: vendorSkus[originalSkuKey] ?? '',
+        status: skuStatuses[originalSkuKey] ?? true,
       };
     });
 
@@ -352,12 +351,12 @@ export function VariantCombinations() {
             id: `variant-${variant.variant_id}`,
             typeId: variant.variant_id,
             values: variant.variant_values.map((v) => v.variant_value_name),
-            availableValues: variantType?.values || [],
+            availableValues: variantType?.values ?? [],
             display_order: variantType?.display_order ?? 0,
           };
         });
 
-        initialVariants.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+        initialVariants.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
 
         // Initialize variant selectors
         const initialSelectors = existingVariants.map((variant) => {
@@ -365,7 +364,7 @@ export function VariantCombinations() {
           return {
             id: variant.variant_id,
             name: variantType?.name ?? variant.variant_name,
-            values: variantType?.values.map(String) || [],
+            values: variantType?.values.map(String) ?? [],
             selected_values: variant.variant_values.map((v) => v.variant_value_name),
           };
         });
@@ -378,8 +377,9 @@ export function VariantCombinations() {
           const localValuesDraft: Record<string, string> = {};
           
           variants.forEach((variant, index) => {
+            // Fix: Use consistent key format that matches originalSkuKey
             const key = `variant-${index}`;
-            codes[key] = variant.sku_product_unique_code || '';
+            codes[key] = variant.sku_product_unique_code ?? '';
             statuses[key] = variant.status ?? true;
             
             if (variant.vendor_sku) {
@@ -475,7 +475,7 @@ export function VariantCombinations() {
     if (!variants || !variants[index]) return;
     
     const key = `vendor-${index}`;
-    const value = localValues[key] || '';
+    const value = localValues[key] ?? '';
     
     // Update both local tracking state and Redux
     const variantKey = `variant-${index}`;
@@ -527,14 +527,16 @@ export function VariantCombinations() {
             (vt) => vt.id === variant.typeId
           );
 
-          const availableValues = variantType?.values || [];
+          // Fix for SonarLint S6606: Use nullish coalescing instead of logical OR
+          const availableValues = variantType?.values ?? [];
 
           return (
             <VariantSelector
               key={variant.id}
               id={variant.id}
               typeId={variant.typeId}
-              values={variant.values || []}
+              // Fix: Change || to ?? for variant.values
+              values={variant.values ?? []}
               usedTypeIds={usedTypeIds}
               variantTypeName={variantType?.name}
               availableValues={availableValues}
@@ -593,85 +595,92 @@ export function VariantCombinations() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {variants.map((variant, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{variant.full_product_name}</TableCell>
-                        <TableCell>
-                          <FormItem className="space-y-2 mb-0">
-                            <FormControl>
-                              <Input
-                                value={`${mainSku}-${variant.sku_product_unique_code}`}
-                                className="font-mono bg-muted"
-                                readOnly
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Generated SKU based on main SKU and unique code
-                            </FormDescription>
-                          </FormItem>
-                        </TableCell>
-                        <TableCell>
-                          <FormItem className="space-y-2 mb-0">
-                            <FormControl>
-                              <div className="relative">
+                    {variants.map((variant, index) => {
+                      // Fix: Use originalSkuKey instead of originalKey for stable key generation
+                      const stableKey = variant.originalSkuKey || 
+                                       `${variant.sku_product_unique_code}-${variant.full_product_name}` ||
+                                       `variant-${index}`;
+                      
+                      return (
+                        <TableRow key={stableKey}>
+                          <TableCell>{variant.full_product_name}</TableCell>
+                          <TableCell>
+                            <FormItem className="space-y-2 mb-0">
+                              <FormControl>
                                 <Input
-                                  value={variant.sku_product_unique_code}
-                                  onChange={(e) => handleUniqueCodeChange(index, e.target.value)}
-                                  className="font-mono pr-8"
-                                  placeholder="0000"
-                                  maxLength={10}
-                                  // Add these attributes to match old behavior
-                                  type="text"
-                                  inputMode="numeric"
-                                  pattern="\d*"
+                                  value={`${mainSku}-${variant.sku_product_unique_code}`}
+                                  className="font-mono bg-muted"
+                                  readOnly
                                 />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
-                                  onClick={() => handleResetUniqueCode(index)}
-                                  title={`Reset to default (${getDefaultCode(index)})`}
-                                >
-                                  <RotateCcw className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </FormControl>
-                            <FormDescription>
-                              Enter 1-10 numeric or use the default code
-                            </FormDescription>
-                          </FormItem>
-                        </TableCell>
-                        <TableCell>
-                          <FormItem className="space-y-2 mb-0">
-                            <FormControl>
-                              <Input
-                                value={localValues[`vendor-${index}`] || variant.vendor_sku || ''}
-                                onChange={(e) => handleVendorSkuChange(index, e.target.value)}
-                                onBlur={() => handleVendorSkuBlur(index)}
-                                placeholder="(Optional)"
-                                maxLength={50}
+                              </FormControl>
+                              <FormDescription>
+                                Generated SKU based on main SKU and unique code
+                              </FormDescription>
+                            </FormItem>
+                          </TableCell>
+                          <TableCell>
+                            <FormItem className="space-y-2 mb-0">
+                              <FormControl>
+                                <div className="relative">
+                                  <Input
+                                    value={variant.sku_product_unique_code}
+                                    onChange={(e) => handleUniqueCodeChange(index, e.target.value)}
+                                    className="font-mono pr-8"
+                                    placeholder="0000"
+                                    maxLength={10}
+                                    // Add these attributes to match old behavior
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="\d*"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
+                                    onClick={() => handleResetUniqueCode(index)}
+                                    title={`Reset to default (${getDefaultCode(index)})`}
+                                  >
+                                    <RotateCcw className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </FormControl>
+                              <FormDescription>
+                                Enter 1-10 numeric or use the default code
+                              </FormDescription>
+                            </FormItem>
+                          </TableCell>
+                          <TableCell>
+                            <FormItem className="space-y-2 mb-0">
+                              <FormControl>
+                                <Input
+                                  value={localValues[`vendor-${index}`] ?? variant.vendor_sku ?? ''}
+                                  onChange={(e) => handleVendorSkuChange(index, e.target.value)}
+                                  onBlur={() => handleVendorSkuBlur(index)}
+                                  placeholder="(Optional)"
+                                  maxLength={50}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Optional vendor reference number
+                              </FormDescription>
+                            </FormItem>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex flex-col items-center justify-center">
+                              <Switch
+                                checked={variant.status ?? true}
+                                onCheckedChange={(checked) => handleStatusToggle(index, checked)}
+                                className="mx-auto"
                               />
-                            </FormControl>
-                            <FormDescription>
-                              Optional vendor reference number
-                            </FormDescription>
-                          </FormItem>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex flex-col items-center justify-center">
-                            <Switch
-                              checked={variant.status ?? true}
-                              onCheckedChange={(checked) => handleStatusToggle(index, checked)}
-                              className="mx-auto"
-                            />
-                            <span className="text-xs mt-1 text-muted-foreground">
-                              {(variant.status ?? true) ? "Active" : "Inactive"}
-                            </span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                              <span className="text-xs mt-1 text-muted-foreground">
+                                {(variant.status ?? true) ? "Active" : "Inactive"}
+                              </span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

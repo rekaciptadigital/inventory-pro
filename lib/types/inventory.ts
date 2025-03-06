@@ -24,7 +24,7 @@ export interface VariantSelectorData {
 }
 
 export interface ProductByVariant {
-  originalSkuKey: string;  // Make sure this is required
+  originalSkuKey?: string;  // This is the property TypeScript is expecting
   sku: string;
   sku_product_unique_code: string;
   full_product_name: string;
