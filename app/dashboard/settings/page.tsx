@@ -7,7 +7,7 @@ import * as z from 'zod';
 import { useLanguage } from '@/lib/i18n/language-context';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/lib/hooks/users/use-profile';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -25,7 +25,6 @@ import {
   FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -53,7 +52,7 @@ const passwordFormSchema = z.object({
     .min(8, 'Password must be at least 8 characters')
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number'),
+    .regex(/\d/, 'Password must contain at least one number'),
   confirm_password: z.string(),
 }).refine((data) => data.new_password === data.confirm_password, {
   message: "Passwords don't match",
@@ -74,6 +73,12 @@ export default function SettingsPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [taxPercentage, setTaxPercentage] = useState<number>(11);
   const [taxStatus, setTaxStatus] = useState<boolean>(true);
+  
+  // Add state variables for password visibility
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
   const ppnTax = taxes.find(tax => tax.name === 'PPN') || {
     id: '1',
     name: 'PPN',
@@ -164,8 +169,8 @@ export default function SettingsPage() {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        phone_number: user.phone_number || null,
-        photo_profile: user.photo_profile || null,
+        phone_number: user.phone_number ?? null,
+        photo_profile: user.photo_profile ?? null,
       });
     }
   }, [user, profileForm]);
@@ -213,6 +218,13 @@ export default function SettingsPage() {
 
   // Use the combined loading state
   if (isLoading) {
+    const skeletonFields = [
+      'personal-info',
+      'contact-details',
+      'password',
+      'settings'
+    ];
+    
     return (
       <div className="space-y-6">
         <div>
@@ -227,8 +239,8 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid gap-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="grid gap-2">
+              {skeletonFields.map((fieldName) => (
+                <div key={fieldName} className="grid gap-2">
                   <Skeleton className="h-4 w-[100px]" />
                   <Skeleton className="h-10 w-full" />
                 </div>
@@ -371,7 +383,7 @@ export default function SettingsPage() {
                       <FormControl>
                         <Input 
                           {...field} 
-                          value={field.value || ''} 
+                          value={field.value ?? ''} 
                           onChange={(e) => field.onChange(e.target.value || null)}
                         />
                       </FormControl>
@@ -442,7 +454,28 @@ export default function SettingsPage() {
                       <FormItem>
                         <FormLabel>Current Password</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} />
+                          <div className="relative">
+                            <Input 
+                              type={showCurrentPassword ? "text" : "password"} 
+                              {...field} 
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-1"
+                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                            >
+                              {showCurrentPassword ? (
+                                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <Eye className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <span className="sr-only">
+                                {showCurrentPassword ? "Hide password" : "Show password"}
+                              </span>
+                            </Button>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -456,7 +489,28 @@ export default function SettingsPage() {
                       <FormItem>
                         <FormLabel>New Password</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} />
+                          <div className="relative">
+                            <Input 
+                              type={showNewPassword ? "text" : "password"} 
+                              {...field} 
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-1"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                            >
+                              {showNewPassword ? (
+                                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <Eye className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <span className="sr-only">
+                                {showNewPassword ? "Hide password" : "Show password"}
+                              </span>
+                            </Button>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -470,7 +524,28 @@ export default function SettingsPage() {
                       <FormItem>
                         <FormLabel>Confirm New Password</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} />
+                          <div className="relative">
+                            <Input 
+                              type={showConfirmPassword ? "text" : "password"} 
+                              {...field} 
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-1"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                              {showConfirmPassword ? (
+                                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <Eye className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <span className="sr-only">
+                                {showConfirmPassword ? "Hide password" : "Show password"}
+                              </span>
+                            </Button>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
