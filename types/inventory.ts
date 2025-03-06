@@ -72,6 +72,13 @@ export interface InventoryProductVariant {
   sku_product_unique_code: number;
   vendor_sku?: string; // Add optional vendor SKU
   deleted_at: string | null;
+  // Optional field to store variant values when processed client-side
+  variantValues?: Array<{
+    variantId: string;
+    variantName: string;
+    valueId: string;
+    valueName: string;
+  }>;
 }
 
 export interface CustomerCategory {

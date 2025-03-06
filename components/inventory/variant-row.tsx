@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Barcode } from 'lucide-react';
 import { formatDate } from '@/lib/utils/format';
+import { getVariantDetails } from '@/lib/utils/variant-helper';
 import type { InventoryProduct, InventoryProductVariant } from '@/types/inventory';
 
 interface VariantRowProps {
@@ -12,6 +13,8 @@ interface VariantRowProps {
 }
 
 export function VariantRow({ variant, product, onShowBarcode }: VariantRowProps) {
+  const variantDetails = getVariantDetails(variant, product);
+  
   return (
     <TableRow className="bg-muted/30 hover:bg-muted/50 transition-colors">
       <TableCell className="pl-10 font-mono text-sm">
@@ -21,11 +24,15 @@ export function VariantRow({ variant, product, onShowBarcode }: VariantRowProps)
         {variant.full_product_name}
       </TableCell>
       <TableCell colSpan={4}>
-        {product.variants.map((v) => (
-          <div key={v.id} className="text-sm text-muted-foreground">
-            {v.variant_name}: {v.values.map((val) => val.variant_value_name).join(', ')}
-          </div>
-        ))}
+        {Object.entries(variantDetails).length > 0 ? (
+          Object.entries(variantDetails).map(([variantName, valueName]) => (
+            <div key={variantName} className="text-sm text-muted-foreground">
+              {variantName}: {valueName}
+            </div>
+          ))
+        ) : (
+          <div className="text-sm text-muted-foreground italic">No variant details available</div>
+        )}
       </TableCell>
       <TableCell>{formatDate(variant.created_at)}</TableCell>
       <TableCell>
