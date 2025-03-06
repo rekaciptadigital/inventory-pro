@@ -4,7 +4,7 @@ import {
   createProductType,
   updateProductType,
   deleteProductType,
-  updateProductTypeStatus,
+  updateProductTypeStatus,  // This import should now work correctly
 } from "@/lib/api/product-types";
 import type { ProductTypeFormData } from "@/lib/api/product-types";
 
@@ -90,6 +90,15 @@ export function useProductTypeMutations() {
       });
     },
   });
+
+  const handleStatusChange = async (id: string, status: boolean) => {
+    try {
+      await updateProductTypeStatus(id, status);
+      // ... handle success ...
+    } catch (error) {
+      // ... handle error ...
+    }
+  };
 
   return {
     createProductType: createMutation.mutateAsync,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -44,7 +44,7 @@ const profileFormSchema = z.object({
   last_name: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address'),
   phone_number: z.string().nullable(),
-  language: z.enum(['en', 'id']),
+  photo_profile: z.string().nullable().optional(),
 });
 
 const passwordFormSchema = z.object({
@@ -63,9 +63,13 @@ const passwordFormSchema = z.object({
 export default function SettingsPage() {
   const { language, setLanguage, t } = useLanguage();
   const { toast } = useToast();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, refreshUser } = useAuth();
   const { updateProfile, changePassword, isUpdating: isUpdatingProfile } = useProfile();
   const { taxes, updateTax, isLoading: isLoadingTaxes } = useTaxes();
+  
+  // Add a new loading state specifically for refreshing user data
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [taxPercentage, setTaxPercentage] = useState<number>(11);
@@ -141,7 +145,7 @@ export default function SettingsPage() {
       last_name: '',
       email: '',
       phone_number: null,
-      language: 'en',
+      photo_profile: null,
     },
   });
 
@@ -161,10 +165,80 @@ export default function SettingsPage() {
         last_name: user.last_name,
         email: user.email,
         phone_number: user.phone_number || null,
-        language,
+        photo_profile: user.photo_profile || null,
       });
     }
-  }, [user, language, profileForm]);
+  }, [user, profileForm]);
+
+  // Add a ref to track if we've already done the initial refresh
+  const initialRefreshDone = useRef(false);
+
+  // Fix the refresh mechanism to avoid infinite loops
+  useEffect(() => {
+    // Only refresh user data on initial load or when explicitly needed
+    const loadUserData = async () => {
+      // Only run this once when the component mounts and user is loaded
+      if (!isAuthLoading && user?.id && !initialRefreshDone.current) {
+        console.log("Running initial user data refresh");
+        initialRefreshDone.current = true;
+        
+        // Set refreshing state to true
+        setIsRefreshing(true);
+        
+        try {
+          const success = await refreshUser();
+          console.log("Initial refresh result:", success);
+        } catch (error) {
+          console.error("Error refreshing user data:", error);
+        } finally {
+          // Set refreshing state to false when done
+          setIsRefreshing(false);
+        }
+      }
+    };
+    
+    loadUserData();
+    // Remove refreshUser from dependencies to prevent loops
+  }, [isAuthLoading, user?.id]);
+
+  // Only log user data changes, don't trigger refreshes
+  useEffect(() => {
+    if (user) {
+      console.log("Current user data:", user);
+    }
+  }, [user]);
+
+  // Calculate the actual loading state based on auth loading or data refreshing
+  const isLoading = isAuthLoading || isRefreshing;
+
+  // Use the combined loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-[200px]" />
+          <Skeleton className="h-4 w-[300px] mt-2" />
+        </div>
+
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-[150px]" />
+            <Skeleton className="h-4 w-[250px] mt-2" />
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="grid gap-2">
+                  <Skeleton className="h-4 w-[100px]" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const onSubmitProfile = async (values: z.infer<typeof profileFormSchema>) => {
     try {
@@ -172,6 +246,21 @@ export default function SettingsPage() {
         first_name: values.first_name,
         last_name: values.last_name,
         phone_number: values.phone_number,
+        email: values.email, // This will be overridden in the hook with the authenticated user's email
+        photo_profile: values.photo_profile,
+      });
+      
+      // Add loading state during refresh
+      setIsRefreshing(true);
+      try {
+        await refreshUser();
+      } finally {
+        setIsRefreshing(false);
+      }
+      
+      toast({
+        title: 'Success',
+        description: 'Profile updated successfully',
       });
     } catch (error) {
       toast({
@@ -201,33 +290,13 @@ export default function SettingsPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <Skeleton className="h-8 w-[200px]" />
-          <Skeleton className="h-4 w-[300px] mt-2" />
-        </div>
-
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-[150px]" />
-            <Skeleton className="h-4 w-[250px] mt-2" />
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="grid gap-2">
-                  <Skeleton className="h-4 w-[100px]" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const handleLanguageChange = (value: 'en' | 'id') => {
+    setLanguage(value);
+    toast({
+      title: 'Language Changed',
+      description: `Application language set to ${value === 'en' ? 'English' : 'Indonesia'}`,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -285,6 +354,9 @@ export default function SettingsPage() {
                       <FormControl>
                         <Input {...field} disabled />
                       </FormControl>
+                      <FormDescription>
+                        Email cannot be changed
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -307,34 +379,6 @@ export default function SettingsPage() {
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={profileForm.control}
-                  name="language"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('settings.profile.language')}</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={(value: 'en' | 'id') => {
-                          field.onChange(value);
-                          setLanguage(value);
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="id">Indonesia</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
               <div className="flex justify-end space-x-4">
@@ -347,6 +391,37 @@ export default function SettingsPage() {
               </div>
             </form>
           </Form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Language Settings</CardTitle>
+          <CardDescription>Choose your preferred application language</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-medium">Application Language</h4>
+                <p className="text-sm text-muted-foreground">
+                  Select your preferred language for the application interface
+                </p>
+              </div>
+              <Select
+                value={language}
+                onValueChange={(value: 'en' | 'id') => handleLanguageChange(value)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="id">Indonesia</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

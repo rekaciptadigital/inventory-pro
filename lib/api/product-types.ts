@@ -69,3 +69,11 @@ export async function updateProductType(id: string, data: Partial<Omit<ProductTy
 export async function deleteProductType(id: string): Promise<void> {
   await axiosInstance.delete(`/product-types/${id}`);
 }
+
+/**
+ * Update a product type's status (enable/disable)
+ */
+export async function updateProductTypeStatus(id: string, status: boolean): Promise<ApiResponse<ProductType>> {
+  const response = await axiosInstance.patch(`/product-types/${id}/status`, { status });
+  return response.data;
+}

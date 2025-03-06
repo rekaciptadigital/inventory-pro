@@ -10,6 +10,7 @@ import {
 } from '@/lib/store/slices/authSlice';
 import type { AuthUser, AuthTokens, LoginCredentials } from '@/lib/types/auth';
 import { setTokens, setUser, clearAuthData } from '@/lib/services/auth/storage.service';
+import { getUserDetails } from '@/lib/api/users/profile';
 
 export function useAuth() {
   const dispatch = useAppDispatch();
@@ -64,6 +65,36 @@ export function useAuth() {
     [dispatch]
   );
 
+  const refreshUser = useCallback(async () => {
+    if (user?.id) {
+      try {
+        console.log("Refreshing user data for ID:", user.id);
+        const response = await getUserDetails(user.id);
+        
+        if (response.data) {
+          console.log("Got fresh user data:", response.data);
+          // Update the auth context with fresh data but keep tokens
+          dispatch(initializeAuth({
+            user: {
+              ...response.data,
+              // Make sure we retain the tokens
+              tokens: user.tokens
+            }
+          }));
+          return true;
+        } else {
+          console.error("No data returned when refreshing user");
+        }
+      } catch (error) {
+        console.error("Failed to refresh user data:", error);
+      }
+      return false;
+    } else {
+      console.error("Cannot refresh user - no user ID available");
+      return false;
+    }
+  }, [user, dispatch]);
+
   return {
     user,
     tokens,
@@ -73,5 +104,6 @@ export function useAuth() {
     logout: handleLogout,
     clearError: handleClearError,
     initializeAuth: handleInitializeAuth,
+    refreshUser, // <-- Add the refreshUser function to the return object
   };
 }
