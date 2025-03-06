@@ -49,3 +49,23 @@ export interface VariantFormData {
   status: boolean;
   values: string[];
 }
+
+/**
+ * Interface untuk varian yang dipilih dalam form produk
+ */
+export interface SelectedVariant {
+  id: string;
+  typeId: number;
+  values: string[];
+  availableValues?: string[];
+  display_order?: number;
+}
+
+/**
+ * Interface untuk tipe varian yang telah dipilih untuk kombinasi
+ */
+export interface SelectedVariantType {
+  id: number;
+  name: string;
+  values: string[];
+}

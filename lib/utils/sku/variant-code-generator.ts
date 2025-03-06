@@ -6,7 +6,8 @@ export interface VariantCode {
 }
 
 export function generateSequentialCode(index: number): string {
-  return (index + 1).toString().padStart(4, '0');
+  // Update to match the old format - 4 digits with zero padding
+  return String(index + 1).padStart(4, '0');
 }
 
 export function generateVariantCode(
@@ -51,7 +52,8 @@ export function formatVariantSku(variantCode: VariantCode): string {
 }
 
 export function validateVariantCode(code: string): boolean {
-  return /^\d{4}$/.test(code);
+  // Make sure validation accepts 4 digit format
+  return /^\d{1,10}$/.test(code);
 }
 
 export function isUniqueVariantCode(

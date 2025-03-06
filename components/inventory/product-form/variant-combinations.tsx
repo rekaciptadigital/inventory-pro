@@ -32,15 +32,7 @@ import { VariantSelector } from "@/components/inventory/variant-form/variant-sel
 import { useVariants } from "@/lib/hooks/use-variants";
 import type { SelectedVariant } from "@/types/variant";
 
-// Types
-interface SelectedVariant {
-  id: string;
-  typeId: number;
-  values: string[];
-  availableValues?: string[];
-  display_order?: number;
-}
-
+// Types - Remove the local SelectedVariant interface and use the imported one
 interface CurrentSelector {
   id: number;
   name: string;
@@ -299,7 +291,8 @@ export function VariantCombinations() {
     
     // Map combinations to variant objects
     const variantsList = combinations.map((combo, index) => {
-      const defaultUniqueCode = `V${String(index + 1).padStart(2, '0')}`;
+      // Change here: use numeric format like the old script
+      const defaultUniqueCode = String(index + 1).padStart(4, "0"); // Now produces "0001", "0002", etc.
       const originalKey = `variant-${index}`;
       const storedUniqueCode = variantUniqueCodes[originalKey] || defaultUniqueCode;
       
@@ -502,7 +495,7 @@ export function VariantCombinations() {
   
   // Generate default code
   const getDefaultCode = (index: number) => {
-    return `V${String(index + 1).padStart(2, '0')}`;
+    return String(index + 1).padStart(4, "0"); // Returns "0001", "0002", etc.
   };
   
   // Reset unique code to default
@@ -627,6 +620,10 @@ export function VariantCombinations() {
                                   className="font-mono pr-8"
                                   placeholder="0000"
                                   maxLength={10}
+                                  // Add these attributes to match old behavior
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="\d*"
                                 />
                                 <Button
                                   type="button"
