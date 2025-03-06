@@ -30,6 +30,7 @@ import { FormItem, FormLabel, FormControl, FormDescription } from '@/components/
 import type { SelectOption } from "@/components/ui/enhanced-select";
 import { VariantSelector } from "@/components/inventory/variant-form/variant-selector";
 import { useVariants } from "@/lib/hooks/use-variants";
+import type { SelectedVariant } from "@/types/variant";
 
 // Types
 interface SelectedVariant {
@@ -562,120 +563,124 @@ export function VariantCombinations() {
         </Button>
       </div>
 
-      {/* Explain what's needed for variants to show up */}
-      {selectedVariants.length > 0 && !canShowGeneratedSkus && (
-        <div className="text-sm text-muted-foreground p-4 border rounded-md bg-muted/30">
-          <p className="font-medium">To generate variant SKUs, please complete:</p>
+      {/* Show explanation message when variants can't be generated yet */}
+      {!canShowGeneratedSkus && variantSelectors.length > 0 && (
+        <div className="text-sm text-muted-foreground border rounded p-4 bg-muted/20">
+          <p className="font-medium">Please complete the following to generate SKUs:</p>
           <ul className="list-disc list-inside mt-2">
-            {!full_product_name && <li>Product name in the Basic Information section</li>}
-            {!baseSku && <li>Base SKU in the Basic Information section</li>}
-            {!selectedVariants.some(v => v.typeId && v.values && v.values.length > 0) && 
-              <li>Select at least one variant type and value above</li>
-            }
+            {!full_product_name && <li>Product name is required in the Basic Information section</li>}
+            {!baseSku && <li>Base SKU is required in the Basic Information section</li>}
+            {!selectedVariants.some(v => v.typeId && v.values && v.values.length > 0) && (
+              <li>At least one variant with selected values is required</li>
+            )}
           </ul>
         </div>
       )}
 
-      {/* Variant SKUs Table Section */}
-      <h3 className="text-md font-medium">Variant SKUs</h3>
-      
-      {!variants || variants.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          No variants configured. Add variants above and fill in the basic product information first.
-        </div>
-      ) : (
-        <div className="overflow-auto">
-          <div className="rounded-md border min-w-[640px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Full Product Name</TableHead>
-                  <TableHead>SKU Variant</TableHead>
-                  <TableHead className="w-[200px]">Unique Code</TableHead>
-                  <TableHead>Vendor SKU</TableHead>
-                  <TableHead className="w-[100px] text-center">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {variants.map((variant, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{variant.full_product_name}</TableCell>
-                    <TableCell>
-                      <FormItem className="space-y-2 mb-0">
-                        <FormControl>
-                          <Input
-                            value={`${mainSku}-${variant.sku_product_unique_code}`}
-                            className="font-mono bg-muted"
-                            readOnly
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Generated SKU based on main SKU and unique code
-                        </FormDescription>
-                      </FormItem>
-                    </TableCell>
-                    <TableCell>
-                      <FormItem className="space-y-2 mb-0">
-                        <FormControl>
-                          <div className="relative">
-                            <Input
-                              value={variant.sku_product_unique_code}
-                              onChange={(e) => handleUniqueCodeChange(index, e.target.value)}
-                              className="font-mono pr-8"
-                              placeholder="0000"
-                              maxLength={10}
+      {/* Only show Variant SKUs section when data can be generated */}
+      {canShowGeneratedSkus && (
+        <>
+          <h3 className="text-md font-medium">Variant SKUs</h3>
+          
+          {!variants || variants.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No variants configured. Add variants above and fill in the basic product information first.
+            </div>
+          ) : (
+            <div className="overflow-auto">
+              <div className="rounded-md border min-w-[640px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Full Product Name</TableHead>
+                      <TableHead>SKU Variant</TableHead>
+                      <TableHead className="w-[200px]">Unique Code</TableHead>
+                      <TableHead>Vendor SKU</TableHead>
+                      <TableHead className="w-[100px] text-center">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {variants.map((variant, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{variant.full_product_name}</TableCell>
+                        <TableCell>
+                          <FormItem className="space-y-2 mb-0">
+                            <FormControl>
+                              <Input
+                                value={`${mainSku}-${variant.sku_product_unique_code}`}
+                                className="font-mono bg-muted"
+                                readOnly
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Generated SKU based on main SKU and unique code
+                            </FormDescription>
+                          </FormItem>
+                        </TableCell>
+                        <TableCell>
+                          <FormItem className="space-y-2 mb-0">
+                            <FormControl>
+                              <div className="relative">
+                                <Input
+                                  value={variant.sku_product_unique_code}
+                                  onChange={(e) => handleUniqueCodeChange(index, e.target.value)}
+                                  className="font-mono pr-8"
+                                  placeholder="0000"
+                                  maxLength={10}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
+                                  onClick={() => handleResetUniqueCode(index)}
+                                  title={`Reset to default (${getDefaultCode(index)})`}
+                                >
+                                  <RotateCcw className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </FormControl>
+                            <FormDescription>
+                              Enter 1-10 numeric or use the default code
+                            </FormDescription>
+                          </FormItem>
+                        </TableCell>
+                        <TableCell>
+                          <FormItem className="space-y-2 mb-0">
+                            <FormControl>
+                              <Input
+                                value={localValues[`vendor-${index}`] || variant.vendor_sku || ''}
+                                onChange={(e) => handleVendorSkuChange(index, e.target.value)}
+                                onBlur={() => handleVendorSkuBlur(index)}
+                                placeholder="(Optional)"
+                                maxLength={50}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Optional vendor reference number
+                            </FormDescription>
+                          </FormItem>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center justify-center">
+                            <Switch
+                              checked={variant.status ?? true}
+                              onCheckedChange={(checked) => handleStatusToggle(index, checked)}
+                              className="mx-auto"
                             />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
-                              onClick={() => handleResetUniqueCode(index)}
-                              title={`Reset to default (${getDefaultCode(index)})`}
-                            >
-                              <RotateCcw className="h-4 w-4" />
-                            </Button>
+                            <span className="text-xs mt-1 text-muted-foreground">
+                              {(variant.status ?? true) ? "Active" : "Inactive"}
+                            </span>
                           </div>
-                        </FormControl>
-                        <FormDescription>
-                          Enter 1-10 numeric or use the default code
-                        </FormDescription>
-                      </FormItem>
-                    </TableCell>
-                    <TableCell>
-                      <FormItem className="space-y-2 mb-0">
-                        <FormControl>
-                          <Input
-                            value={localValues[`vendor-${index}`] || variant.vendor_sku || ''}
-                            onChange={(e) => handleVendorSkuChange(index, e.target.value)}
-                            onBlur={() => handleVendorSkuBlur(index)}
-                            placeholder="(Optional)"
-                            maxLength={50}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Optional vendor reference number
-                        </FormDescription>
-                      </FormItem>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <Switch
-                          checked={variant.status ?? true}
-                          onCheckedChange={(checked) => handleStatusToggle(index, checked)}
-                          className="mx-auto"
-                        />
-                        <span className="text-xs mt-1 text-muted-foreground">
-                          {(variant.status ?? true) ? "Active" : "Inactive"}
-                        </span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
