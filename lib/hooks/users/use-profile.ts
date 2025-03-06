@@ -3,7 +3,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { 
   updateProfile, 
   changePassword, 
-  getUserDetails, 
   type ProfileUpdateData, 
   type PasswordChangeData 
 } from '@/lib/api/users/profile';
@@ -20,7 +19,6 @@ export function useProfile() {
       
       // Check for user before proceeding
       if (!user) {
-        console.error("Cannot update profile - user not authenticated");
         toast({
           variant: 'destructive',
           title: 'Error',
@@ -30,7 +28,6 @@ export function useProfile() {
       }
 
       if (!user.id) {
-        console.error("User object exists but has no ID");
         toast({
           variant: 'destructive',
           title: 'Error',
@@ -38,9 +35,6 @@ export function useProfile() {
         });
         throw new Error('User ID not found');
       }
-      
-      // Log the exact values we're passing
-      console.log("Updating profile for user ID:", user.id, "with data:", data);
       
       // Make sure we're passing a string ID, not an object
       const userId = String(user.id);
@@ -51,16 +45,14 @@ export function useProfile() {
         email: user.email,
       });
       
-      // Use refreshUser to get the latest user data
-      const refreshSuccess = await refreshUser();
-      console.log("Profile updated and user refreshed:", refreshSuccess);
+      // Call refreshUser without storing the unused result
+      await refreshUser();
 
       toast({
         title: 'Success',
         description: 'Profile updated successfully',
       });
     } catch (error: any) {
-      console.error("Profile update failed:", error);
       toast({
         variant: 'destructive',
         title: 'Error',

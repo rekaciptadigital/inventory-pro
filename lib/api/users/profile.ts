@@ -1,47 +1,49 @@
-import axiosInstance from '../axios';
-import type { ApiResponse } from '@/types/api';
-import type { User } from '@/types/user';
+import axios from 'axios';
+import { API_URL } from '@/lib/api/constants';
+import { getTokens } from '@/lib/services/auth/storage.service';
 
-export interface ProfileUpdateData {
-  first_name: string;
-  last_name: string;
-  phone_number: string | null;
-  email: string;
+export type ProfileUpdateData = {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone_number?: string | null;
   photo_profile?: string | null;
-  // Keep other fields in case they're needed elsewhere
-  nip?: string | null;
-  nik?: string | null;
-  address?: string | null;
-}
+};
 
-export interface PasswordChangeData {
+export type PasswordChangeData = {
   current_password: string;
   new_password: string;
-}
+};
 
-/**
- * Get user details by ID
- */
-export async function getUserDetails(userId: string): Promise<ApiResponse<User>> {
-  const response = await axiosInstance.get(`/users/${userId}`);
-  return response.data;
-}
-
-// No need to change the function signature itself, just add some validation
-export async function updateProfile(userId: string, data: ProfileUpdateData): Promise<ApiResponse<User>> {
-  // Add validation to catch errors early
-  if (!userId || typeof userId !== 'string') {
-    console.error("Invalid userId provided to updateProfile:", userId);
-    throw new Error(`Invalid user ID: ${String(userId)}`);
-  }
+export const updateProfile = async (userId: string, data: ProfileUpdateData) => {
+  const tokens = getTokens();
   
-  console.log(`Making API request to /users/${userId} with data:`, data);
-  const response = await axiosInstance.put(`/users/${userId}`, data);
+  const response = await axios.put(`${API_URL}/users/${userId}`, data, {
+    headers: {
+      Authorization: `Bearer ${tokens?.access_token}`,
+    },
+  });
   return response.data;
-}
+};
 
-// Keep the password change endpoint as is
-export async function changePassword(data: PasswordChangeData): Promise<ApiResponse<void>> {
-  const response = await axiosInstance.put('/users/password', data);
+export const changePassword = async (data: PasswordChangeData) => {
+  const tokens = getTokens();
+  
+  const response = await axios.post(`${API_URL}/auth/change-password`, data, {
+    headers: {
+      Authorization: `Bearer ${tokens?.access_token}`,
+    },
+  });
   return response.data;
-}
+};
+
+export const getUserDetails = async (userId: string) => {
+  const tokens = getTokens();
+  
+  const response = await axios.get(`${API_URL}/users/${userId}`, {
+    headers: {
+      Authorization: `Bearer ${tokens?.access_token}`,
+    },
+  });
+  return response.data;
+};

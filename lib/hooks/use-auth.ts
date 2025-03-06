@@ -47,7 +47,6 @@ export function useAuth() {
       clearAuthData();
       router.replace('/login');
     } catch (error) {
-      console.error('Logout failed:', error);
       // Still try to clean up and redirect even if logout fails
       clearAuthData();
       router.replace('/login');
@@ -68,29 +67,24 @@ export function useAuth() {
   const refreshUser = useCallback(async () => {
     if (user?.id) {
       try {
-        console.log("Refreshing user data for ID:", user.id);
         const response = await getUserDetails(user.id);
         
         if (response.data) {
-          console.log("Got fresh user data:", response.data);
           // Update the auth context with fresh data but keep tokens
           dispatch(initializeAuth({
             user: {
               ...response.data,
               // Make sure we retain the tokens
               tokens: user.tokens
-            }
+            },
+            tokens: user.tokens // Use existing tokens instead of undefined
           }));
           return true;
-        } else {
-          console.error("No data returned when refreshing user");
         }
       } catch (error) {
-        console.error("Failed to refresh user data:", error);
+        return false;
       }
-      return false;
     } else {
-      console.error("Cannot refresh user - no user ID available");
       return false;
     }
   }, [user, dispatch]);
@@ -104,6 +98,6 @@ export function useAuth() {
     logout: handleLogout,
     clearError: handleClearError,
     initializeAuth: handleInitializeAuth,
-    refreshUser, // <-- Add the refreshUser function to the return object
+    refreshUser,
   };
 }

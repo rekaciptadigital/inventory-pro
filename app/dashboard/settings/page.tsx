@@ -187,17 +187,15 @@ export default function SettingsPage() {
     const loadUserData = async () => {
       // Only run this once when the component mounts and user is loaded
       if (!isAuthLoading && user?.id && !initialRefreshDone.current) {
-        console.log("Running initial user data refresh");
         initialRefreshDone.current = true;
         
         // Set refreshing state to true
         setIsRefreshing(true);
         
         try {
-          const success = await refreshUser();
-          console.log("Initial refresh result:", success);
+          await refreshUser();
         } catch (error) {
-          console.error("Error refreshing user data:", error);
+          // Remove console.error but keep the try/catch for error handling
         } finally {
           // Set refreshing state to false when done
           setIsRefreshing(false);
@@ -208,13 +206,6 @@ export default function SettingsPage() {
     loadUserData();
     // Remove refreshUser from dependencies to prevent loops
   }, [isAuthLoading, user?.id]);
-
-  // Only log user data changes, don't trigger refreshes
-  useEffect(() => {
-    if (user) {
-      console.log("Current user data:", user);
-    }
-  }, [user]);
 
   // Calculate the actual loading state based on auth loading or data refreshing
   const isLoading = isAuthLoading || isRefreshing;

@@ -8,6 +8,7 @@ export interface AuthResponse {
 }
 
 export interface AuthUser {
+  tokens: any;
   id: string;
   nip: string | null;
   nik: string | null;
