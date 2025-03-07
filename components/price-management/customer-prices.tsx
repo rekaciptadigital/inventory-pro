@@ -24,14 +24,13 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
   const { categories } = usePriceCategories();
   const [manualModes, setManualModes] = useState<Record<string, boolean>>({});
   
-  // Get form values with proper defaults
   const formValues = form.watch();
   const hbNaik = formValues.hbNaik || 0;
   const percentages = formValues.percentages || {};
 
-  const calculatePrices = (category: any) => {
+  const calculatePrices = (category: any, customPercentage?: number) => {
     const categoryKey = category.name.toLowerCase();
-    const markup = percentages[categoryKey] ?? category.percentage;
+    const markup = customPercentage ?? percentages[categoryKey] ?? category.percentage;
     const basePrice = hbNaik * (1 + (markup / 100));
     const taxPercentage = 11; // Fixed tax rate
     const taxAmount = basePrice * (taxPercentage / 100);
@@ -44,15 +43,25 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     };
   };
 
-  // Update prices whenever hbNaik changes
+  // Update prices whenever hbNaik or percentages change
   useEffect(() => {
     categories.forEach(category => {
       const categoryKey = category.name.toLowerCase();
       const prices = calculatePrices(category);
-      
       form.setValue(`customerPrices.${categoryKey}`, prices);
     });
-  }, [hbNaik, categories, form]);
+  }, [hbNaik, percentages, categories, form]);
+
+  const handlePercentageChange = (category: any, value: string) => {
+    const categoryKey = category.name.toLowerCase();
+    const numValue = parseFloat(value);
+    
+    if (!isNaN(numValue)) {
+      form.setValue(`percentages.${categoryKey}`, numValue);
+      const prices = calculatePrices(category, numValue);
+      form.setValue(`customerPrices.${categoryKey}`, prices);
+    }
+  };
 
   return (
     <Form {...form}>
@@ -87,8 +96,34 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                     </div>
                   </div>
 
-                  {/* Changed container to display Pre-tax Price and Tax-inclusive Price side by side */}
+                  {/* Price settings container */}
                   <div className="flex gap-4">
+                    {/* New Percentage Input */}
+                    <div className="flex-1">
+                      <FormField
+                        control={form.control}
+                        name={`percentages.${categoryKey}`}
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>Markup Percentage (%)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                value={currentPercentage}
+                                onChange={(e) => handlePercentageChange(category, e.target.value)}
+                                disabled={!isManual}
+                                className={!isManual ? "bg-muted" : ""}
+                              />
+                            </FormControl>
+                            <p className="text-sm text-muted-foreground">
+                              {isManual ? "Custom markup percentage" : "Default category markup"}
+                            </p>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {/* Pre-tax Price */}
                     <div className="flex-1">
                       <FormField
                         control={form.control}
@@ -111,6 +146,8 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                         )}
                       />
                     </div>
+
+                    {/* Tax-inclusive Price */}
                     <div className="flex-1">
                       <FormField
                         control={form.control}
@@ -119,27 +156,13 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                           <FormItem>
                             <FormLabel>Tax-inclusive Price</FormLabel>
                             <FormControl>
-                              {isManual ? (
-                                <Input
-                                  type="number"
-                                  value={form.watch(`customerPrices.${categoryKey}.taxInclusivePrice`) || 0}
-                                  onChange={(e) => {
-                                    form.setValue(
-                                      `customerPrices.${categoryKey}.taxInclusivePrice`,
-                                      parseFloat(e.target.value) || 0
-                                    );
-                                  }}
-                                />
-                              ) : (
-                                <Input
-                                  type="text"
-                                  value={formatCurrency(prices.taxInclusivePrice)}
-                                  className="bg-muted font-medium"
-                                  disabled
-                                />
-                              )}
+                              <Input
+                                type="text"
+                                value={formatCurrency(prices.taxInclusivePrice)}
+                                className="bg-muted font-medium"
+                                disabled
+                              />
                             </FormControl>
-                            <FormMessage />
                             <p className="text-sm text-muted-foreground">
                               Including 11% tax ({formatCurrency(prices.taxAmount)})
                             </p>
@@ -148,7 +171,6 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                       />
                     </div>
                   </div>
-                  {/* Removed the Applied Taxes section */}
                 </div>
               );
             })}
