@@ -13,26 +13,48 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { usePriceCategories } from "@/lib/hooks/use-price-categories";
+import { getPriceCategories } from "@/lib/api/price-categories";
 import { formatCurrency } from "@/lib/utils/format";
+import type { PriceCategory } from "@/lib/api/price-categories";
 
 interface CustomerPricesProps {
   readonly form: UseFormReturn<PriceFormFields>;
 }
 
 export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
-  const { categories } = usePriceCategories();
+  const [categories, setCategories] = useState<PriceCategory[]>([]);
   const [manualModes, setManualModes] = useState<Record<string, boolean>>({});
+  const [isLoading, setIsLoading] = useState(true);
   
   const formValues = form.watch();
   const hbNaik = formValues.hbNaik || 0;
   const percentages = formValues.percentages || {};
 
-  const calculatePrices = (category: any, customPercentage?: number) => {
+  // Fetch price categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await getPriceCategories();
+        // Filter only customer type categories
+        const customerCategories = response.data
+          .find(group => group.type.toLowerCase() === 'customer')
+          ?.categories || [];
+        setCategories(customerCategories);
+      } catch (error) {
+        console.error("Error fetching price categories:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  const calculatePrices = (category: PriceCategory, customPercentage?: number) => {
     const categoryKey = category.name.toLowerCase();
     const markup = customPercentage ?? percentages[categoryKey] ?? category.percentage;
     const basePrice = hbNaik * (1 + (markup / 100));
-    const taxPercentage = 11; // Fixed tax rate
+    const taxPercentage = 11;
     const taxAmount = basePrice * (taxPercentage / 100);
 
     return {
@@ -52,7 +74,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     });
   }, [hbNaik, percentages, categories, form]);
 
-  const handlePercentageChange = (category: any, value: string) => {
+  const handlePercentageChange = (category: PriceCategory, value: string) => {
     const categoryKey = category.name.toLowerCase();
     const numValue = parseFloat(value);
     
@@ -62,6 +84,10 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
       form.setValue(`customerPrices.${categoryKey}`, prices);
     }
   };
+
+  if (isLoading) {
+    return <div>Loading categories...</div>;
+  }
 
   return (
     <Form {...form}>
