@@ -1,82 +1,88 @@
 'use client';
 
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useEffect, useCallback, Fragment } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { PriceFormFields } from '@/types/form';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/utils/format';
-import { usePriceCategories } from '@/lib/hooks/use-price-categories';
 import type { InventoryProduct } from '@/types/inventory';
 import { VolumeDiscount } from './volume-discount';
+import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
+import {
+  setManualPriceEditing,
+  initializeVariantPrices,
+  updateVariantPrices,
+  updateVariantPrice
+} from '@/lib/store/slices/variantPricesSlice';
 
 interface VariantPricesProps {
   readonly form: UseFormReturn<PriceFormFields>;
   readonly product: InventoryProduct;
-  readonly defaultPriceCategory: string;
 }
 
 export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
-  const [manualPriceEditing, setManualPriceEditing] = useState(false);
-  const { categories } = usePriceCategories();
+  const dispatch = useAppDispatch();
+  const { manualPriceEditing, prices: variantPrices } = useAppSelector(state => state.variantPrices);
   const variants = product?.product_by_variant || [];
+  
+  // Get customer price categories from the form
+  const customerPrices = form.watch('customerPrices') || {};
+  
+  // Use customer price categories to ensure consistency
+  const customerCategories = Object.keys(customerPrices).map(key => ({
+    id: key,
+    name: key.charAt(0).toUpperCase() + key.slice(1) // Capitalize first letter
+  }));
 
-  // Initialize variant prices
+  // Initialize variant prices with all categories
   useEffect(() => {
-    if (!variants.length) return;
-
-    const currentPrices = form.getValues('variantPrices') || {};
-    if (Object.keys(currentPrices).length === 0) {
-      const initialPrices = variants.reduce((acc, variant) => {
-        acc[variant.sku_product_variant] = {
-          prices: categories.reduce((priceAcc, category) => {
-            priceAcc[category.name.toLowerCase()] = 0;
-            return priceAcc;
-          }, {} as Record<string, number>),
-          status: true
-        };
-        return acc;
-      }, {} as Record<string, { prices: Record<string, number>; status: boolean }>);
-
-      form.setValue('variantPrices', initialPrices, { shouldDirty: true });
-    }
-  }, [variants.length, categories]);
+    if (!variants.length || !customerCategories.length) return;
+    
+    dispatch(initializeVariantPrices({
+      variants,
+      categories: customerCategories,
+      customerPrices
+    }));
+    
+  }, [variants, customerCategories.length, dispatch]);
 
   // Update variant prices when customer prices change
   useEffect(() => {
-    if (manualPriceEditing || !variants.length) return;
-
-    const customerPrices = form.getValues('customerPrices');
-    const currentPrices = form.getValues('variantPrices') || {};
-
-    const updatedPrices = variants.reduce((acc, variant) => {
-      acc[variant.sku_product_variant] = {
-        ...currentPrices[variant.sku_product_variant],
-        prices: categories.reduce((priceAcc, category) => {
-          const categoryKey = category.name.toLowerCase();
-          priceAcc[categoryKey] = customerPrices[categoryKey]?.taxInclusivePrice || 0;
-          return priceAcc;
-        }, {} as Record<string, number>)
+    if (!variants.length || !customerCategories.length) return;
+    
+    dispatch(updateVariantPrices({
+      variants,
+      categories: customerCategories,
+      customerPrices
+    }));
+    
+    // Map Redux state to form structure (adding status field)
+    const formattedPrices = Object.entries(variantPrices).reduce((acc, [sku, data]) => {
+      acc[sku] = {
+        prices: data.prices,
+        status: true // Add default status as true since we removed it from Redux
       };
       return acc;
     }, {} as Record<string, { prices: Record<string, number>; status: boolean }>);
+    
+    // Update the form values with the mapped structure
+    form.setValue('variantPrices', formattedPrices, { shouldDirty: true });
+    
+  }, [customerPrices, variants.length, customerCategories.length, dispatch, variantPrices]);
 
-    form.setValue('variantPrices', updatedPrices, { shouldDirty: true });
-  }, [form.watch('customerPrices'), manualPriceEditing]);
-
-  // Update price change handler
+  // Handle manual price changes
   const handlePriceChange = useCallback((sku: string, category: string, value: string) => {
-    const numericValue = parseFloat(value) || 0;
+    const numericValue = parseFloat(value.replace(/\D/g, '')) || 0;
+    dispatch(updateVariantPrice({ sku, category, price: numericValue }));
     form.setValue(`variantPrices.${sku}.prices.${category}`, numericValue, { shouldDirty: true });
-  }, [form]);
+    // Also maintain status in form value
+    form.setValue(`variantPrices.${sku}.status`, true, { shouldDirty: true });
+  }, [dispatch, form]);
 
-  const handleStatusChange = useCallback((sku: string, checked: boolean) => {
-    form.setValue(`variantPrices.${sku}.status`, checked, { shouldDirty: true });
-  }, [form]);
-
-  if (!variants.length) {
-    return null;
-  }
+  const handleManualEditingChange = useCallback((checked: boolean) => {
+    dispatch(setManualPriceEditing(checked));
+  }, [dispatch]);
 
   return (
     <div className="space-y-8">
@@ -92,7 +98,7 @@ export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
             <span className="text-sm text-muted-foreground">Manual Price Editing</span>
             <Switch
               checked={manualPriceEditing}
-              onCheckedChange={setManualPriceEditing}
+              onCheckedChange={handleManualEditingChange}
             />
           </div>
         </div>
@@ -103,19 +109,17 @@ export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
               <thead>
                 <tr className="bg-muted/50">
                   <th className="p-4 text-left whitespace-nowrap">Variant</th>
-                  {categories.map((category) => (
-                    <th key={category.name} className="p-4 text-right whitespace-nowrap">
+                  {customerCategories.map((category) => (
+                    <th key={category.id} className="p-4 text-right whitespace-nowrap">
                       {category.name} Price
                     </th>
                   ))}
-                  <th className="p-4 text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {variants.map((variant) => {
-                  const variantPrice = form.watch(`variantPrices.${variant.sku_product_variant}`) || {
-                    prices: {},
-                    status: true
+                  const variantPrice = variantPrices[variant.sku_product_variant] || {
+                    prices: {}
                   };
 
                   return (
@@ -127,30 +131,23 @@ export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
                             SKU: {variant.sku_product_variant}
                           </div>
                         </td>
-                        {categories.map((category) => {
-                          const categoryKey = category.name.toLowerCase();
+                        {customerCategories.map((category) => {
                           return (
                             <td key={`${variant.sku_product_variant}-${category.name}`} className="p-4">
                               <Input
                                 type="text"
-                                value={formatCurrency(variantPrice.prices[categoryKey] || 0)}
+                                value={formatCurrency(variantPrice.prices[category.id] || 0)}
                                 onChange={(e) => handlePriceChange(
                                   variant.sku_product_variant,
-                                  categoryKey,
-                                  e.target.value.replace(/\D/g, '')
+                                  category.id,
+                                  e.target.value
                                 )}
                                 disabled={!manualPriceEditing}
-                                className="text-right"
+                                className={`text-right ${!manualPriceEditing ? 'bg-muted' : ''}`}
                               />
                             </td>
                           );
                         })}
-                        <td className="p-4 text-center">
-                          <Switch
-                            checked={variantPrice.status}
-                            onCheckedChange={(checked) => handleStatusChange(variant.sku_product_variant, checked)}
-                          />
-                        </td>
                       </tr>
                     </Fragment>
                   );
