@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, Fragment } from 'react';
+import { useEffect, useCallback, Fragment, useRef } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { PriceFormFields } from '@/types/form';
 import { Switch } from '@/components/ui/switch';
@@ -13,21 +13,53 @@ import {
   setManualPriceEditing,
   initializeVariantPrices,
   updateVariantPrices,
-  updateVariantPrice
+  updateVariantPrice,
+  updateVariantUsdPrice,
+  updateVariantAdjustment
 } from '@/lib/store/slices/variantPricesSlice';
 
 interface VariantPricesProps {
   readonly form: UseFormReturn<PriceFormFields>;
   readonly product: InventoryProduct;
+  readonly defaultPriceCategory?: string;
 }
 
-export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
+// Format number without currency symbol for USD Price
+const formatUsdPrice = (price: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(price);
+};
+
+export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }: Readonly<VariantPricesProps>) {
   const dispatch = useAppDispatch();
   const { manualPriceEditing, prices: variantPrices } = useAppSelector(state => state.variantPrices);
   const variants = product?.product_by_variant || [];
   
+  // Refs to prevent infinite loops
+  const initializedRef = useRef(false);
+  const pricingInfoRef = useRef<{ usdPrice: number; adjustmentPercentage: number } | null>(null);
+  
   // Get customer price categories from the form
   const customerPrices = form.watch('customerPrices') || {};
+  
+  // Get pricing information for default values
+  const formValues = form.watch();
+  const pricingInfo = formValues.pricingInformation || { usdPrice: 0, adjustmentPercentage: 0 };
+  
+  // Extract values directly with fallbacks to ensure we get numbers
+  const defaultUsdPrice = pricingInfo.usdPrice ?? 0;
+  const defaultAdjustment = pricingInfo.adjustmentPercentage ?? 0;
+  
+  // Log the pricing info values to verify what we're getting
+  useEffect(() => {
+    console.log('Pricing Info Values:', { 
+      pricingInfo,
+      defaultUsdPrice, 
+      defaultAdjustment 
+    });
+  }, [pricingInfo, defaultUsdPrice, defaultAdjustment]);
   
   // Use customer price categories to ensure consistency
   const customerCategories = Object.keys(customerPrices).map(key => ({
@@ -35,50 +67,113 @@ export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
     name: key.charAt(0).toUpperCase() + key.slice(1) // Capitalize first letter
   }));
 
-  // Initialize variant prices with all categories
+  // Update form values from Redux state (separated from Redux update logic)
   useEffect(() => {
     if (!variants.length || !customerCategories.length) return;
-    
-    dispatch(initializeVariantPrices({
-      variants,
-      categories: customerCategories,
-      customerPrices
-    }));
-    
-  }, [variants, customerCategories.length, dispatch]);
-
-  // Update variant prices when customer prices change
-  useEffect(() => {
-    if (!variants.length || !customerCategories.length) return;
-    
-    dispatch(updateVariantPrices({
-      variants,
-      categories: customerCategories,
-      customerPrices
-    }));
     
     // Map Redux state to form structure (adding status field)
     const formattedPrices = Object.entries(variantPrices).reduce((acc, [sku, data]) => {
       acc[sku] = {
         prices: data.prices,
-        status: true // Add default status as true since we removed it from Redux
+        usdPrice: data.usdPrice ?? defaultUsdPrice,
+        adjustmentPercentage: data.adjustmentPercentage ?? defaultAdjustment,
+        status: true // Add default status as true
       };
       return acc;
-    }, {} as Record<string, { prices: Record<string, number>; status: boolean }>);
+    }, {} as Record<string, { 
+      prices: Record<string, number>; 
+      usdPrice: number;
+      adjustmentPercentage: number;
+      status: boolean 
+    }>);
     
     // Update the form values with the mapped structure
     form.setValue('variantPrices', formattedPrices, { shouldDirty: true });
     
-  }, [customerPrices, variants.length, customerCategories.length, dispatch, variantPrices]);
+  }, [variantPrices, customerCategories.length, defaultUsdPrice, defaultAdjustment, form]);
+
+  // Initial setup and customer prices update
+  useEffect(() => {
+    if (!variants.length || !customerCategories.length) return;
+    
+    if (!initializedRef.current) {
+      dispatch(initializeVariantPrices({
+        variants,
+        categories: customerCategories,
+        customerPrices,
+        pricingInfo: {
+          usdPrice: defaultUsdPrice,
+          adjustmentPercentage: defaultAdjustment
+        }
+      }));
+      initializedRef.current = true;
+    } else {
+      // Only update prices, not recreate everything
+      dispatch(updateVariantPrices({
+        variants,
+        categories: customerCategories,
+        customerPrices,
+        pricingInfo: {
+          usdPrice: defaultUsdPrice,
+          adjustmentPercentage: defaultAdjustment
+        }
+      }));
+    }
+  }, [customerCategories.length, customerPrices, dispatch, variants, defaultUsdPrice, defaultAdjustment]);
+
+  // Handle pricing info changes separately to avoid loops
+  useEffect(() => {
+    const currentInfo = {
+      usdPrice: defaultUsdPrice,
+      adjustmentPercentage: defaultAdjustment
+    };
+    
+    // Log the current pricing info to verify what we're updating with
+    console.log('Updating variants with:', currentInfo);
+    
+    // Only process if pricing info has actually changed
+    if (!pricingInfoRef.current || 
+        pricingInfoRef.current.usdPrice !== currentInfo.usdPrice ||
+        pricingInfoRef.current.adjustmentPercentage !== currentInfo.adjustmentPercentage) {
+      
+      // Update ref to new values
+      pricingInfoRef.current = currentInfo;
+      
+      // Don't update if no variants or not initialized
+      if (!variants.length || !initializedRef.current) return;
+      
+      console.log('Applying pricing info to variants:', {
+        variants: variants.length,
+        usdPrice: defaultUsdPrice,
+        adjustmentPercentage: defaultAdjustment
+      });
+      
+      // Apply pricing info to all variants
+      variants.forEach(variant => {
+        const sku = variant.sku_product_variant;
+        dispatch(updateVariantUsdPrice({ sku, price: defaultUsdPrice }));
+        dispatch(updateVariantAdjustment({ sku, percentage: defaultAdjustment }));
+      });
+    }
+  }, [defaultUsdPrice, defaultAdjustment, variants, dispatch]);
 
   // Handle manual price changes
   const handlePriceChange = useCallback((sku: string, category: string, value: string) => {
     const numericValue = parseFloat(value.replace(/\D/g, '')) || 0;
     dispatch(updateVariantPrice({ sku, category, price: numericValue }));
-    form.setValue(`variantPrices.${sku}.prices.${category}`, numericValue, { shouldDirty: true });
-    // Also maintain status in form value
-    form.setValue(`variantPrices.${sku}.status`, true, { shouldDirty: true });
-  }, [dispatch, form]);
+  }, [dispatch]);
+
+  // Handle USD price changes
+  const handleUsdPriceChange = useCallback((sku: string, value: string) => {
+    const numericValue = parseFloat(value.replace(/\D/g, '')) || 0;
+    dispatch(updateVariantUsdPrice({ sku, price: numericValue }));
+  }, [dispatch]);
+
+  // Handle adjustment percentage changes
+  const handleAdjustmentChange = useCallback((sku: string, value: string) => {
+    const numericValue = parseFloat(value) || 0;
+    dispatch(updateVariantAdjustment({ sku, percentage: numericValue }));
+  }, [dispatch]);
 
   const handleManualEditingChange = useCallback((checked: boolean) => {
     dispatch(setManualPriceEditing(checked));
@@ -109,6 +204,8 @@ export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
               <thead>
                 <tr className="bg-muted/50">
                   <th className="p-4 text-left whitespace-nowrap">Variant</th>
+                  <th className="p-4 text-right whitespace-nowrap">USD Price</th>
+                  <th className="p-4 text-right whitespace-nowrap">Adjustment (%)</th>
                   {customerCategories.map((category) => (
                     <th key={category.id} className="p-4 text-right whitespace-nowrap">
                       {category.name} Price
@@ -118,12 +215,17 @@ export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
               </thead>
               <tbody className="divide-y">
                 {variants.map((variant) => {
-                  const variantPrice = variantPrices[variant.sku_product_variant] || {
-                    prices: {}
+                  const variantSku = variant.sku_product_variant;
+                  const variantData = variantPrices[variantSku] || {};
+                  
+                  const variantPrice = {
+                    prices: variantData.prices || {},
+                    usdPrice: variantData.usdPrice ?? defaultUsdPrice,
+                    adjustmentPercentage: variantData.adjustmentPercentage ?? defaultAdjustment
                   };
 
                   return (
-                    <Fragment key={variant.sku_product_variant}>
+                    <Fragment key={variantSku}>
                       <tr className="hover:bg-muted/30">
                         <td className="p-4">
                           <div className="font-medium">{variant.full_product_name}</div>
@@ -131,23 +233,45 @@ export function VariantPrices({ form, product }: Readonly<VariantPricesProps>) {
                             SKU: {variant.sku_product_variant}
                           </div>
                         </td>
-                        {customerCategories.map((category) => {
-                          return (
-                            <td key={`${variant.sku_product_variant}-${category.name}`} className="p-4">
-                              <Input
-                                type="text"
-                                value={formatCurrency(variantPrice.prices[category.id] || 0)}
-                                onChange={(e) => handlePriceChange(
-                                  variant.sku_product_variant,
-                                  category.id,
-                                  e.target.value
-                                )}
-                                disabled={!manualPriceEditing}
-                                className={`text-right ${!manualPriceEditing ? 'bg-muted' : ''}`}
-                              />
-                            </td>
-                          );
-                        })}
+                        <td className="p-4">
+                          <Input
+                            type="text"
+                            value={formatUsdPrice(variantPrice.usdPrice || 0)}
+                            onChange={(e) => handleUsdPriceChange(
+                              variant.sku_product_variant,
+                              e.target.value
+                            )}
+                            disabled={!manualPriceEditing}
+                            className={`text-right ${!manualPriceEditing ? 'bg-muted' : ''}`}
+                          />
+                        </td>
+                        <td className="p-4">
+                          <Input
+                            type="number"
+                            value={variantPrice.adjustmentPercentage || 0}
+                            onChange={(e) => handleAdjustmentChange(
+                              variant.sku_product_variant,
+                              e.target.value
+                            )}
+                            disabled={!manualPriceEditing}
+                            className={`text-right ${!manualPriceEditing ? 'bg-muted' : ''}`}
+                          />
+                        </td>
+                        {customerCategories.map((category) => (
+                          <td key={`${variant.sku_product_variant}-${category.name}`} className="p-4">
+                            <Input
+                              type="text"
+                              value={formatCurrency(variantPrice.prices[category.id] || 0)}
+                              onChange={(e) => handlePriceChange(
+                                variant.sku_product_variant,
+                                category.id,
+                                e.target.value
+                              )}
+                              disabled={!manualPriceEditing}
+                              className={`text-right ${!manualPriceEditing ? 'bg-muted' : ''}`}
+                            />
+                          </td>
+                        ))}
                       </tr>
                     </Fragment>
                   );

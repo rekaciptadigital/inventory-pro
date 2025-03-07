@@ -17,9 +17,17 @@ export interface PriceFormFields {
   
   // Variant prices
   variantPrices: Record<string, {
-    prices: Record<string, number>;  // Changed from price: number
+    prices: Record<string, number>;
+    usdPrice: number;
+    adjustmentPercentage: number;
     status: boolean;
   }>;
+
+  pricingInformation: {
+    usdPrice: number;
+    adjustmentPercentage: number;
+    // Add any other fields that might be in the pricing information
+  };
 }
 
 // Keep this separate if needed for other forms

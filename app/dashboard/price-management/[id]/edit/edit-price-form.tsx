@@ -34,6 +34,10 @@ export function EditPriceForm() {
       customerPrices: product?.customerPrices || {},
       percentages: product?.percentages || {},
       variantPrices: {},
+      pricingInformation: {
+        usdPrice: product?.usdPrice ?? 0, // Changed from usd_price to usdPrice
+        adjustmentPercentage: product?.adjustmentPercentage ?? 0, // Changed from adjustment_percentage to adjustmentPercentage
+      },
     },
   });
 
@@ -75,7 +79,6 @@ export function EditPriceForm() {
             <VariantPrices 
               form={form}
               product={product}
-              defaultPriceCategory="retail"
             />
           )}
 
