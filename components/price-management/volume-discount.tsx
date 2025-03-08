@@ -637,7 +637,49 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
     }
   }, [customizePerVariant, variants, customerPrices, globalTiers]);
 
-  // Improve validation to be more flexible with initial values
+  // Extract specific validation logic into separate functions
+  function validateQuantity(
+    tiers: DiscountTier[],
+    index: number,
+    value: number
+  ): string | null {
+    // Don't allow negative or zero quantities
+    if (value <= 0) {
+      return 'Quantity must be greater than zero';
+    }
+    
+    // Check for duplicate quantities
+    if (tiers.some((tier, i) => i !== index && tier.quantity === value)) {
+      return 'Duplicate quantity tier';
+    }
+    
+    // Check for ascending order with previous tier
+    if (index > 0) {
+      const prevTier = tiers[index - 1];
+      if (value <= prevTier.quantity) {
+        return `Quantity must be greater than ${prevTier.quantity}`;
+      }
+    }
+    
+    // Check for descending order with next tier
+    if (index < tiers.length - 1) {
+      const nextTier = tiers[index + 1];
+      if (value >= nextTier.quantity) {
+        return `Quantity must be less than ${nextTier.quantity}`;
+      }
+    }
+    
+    return null;
+  }
+  
+  function validateDiscount(value: number): string | null {
+    if (value < 0 || value > 100) {
+      return 'Discount must be between 0 and 100%';
+    }
+    return null;
+  }
+  
+  // Simplified validation function with reduced complexity
   const validateTier = useCallback((
     tiers: DiscountTier[],
     index: number,
@@ -645,36 +687,13 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
     value: number
   ): string | null => {
     if (field === 'quantity') {
-      // Don't allow negative or zero quantities
-      if (value <= 0) {
-        return 'Quantity must be greater than zero';
-      }
-      
-      // Check for duplicate quantities
-      if (tiers.some((tier, i) => i !== index && tier.quantity === value)) {
-        return 'Duplicate quantity tier';
-      }
-      
-      // Check for ascending order, but skip this check if this is the first tier
-      if (index > 0) {
-        const prevTier = tiers[index - 1];
-        if (value <= prevTier.quantity) {
-          return `Quantity must be greater than ${prevTier.quantity}`;
-        }
-      }
-      
-      // Check for descending order with next tier if it exists
-      if (index < tiers.length - 1) {
-        const nextTier = tiers[index + 1];
-        if (value >= nextTier.quantity) {
-          return `Quantity must be less than ${nextTier.quantity}`;
-        }
-      }
-    } else if (field === 'discount') {
-      if (value < 0 || value > 100) {
-        return 'Discount must be between 0 and 100%';
-      }
+      return validateQuantity(tiers, index, value);
+    } 
+    
+    if (field === 'discount') {
+      return validateDiscount(value);
     }
+    
     return null;
   }, []);
 
@@ -686,33 +705,113 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
     });
   }, [toast]);
 
-  // Enhanced update tier function - Handle errors properly
-  const updateTier = useCallback((
-    variantSku: string,
+  // Define a more specific type for tier field names
+  type TierField = keyof DiscountTier | `prices.${string}`;
+
+  // Simplify update logic by extracting handlers for global and variant tiers
+  const handleGlobalTierUpdate = useCallback((
+    field: string, // Change from keyof DiscountTier | string to just string
     index: number,
-    field: string,
     value: number
   ) => {
-    // When updating discount percentage or quantity, handle validation and price updates
-    if (field === 'discount' || field === 'quantity') {
-      // For global tiers
-      if (variantSku === 'global') {
-        setGlobalTiers(prev => {
-          const error = validateTier(prev, index, field as keyof DiscountTier, value);
-          if (error) {
-            // Move toast call to after state update to avoid render-phase setState
-            setTimeout(() => {
-              showError(error);
-            }, 0);
-            return prev;
+    // For price fields
+    if (field.startsWith('prices.')) {
+      setGlobalTiers(prev => {
+        const newTiers = [...prev];
+        const categoryKey = field.split('.')[1];
+        newTiers[index] = {
+          ...newTiers[index],
+          prices: {
+            ...newTiers[index].prices,
+            [categoryKey]: value
+          }
+        };
+        return newTiers;
+      });
+      return;
+    }
+    
+    // For quantity and discount fields
+    setGlobalTiers(prev => {
+      // Only pass valid DiscountTier keys to validateTier
+      const fieldAsKey = field as keyof DiscountTier;
+      const error = validateTier(prev, index, fieldAsKey, value);
+      if (error) {
+        setTimeout(() => showError(error), 0);
+        return prev;
+      }
+      
+      return prev.map((tier, i) => {
+        if (i === index) {
+          // Update tier with new value
+          const updatedTier = { ...tier, [field]: value };
+          
+          // If discount is updated, also update prices
+          if (field === 'discount') {
+            updatedTier.prices = calculateDiscountedPrices(customerPrices, value);
           }
           
-          return prev.map((tier, i) => {
+          return updatedTier;
+        }
+        return tier;
+      });
+    });
+  }, [validateTier, showError, customerPrices]);
+  
+  const handleVariantTierUpdate = useCallback((
+    variantSku: string,
+    field: string, // Change from keyof DiscountTier | string to just string
+    index: number,
+    value: number
+  ) => {
+    // For price fields
+    if (field.startsWith('prices.')) {
+      setVariantDiscounts(prev => {
+        const variant = prev[variantSku];
+        if (!variant) return prev;
+        
+        const newTiers = [...variant.tiers];
+        const categoryKey = field.split('.')[1];
+        newTiers[index] = {
+          ...newTiers[index],
+          prices: {
+            ...newTiers[index].prices,
+            [categoryKey]: value
+          }
+        };
+        
+        return {
+          ...prev,
+          [variantSku]: {
+            ...variant,
+            tiers: newTiers
+          }
+        };
+      });
+      return;
+    }
+    
+    // For quantity and discount fields
+    setVariantDiscounts(prev => {
+      const variant = prev[variantSku];
+      if (!variant) return prev;
+      
+      // Only pass valid DiscountTier keys to validateTier
+      const fieldAsKey = field as keyof DiscountTier;
+      const error = validateTier(variant.tiers, index, fieldAsKey, value);
+      if (error) {
+        setTimeout(() => showError(error), 0);
+        return prev;
+      }
+      
+      return {
+        ...prev,
+        [variantSku]: {
+          ...variant,
+          tiers: variant.tiers.map((tier, i) => {
             if (i === index) {
-              // Update tier with new value
               const updatedTier = { ...tier, [field]: value };
               
-              // If discount is updated, also update prices
               if (field === 'discount') {
                 updatedTier.prices = calculateDiscountedPrices(customerPrices, value);
               }
@@ -720,89 +819,25 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
               return updatedTier;
             }
             return tier;
-          });
-        });
-      } 
-      // For variant specific tiers
-      else {
-        setVariantDiscounts(prev => {
-          const variant = prev[variantSku];
-          if (!variant) return prev;
-          
-          const error = validateTier(variant.tiers, index, field as keyof DiscountTier, value);
-          if (error) {
-            // Move toast call to after state update
-            setTimeout(() => {
-              showError(error);
-            }, 0);
-            return prev;
-          }
-          
-          return {
-            ...prev,
-            [variantSku]: {
-              ...variant,
-              tiers: variant.tiers.map((tier, i) => {
-                if (i === index) {
-                  // Update tier with new value
-                  const updatedTier = { ...tier, [field]: value };
-                  
-                  // If discount is updated, also update prices
-                  if (field === 'discount') {
-                    updatedTier.prices = calculateDiscountedPrices(customerPrices, value);
-                  }
-                  
-                  return updatedTier;
-                }
-                return tier;
-              })
-            }
-          };
-        });
-      }
-    } 
-    // Handle price updates
-    else if (field.startsWith('prices.')) {
-      // Similar pattern for price updates
-      if (variantSku === 'global') {
-        setGlobalTiers(prev => {
-          const newTiers = [...prev];
-          const categoryKey = field.split('.')[1];
-          newTiers[index] = {
-            ...newTiers[index],
-            prices: {
-              ...newTiers[index].prices,
-              [categoryKey]: value
-            }
-          };
-          return newTiers;
-        });
-      } else {
-        setVariantDiscounts(prev => {
-          const variant = prev[variantSku];
-          if (!variant) return prev;
-          
-          const newTiers = [...variant.tiers];
-          const categoryKey = field.split('.')[1];
-          newTiers[index] = {
-            ...newTiers[index],
-            prices: {
-              ...newTiers[index].prices,
-              [categoryKey]: value
-            }
-          };
-          
-          return {
-            ...prev,
-            [variantSku]: {
-              ...variant,
-              tiers: newTiers
-            }
-          };
-        });
-      }
-    }
+          })
+        }
+      };
+    });
   }, [validateTier, showError, customerPrices]);
+
+  // Simplified updateTier function with reduced complexity
+  const updateTier = useCallback((
+    variantSku: string,
+    index: number,
+    field: string,
+    value: number
+  ) => {
+    if (variantSku === 'global') {
+      handleGlobalTierUpdate(field, index, value);
+    } else {
+      handleVariantTierUpdate(variantSku, field, index, value);
+    }
+  }, [handleGlobalTierUpdate, handleVariantTierUpdate]);
 
   const removeTier = useCallback((variantSku: string, index: number) => {
     if (variantSku === 'global') {
