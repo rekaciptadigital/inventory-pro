@@ -7,8 +7,6 @@ import {
   Form,
   FormControl,
   FormField,
-  FormItem,
-  FormLabel,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -140,11 +138,12 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
         <div className="rounded-lg border p-4 space-y-4">
           <h3 className="text-lg font-medium">Customer Category Prices</h3>
           
-          {/* Headers */}
+          {/* Headers - Adjusted columns to include Pre-tax Price */}
           <div className="grid grid-cols-12 gap-4 px-4 py-2 font-medium text-sm">
             <div className="col-span-3">Customer Category</div>
-            <div className="col-span-4">Markup Percentage (%)</div>
-            <div className="col-span-3">Tax-inclusive Price</div>
+            <div className="col-span-3">Markup Percentage (%)</div>
+            <div className="col-span-2">Pre-tax Price</div>
+            <div className="col-span-2">Tax-inclusive Price</div>
             <div className="col-span-2">Custom Price</div>
           </div>
           
@@ -171,8 +170,8 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                     )}
                   </div>
                   
-                  {/* Markup Percentage */}
-                  <div className="col-span-4">
+                  {/* Markup Percentage - Reduced to col-span-3 */}
+                  <div className="col-span-3">
                     <FormField
                       control={form.control}
                       name={`percentages.${categoryKey}`}
@@ -193,30 +192,49 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                     </p>
                   </div>
                   
-                  {/* Tax-inclusive Price */}
-                  <div className="col-span-3">
-                    <div className="flex flex-col">
-                      <FormField
-                        control={form.control}
-                        name={`customerPrices.${categoryKey}.taxInclusivePrice`}
-                        render={() => (
-                          <FormControl>
-                            <Input
-                              type="text"
-                              value={formatCurrency(prices.taxInclusivePrice)}
-                              className="bg-muted font-medium"
-                              disabled
-                            />
-                          </FormControl>
-                        )}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Pre-tax: {formatCurrency(prices.basePrice)}
-                      </p>
-                    </div>
+                  {/* Pre-tax Price - New column with description */}
+                  <div className="col-span-2">
+                    <FormField
+                      control={form.control}
+                      name={`customerPrices.${categoryKey}.basePrice`}
+                      render={() => (
+                        <FormControl>
+                          <Input
+                            type="text"
+                            value={formatCurrency(prices.basePrice)}
+                            className="bg-muted font-medium"
+                            disabled
+                          />
+                        </FormControl>
+                      )}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Before {prices.appliedTaxPercentage}% tax
+                    </p>
                   </div>
                   
-                  {/* Custom Toggle - Updated label from "Default" to "Manual" */}
+                  {/* Tax-inclusive Price - Reduced to col-span-2 with tax amount description */}
+                  <div className="col-span-2">
+                    <FormField
+                      control={form.control}
+                      name={`customerPrices.${categoryKey}.taxInclusivePrice`}
+                      render={() => (
+                        <FormControl>
+                          <Input
+                            type="text"
+                            value={formatCurrency(prices.taxInclusivePrice)}
+                            className="bg-muted font-medium"
+                            disabled
+                          />
+                        </FormControl>
+                      )}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Tax: {formatCurrency(prices.taxAmount)}
+                    </p>
+                  </div>
+                  
+                  {/* Custom Toggle - Unchanged */}
                   <div className="col-span-2 flex items-center justify-end gap-2">
                     <span className="text-xs text-muted-foreground">
                       {isCustom ? 'Custom' : 'Manual'}
@@ -255,8 +273,6 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
               const categoryKey = category.name.toLowerCase();
               const isCustom = manualModes[`mp_${categoryKey}`] || false;
               const defaultCategory = categories.find(c => c.set_default);
-              const defaultPrice = defaultCategory ? 
-                form.watch(`customerPrices.${defaultCategory.name.toLowerCase()}.taxInclusivePrice`) : 0;
               const marketplacePrice = form.watch(`marketplacePrices.${categoryKey}.taxInclusivePrice`) || 0;
               const currentPercentage = marketplacePercentages[categoryKey] ?? category.percentage;
 
