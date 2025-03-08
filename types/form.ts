@@ -22,7 +22,18 @@ export interface PriceFormFields {
     adjustmentPercentage: number;
     status: boolean;
   }>;
-
+  
+  // Add marketplace prices
+  marketplacePrices: Record<string, {
+    basePrice: number;
+    taxAmount: number;
+    taxInclusivePrice: number;
+    appliedTaxPercentage: number;
+  }>;
+  
+  // Add marketplace percentages
+  marketplacePercentages: Record<string, number>;
+  
   pricingInformation: {
     usdPrice: number;
     adjustmentPercentage: number;
