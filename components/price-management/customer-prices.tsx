@@ -136,111 +136,100 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
   return (
     <Form {...form}>
       <form className="space-y-6">
-        {/* Existing Customer Category Prices section */}
+        {/* Redesigned Customer Category Prices section with grid layout */}
         <div className="rounded-lg border p-4 space-y-4">
           <h3 className="text-lg font-medium">Customer Category Prices</h3>
-          <div className="flex flex-col gap-4">
+          
+          {/* Headers */}
+          <div className="grid grid-cols-12 gap-4 px-4 py-2 font-medium text-sm">
+            <div className="col-span-3">Customer Category</div>
+            <div className="col-span-4">Markup Percentage (%)</div>
+            <div className="col-span-3">Tax-inclusive Price</div>
+            <div className="col-span-2">Custom Price</div>
+          </div>
+          
+          {/* Customer category rows */}
+          <div className="space-y-2">
             {categories.map((category) => {
               const categoryKey = category.name.toLowerCase();
-              const isManual = manualModes[categoryKey] || false;
+              const isCustom = manualModes[categoryKey] || false;
               const prices = calculatePrices(category);
               const currentPercentage = percentages[categoryKey] ?? category.percentage;
 
               return (
-                <div
-                  key={category.id}
-                  className="space-y-4 p-4 rounded-lg border"
+                <div 
+                  key={category.id} 
+                  className={`grid grid-cols-12 gap-4 items-center px-4 py-3 rounded-md border ${
+                    isCustom ? 'bg-muted/50' : ''
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <FormLabel>{category.name} Price Settings</FormLabel>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Custom Tax-inclusive Price</span>
-                      <Switch
-                        checked={isManual}
-                        onCheckedChange={(checked) => {
-                          setManualModes(prev => ({
-                            ...prev,
-                            [categoryKey]: checked
-                          }));
-                        }}
-                      />
-                    </div>
+                  {/* Category Name */}
+                  <div className="col-span-3">
+                    <span className="font-medium">{category.name}</span>
+                    {category.set_default && (
+                      <span className="ml-2 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">Default</span>
+                    )}
                   </div>
-
-                  {/* Price settings container */}
-                  <div className="flex gap-4">
-                    {/* New Percentage Input */}
-                    <div className="flex-1">
-                      <FormField
-                        control={form.control}
-                        name={`percentages.${categoryKey}`}
-                        render={() => (
-                          <FormItem>
-                            <FormLabel>Markup Percentage (%)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                value={currentPercentage}
-                                onChange={(e) => handlePercentageChange(category, e.target.value)}
-                                disabled={!isManual}
-                                className={!isManual ? "bg-muted" : ""}
-                              />
-                            </FormControl>
-                            <p className="text-sm text-muted-foreground">
-                              {isManual ? "Custom markup percentage" : "Default category markup"}
-                            </p>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    {/* Pre-tax Price */}
-                    <div className="flex-1">
-                      <FormField
-                        control={form.control}
-                        name={`customerPrices.${categoryKey}.basePrice`}
-                        render={() => (
-                          <FormItem>
-                            <FormLabel>Pre-tax Price</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="text"
-                                value={formatCurrency(prices.basePrice)}
-                                className="bg-muted"
-                                disabled
-                              />
-                            </FormControl>
-                            <p className="text-sm text-muted-foreground">
-                              {currentPercentage}% markup from HB Naik ({formatCurrency(hbNaik)})
-                            </p>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    {/* Tax-inclusive Price */}
-                    <div className="flex-1">
+                  
+                  {/* Markup Percentage */}
+                  <div className="col-span-4">
+                    <FormField
+                      control={form.control}
+                      name={`percentages.${categoryKey}`}
+                      render={() => (
+                        <FormControl>
+                          <Input
+                            type="number"
+                            value={currentPercentage}
+                            onChange={(e) => handlePercentageChange(category, e.target.value)}
+                            disabled={!isCustom}
+                            className={!isCustom ? "bg-muted" : ""}
+                          />
+                        </FormControl>
+                      )}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      From HB Naik ({formatCurrency(hbNaik)})
+                    </p>
+                  </div>
+                  
+                  {/* Tax-inclusive Price */}
+                  <div className="col-span-3">
+                    <div className="flex flex-col">
                       <FormField
                         control={form.control}
                         name={`customerPrices.${categoryKey}.taxInclusivePrice`}
                         render={() => (
-                          <FormItem>
-                            <FormLabel>Tax-inclusive Price</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="text"
-                                value={formatCurrency(prices.taxInclusivePrice)}
-                                className="bg-muted font-medium"
-                                disabled
-                              />
-                            </FormControl>
-                            <p className="text-sm text-muted-foreground">
-                              Including 11% tax ({formatCurrency(prices.taxAmount)})
-                            </p>
-                          </FormItem>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              value={formatCurrency(prices.taxInclusivePrice)}
+                              className="bg-muted font-medium"
+                              disabled
+                            />
+                          </FormControl>
                         )}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Pre-tax: {formatCurrency(prices.basePrice)}
+                      </p>
                     </div>
+                  </div>
+                  
+                  {/* Custom Toggle - Updated label from "Default" to "Manual" */}
+                  <div className="col-span-2 flex items-center justify-end gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {isCustom ? 'Custom' : 'Manual'}
+                    </span>
+                    <Switch
+                      checked={isCustom}
+                      onCheckedChange={(checked) => {
+                        setManualModes(prev => ({
+                          ...prev,
+                          [categoryKey]: checked
+                        }));
+                      }}
+                    />
                   </div>
                 </div>
               );
@@ -248,13 +237,23 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
           </div>
         </div>
 
-        {/* Updated Marketplace Prices section */}
+        {/* Marketplace Prices section with aligned fields */}
         <div className="rounded-lg border p-4 space-y-4">
           <h3 className="text-lg font-medium">Marketplace Prices</h3>
-          <div className="flex flex-col gap-4">
+          
+          {/* Headers with Custom column moved to the right */}
+          <div className="grid grid-cols-12 gap-4 px-4 py-2 font-medium text-sm">
+            <div className="col-span-3">Marketplace</div>
+            <div className="col-span-4">Markup Percentage (%)</div>
+            <div className="col-span-3">Price</div>
+            <div className="col-span-2">Custom Price</div>
+          </div>
+          
+          {/* Marketplace rows */}
+          <div className="space-y-2">
             {marketplaceCategories.map((category) => {
               const categoryKey = category.name.toLowerCase();
-              const isManual = manualModes[`mp_${categoryKey}`] || false;
+              const isCustom = manualModes[`mp_${categoryKey}`] || false;
               const defaultCategory = categories.find(c => c.set_default);
               const defaultPrice = defaultCategory ? 
                 form.watch(`customerPrices.${defaultCategory.name.toLowerCase()}.taxInclusivePrice`) : 0;
@@ -262,75 +261,78 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
               const currentPercentage = marketplacePercentages[categoryKey] ?? category.percentage;
 
               return (
-                <div
-                  key={category.id}
-                  className="space-y-4 p-4 rounded-lg border"
+                <div 
+                  key={category.id} 
+                  className={`grid grid-cols-12 gap-4 items-start px-4 py-3 rounded-md border ${
+                    isCustom ? 'bg-muted/50' : ''
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <FormLabel>{category.name} Price Settings</FormLabel>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Custom Markup</span>
-                      <Switch
-                        checked={isManual}
-                        onCheckedChange={(checked) => {
-                          setManualModes(prev => ({
-                            ...prev,
-                            [`mp_${categoryKey}`]: checked
-                          }));
-                        }}
-                      />
-                    </div>
+                  {/* Marketplace Name */}
+                  <div className="col-span-3 pt-2">
+                    <span className="font-medium">{category.name}</span>
                   </div>
-
-                  <div className="flex gap-4">
-                    {/* Markup Percentage Input */}
-                    <div className="flex-1">
+                  
+                  {/* Markup Percentage - Restructured for alignment */}
+                  <div className="col-span-4">
+                    <div className="flex flex-col">
                       <FormField
                         control={form.control}
                         name={`marketplacePercentages.${categoryKey}`}
                         render={() => (
-                          <FormItem>
-                            <FormLabel>Markup Percentage (%)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                value={currentPercentage}
-                                onChange={(e) => handleMarketplacePercentageChange(category, e.target.value)}
-                                disabled={!isManual}
-                                className={!isManual ? "bg-muted" : ""}
-                              />
-                            </FormControl>
-                            <p className="text-sm text-muted-foreground">
-                              {isManual ? "Custom markup percentage" : "Default marketplace markup"}
-                            </p>
-                          </FormItem>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              value={currentPercentage}
+                              onChange={(e) => handleMarketplacePercentageChange(category, e.target.value)}
+                              disabled={!isCustom}
+                              className={!isCustom ? "bg-muted" : ""}
+                            />
+                          </FormControl>
                         )}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        &nbsp;{/* Placeholder to maintain alignment */}
+                      </p>
                     </div>
-
-                    {/* Price */}
-                    <div className="flex-1">
+                  </div>
+                  
+                  {/* Price */}
+                  <div className="col-span-3">
+                    <div className="flex flex-col">
                       <FormField
                         control={form.control}
                         name={`marketplacePrices.${categoryKey}.taxInclusivePrice`}
                         render={() => (
-                          <FormItem>
-                            <FormLabel>Price</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="text"
-                                value={formatCurrency(marketplacePrice)}
-                                className="bg-muted"
-                                disabled
-                              />
-                            </FormControl>
-                            <p className="text-sm text-muted-foreground">
-                              {currentPercentage}% markup from default price ({formatCurrency(defaultPrice)})
-                            </p>
-                          </FormItem>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              value={formatCurrency(marketplacePrice)}
+                              className="bg-muted font-medium"
+                              disabled
+                            />
+                          </FormControl>
                         )}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {currentPercentage}% markup from {defaultCategory?.name}
+                      </p>
                     </div>
+                  </div>
+                  
+                  {/* Custom Toggle */}
+                  <div className="col-span-2 flex items-center justify-end gap-2 pt-2">
+                    <span className="text-xs text-muted-foreground">
+                      {isCustom ? 'Custom' : 'Manual'}
+                    </span>
+                    <Switch
+                      checked={isCustom}
+                      onCheckedChange={(checked) => {
+                        setManualModes(prev => ({
+                          ...prev,
+                          [`mp_${categoryKey}`]: checked
+                        }));
+                      }}
+                    />
                   </div>
                 </div>
               );
