@@ -42,6 +42,17 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
           .find(group => group.type.toLowerCase() === 'marketplace')
           ?.categories || [];
         
+        // Find default category and store it in form state
+        const defaultCategory = customerCategories.find(c => c.set_default);
+        if (defaultCategory) {
+          console.log(`Setting default price category: ${defaultCategory.name.toLowerCase()}`);
+          form.setValue('defaultPriceCategoryId', defaultCategory.name.toLowerCase());
+        } else {
+          // Set fallback default if none is marked as default
+          console.log('No default category found, using fallback: retail');
+          form.setValue('defaultPriceCategoryId', 'retail');
+        }
+        
         setCategories(customerCategories);
         setMarketplaceCategories(mpCategories);
       } catch (error) {
@@ -52,7 +63,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     };
 
     fetchCategories();
-  }, []);
+  }, [form]); // Add form to dependencies
 
   const calculatePrices = (category: PriceCategory, customPercentage?: number) => {
     const categoryKey = category.name.toLowerCase();

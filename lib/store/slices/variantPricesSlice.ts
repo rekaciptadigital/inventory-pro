@@ -16,6 +16,12 @@ const initialState: VariantPricesState = {
   prices: {},
 };
 
+interface UpdateVariantMarketplacePricePayload {
+  sku: string;
+  marketplace: string;
+  price: number;
+}
+
 export const variantPricesSlice = createSlice({
   name: "variantPrices",
   initialState,
@@ -161,6 +167,15 @@ export const variantPricesSlice = createSlice({
         state.prices[sku].adjustmentPercentage = percentage;
       }
     },
+    updateVariantMarketplacePrice: (state, action: PayloadAction<UpdateVariantMarketplacePricePayload>) => {
+      const { sku, marketplace, price } = action.payload;
+      if (state.prices[sku]) {
+        if (!state.prices[sku].marketplacePrices) {
+          state.prices[sku].marketplacePrices = {};
+        }
+        state.prices[sku].marketplacePrices[marketplace] = price;
+      }
+    },
   },
 });
 
@@ -171,6 +186,7 @@ export const {
   updateVariantPrice,
   updateVariantUsdPrice,
   updateVariantAdjustment,
+  updateVariantMarketplacePrice,
 } = variantPricesSlice.actions;
 
 export default variantPricesSlice.reducer;

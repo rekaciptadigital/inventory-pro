@@ -39,6 +39,8 @@ export interface PriceFormFields {
     adjustmentPercentage: number;
     // Add any other fields that might be in the pricing information
   };
+
+  defaultPriceCategoryId: string;
 }
 
 // Keep this separate if needed for other forms

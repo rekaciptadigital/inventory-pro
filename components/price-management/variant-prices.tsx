@@ -15,13 +15,32 @@ import {
   updateVariantPrices,
   updateVariantPrice,
   updateVariantUsdPrice,
-  updateVariantAdjustment
+  updateVariantAdjustment,
+  updateVariantMarketplacePrice
 } from '@/lib/store/slices/variantPricesSlice';
 
 interface VariantPricesProps {
   readonly form: UseFormReturn<PriceFormFields>;
   readonly product: InventoryProduct;
   readonly defaultPriceCategory?: string;
+}
+
+// Add interface for variant price structure at the top with other interfaces
+interface VariantPrice {
+  prices: Record<string, number>;
+  usdPrice: number;
+  adjustmentPercentage: number;
+  status: boolean;
+  marketplacePrices?: Record<string, number>; // Add this line
+}
+
+// Add interfaces for marketplace price structure
+interface MarketplaceConfig {
+  basePrice?: number;
+  taxAmount?: number;
+  taxInclusivePrice?: number;
+  appliedTaxPercentage?: number;
+  markup?: number;  // Add markup property that might be used
 }
 
 // Format number without currency symbol for USD Price
@@ -93,6 +112,15 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
   // Get customer price categories from the form
   const customerPrices = form.watch('customerPrices') || {};
   
+  // Get marketplace prices from form with typing
+  const marketplacePrices = form.watch('marketplacePrices') as Record<string, MarketplaceConfig> || {};
+  
+  // Get marketplace categories
+  const marketplaceCategories = Object.keys(marketplacePrices).map(key => ({
+    id: key,
+    name: key.charAt(0).toUpperCase() + key.slice(1)
+  }));
+  
   // Get pricing information for default values
   const formValues = form.watch();
   const pricingInfo = formValues.pricingInformation || { usdPrice: 0, adjustmentPercentage: 0 };
@@ -129,15 +157,11 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
         prices: data.prices,
         usdPrice: data.usdPrice ?? defaultUsdPrice,
         adjustmentPercentage: data.adjustmentPercentage ?? defaultAdjustment,
-        status: true // Add default status as true
+        status: true, // Add default status as true
+        marketplacePrices: {} // Add empty marketplace prices object
       };
       return acc;
-    }, {} as Record<string, { 
-      prices: Record<string, number>; 
-      usdPrice: number;
-      adjustmentPercentage: number;
-      status: boolean 
-    }>);
+    }, {} as Record<string, VariantPrice>); // Use the new interface here
     
     // Update the form values with the mapped structure
     form.setValue('variantPrices', formattedPrices, { shouldDirty: true });
@@ -254,24 +278,17 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
 
   // Add a utility function to safely extract markup values from Customer Category Prices
   const getMarkupForCategory = useCallback((categoryId: string) => {
-    // Debug the structure of customerPrices
-    console.log(`Customer price data for ${categoryId}:`, customerPrices[categoryId]);
-    
-    // Get the specific category configuration using optional chaining 
     const categoryConfig = formValues.customerPrices?.[categoryId] as Record<string, any>;
     
-    // Safety check
     if (!categoryConfig) {
       return getFallbackMarkup(categoryId);
     }
     
-    // Check if markup exists directly
     if ('markup' in categoryConfig) {
       const directMarkup = getMarkupFromProperty(categoryConfig, 'markup');
       if (directMarkup !== null) return directMarkup;
     }
     
-    // Try different common property names for markup
     const possibleMarkupProps = ['markupPercentage', 'markUp', 'margin', 'profitMargin'];
     
     for (const prop of possibleMarkupProps) {
@@ -279,7 +296,6 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
       if (propMarkup !== null) return propMarkup;
     }
     
-    // Try to calculate markup from basePrice if it exists
     if ('basePrice' in categoryConfig && typeof categoryConfig.basePrice === 'number') {
       const baseUsdPrice = formValues.pricingInformation?.usdPrice || defaultUsdPrice;
       const baseAdjustment = formValues.pricingInformation?.adjustmentPercentage || defaultAdjustment;
@@ -294,7 +310,6 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
       if (inferredMarkup !== null) return inferredMarkup;
     }
     
-    // If all else fails, use fallback
     return getFallbackMarkup(categoryId);
   }, [
     customerPrices, 
@@ -307,107 +322,193 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
     inferMarkupFromBasePrice
   ]);
 
-  // Run a debug function on mount to display customer price structure
-  useEffect(() => {
-    console.log('============= CUSTOMER PRICE STRUCTURE =============');
-    console.log('Form Values:', formValues);
-    console.log('Customer Prices Object:', formValues.customerPrices);
-    console.log('==================================================');
-    
-    // Try to extract markup values for all categories
-    console.log('============= MARKUP VALUES =============');
-    customerCategories.forEach(category => {
-      const markup = getMarkupForCategory(category.id);
-      console.log(`${category.name}: ${markup}%`);
+  // Get default category price for marketplace reference with validation
+  const getDefaultCategoryPrice = useCallback((variantPrice: any) => {
+    const price = variantPrice.prices[defaultPriceCategory];
+    console.log(`Getting default category (${defaultPriceCategory}) price:`, {
+      allPrices: variantPrice.prices,
+      defaultPrice: price
     });
-    console.log('========================================');
-  }, [formValues, customerCategories, getMarkupForCategory]);
+    return price || 0;
+  }, [defaultPriceCategory]);
+
+  // Update function to calculate marketplace price with proper formula and typing
+  const calculateMarketplacePrice = useCallback((
+    defaultPrice: number,
+    marketplaceId: string
+  ): number => {
+    const marketplaceConfig = marketplacePrices[marketplaceId]; // Remove unnecessary type assertion
+    console.log(`\n=== Marketplace Price Calculation ===`);
+    console.log(`Marketplace: ${marketplaceId}`);
+    console.log(`Default Category Price: ${defaultPrice}`);
+    console.log(`Marketplace Config:`, marketplaceConfig);
+
+    // First check if we have a valid default price
+    if (defaultPrice <= 0) {
+      // If no valid default price, use configured price
+      if (marketplaceConfig?.basePrice || marketplaceConfig?.taxInclusivePrice) {
+        const configuredPrice = marketplaceConfig.basePrice ?? marketplaceConfig.taxInclusivePrice ?? 0;
+        console.log(`No valid default price, using configured price: ${configuredPrice}`);
+        console.log(`===============================\n`);
+        return configuredPrice;
+      }
+      console.log(`No valid default or configured price found`);
+      console.log(`===============================\n`);
+      return 0;
+    }
+
+    // If we have a valid default price, calculate with markup
+    if (marketplaceConfig && typeof marketplaceConfig.markup === 'number') {
+      const markup: number = marketplaceConfig.markup;  // Now we're sure it's a number
+      const markupAmount = defaultPrice * (markup / 100);
+      const priceWithMarkup = defaultPrice + markupAmount;
+      
+      console.log(`Using markup calculation:`);
+      console.log(`Markup: ${markup}%`);
+      console.log(`Markup Amount: ${markupAmount}`);
+      console.log(`Final Price: ${priceWithMarkup}`);
+      console.log(`===============================\n`);
+
+      return priceWithMarkup;
+    }
+
+    // No markup found, use default price
+    console.log(`No markup found, using default price: ${defaultPrice}`);
+    console.log(`===============================\n`);
+    return defaultPrice;
+  }, [marketplacePrices]);
+
+  // Update the getMarketplacePrice function to use the same logic
+  const getMarketplacePrice = useCallback((marketplaceId: string, referencePrice: number) => {
+    // Just delegate to calculateMarketplacePrice for consistency
+    return calculateMarketplacePrice(referencePrice, marketplaceId);
+  }, [calculateMarketplacePrice]);
+
+  // Update marketplace prices with validation
+  const updateMarketplacePrices = useCallback((
+    sku: string,
+    usdPrice: number,
+    adjustment: number
+  ) => {
+    console.log(`\n=== Updating Marketplace Prices ===`);
+    console.log(`SKU: ${sku}`);
+    console.log(`USD Price: ${usdPrice}`);
+    console.log(`Adjustment: ${adjustment}%`);
+    
+    // First ensure we have the default category price calculated
+    const defaultMarkup = getMarkupForCategory(defaultPriceCategory);
+    const priceBreakdown = calculatePriceByCategory(
+      usdPrice,
+      adjustment,
+      defaultMarkup,
+      exchangeRate
+    );
+    
+    const defaultCategoryPrice = priceBreakdown.finalPrice;
+    console.log(`Calculated default category price:`, {
+      category: defaultPriceCategory,
+      markup: defaultMarkup,
+      price: defaultCategoryPrice,
+      breakdown: priceBreakdown
+    });
+    
+    // Now update marketplace prices using the calculated default price
+    marketplaceCategories.forEach(marketplace => {
+      const newPrice = calculateMarketplacePrice(defaultCategoryPrice, marketplace.id);
+      console.log(`Setting ${marketplace.name} price to: ${newPrice}`);
+      
+      dispatch(updateVariantMarketplacePrice({
+        sku,
+        marketplace: marketplace.id,
+        price: newPrice
+      }));
+    });
+  }, [
+    dispatch,
+    marketplaceCategories,
+    calculateMarketplacePrice,
+    exchangeRate,
+    defaultPriceCategory,
+    getMarkupForCategory
+  ]);
 
   // Handle USD price changes
   const handleUsdPriceChange = useCallback((sku: string, value: string) => {
     const numericValue = parseFloat(value.replace(/\D/g, '')) || 0;
     dispatch(updateVariantUsdPrice({ sku, price: numericValue }));
     
-    // Update kategori prices when USD Price changes
     if (manualPriceEditing) {
       const variant = variantPrices[sku];
       const adjustment = variant?.adjustmentPercentage || 0;
       
-      // Hitung harga dasar yang disesuaikan terlebih dahulu
-      const baseLocalPrice = numericValue * exchangeRate;
-      const adjustmentAmount = baseLocalPrice * (adjustment / 100);
-      const adjustedLocalPrice = baseLocalPrice + adjustmentAmount;
-      
-      // Log untuk debugging dengan formula baru
-      console.log('Base calculation for all categories:', {
-        usdPrice: numericValue,
-        adjustment,
-        exchangeRate,
-        baseLocalPrice,
-        adjustmentAmount,
-        adjustedLocalPrice
-      });
-      
+      // Update customer category prices first
       customerCategories.forEach(category => {
-        // Get the markup using our utility function
         const markup = getMarkupForCategory(category.id);
-        
-        // Lakukan perhitungan lengkap dengan breakdown
-        const priceBreakdown = calculatePriceByCategory(numericValue, adjustment, markup, exchangeRate);
-        
-        // Log untuk debugging yang lebih detail
-        console.log(`Price breakdown for ${category.id}:`, priceBreakdown);
-        
-        // Gunakan harga akhir dari perhitungan
-        const newPrice = priceBreakdown.finalPrice;
-        
-        dispatch(updateVariantPrice({ sku, category: category.id, price: newPrice }));
+        const priceBreakdown = calculatePriceByCategory(
+          numericValue, 
+          adjustment, 
+          markup, 
+          exchangeRate
+        );
+        dispatch(updateVariantPrice({ 
+          sku, 
+          category: category.id, 
+          price: priceBreakdown.finalPrice 
+        }));
       });
+
+      // Update marketplace prices with new USD price and current adjustment
+      updateMarketplacePrices(sku, numericValue, adjustment);
     }
-  }, [dispatch, manualPriceEditing, customerCategories, variantPrices, exchangeRate, getMarkupForCategory]);
+  }, [
+    dispatch, 
+    manualPriceEditing, 
+    customerCategories, 
+    variantPrices, 
+    exchangeRate, 
+    getMarkupForCategory,
+    defaultPriceCategory,
+    updateMarketplacePrices
+  ]);
 
   // Handle adjustment percentage changes
   const handleAdjustmentChange = useCallback((sku: string, value: string) => {
     const numericValue = parseFloat(value) || 0;
     dispatch(updateVariantAdjustment({ sku, percentage: numericValue }));
     
-    // Update kategori prices when Adjustment changes
     if (manualPriceEditing) {
       const variant = variantPrices[sku];
       const usdPrice = variant?.usdPrice || 0;
       
-      // Hitung harga dasar yang disesuaikan terlebih dahulu
-      const baseLocalPrice = usdPrice * exchangeRate;
-      const adjustmentAmount = baseLocalPrice * (numericValue / 100);
-      const adjustedLocalPrice = baseLocalPrice + adjustmentAmount;
-      
-      // Log untuk debugging dengan formula baru
-      console.log('Base calculation for all categories:', {
-        usdPrice,
-        adjustment: numericValue,
-        exchangeRate,
-        baseLocalPrice,
-        adjustmentAmount,
-        adjustedLocalPrice
-      });
-      
+      // Update customer category prices first
       customerCategories.forEach(category => {
-        // Get the markup using our utility function
         const markup = getMarkupForCategory(category.id);
-        
-        // Lakukan perhitungan lengkap dengan breakdown
-        const priceBreakdown = calculatePriceByCategory(usdPrice, numericValue, markup, exchangeRate);
-        
-        // Log untuk debugging yang lebih detail
-        console.log(`Price breakdown for ${category.id}:`, priceBreakdown);
-        
-        // Gunakan harga akhir dari perhitungan
-        const newPrice = priceBreakdown.finalPrice;
-        
-        dispatch(updateVariantPrice({ sku, category: category.id, price: newPrice }));
+        const priceBreakdown = calculatePriceByCategory(
+          usdPrice, 
+          numericValue, 
+          markup, 
+          exchangeRate
+        );
+        dispatch(updateVariantPrice({ 
+          sku, 
+          category: category.id, 
+          price: priceBreakdown.finalPrice 
+        }));
       });
+
+      // Update marketplace prices with current USD price and new adjustment
+      updateMarketplacePrices(sku, usdPrice, numericValue);
     }
-  }, [dispatch, manualPriceEditing, customerCategories, variantPrices, exchangeRate, getMarkupForCategory]);
+  }, [
+    dispatch, 
+    manualPriceEditing, 
+    customerCategories, 
+    variantPrices, 
+    exchangeRate, 
+    getMarkupForCategory,
+    defaultPriceCategory,
+    updateMarketplacePrices
+  ]);
 
   const handleManualEditingChange = useCallback((checked: boolean) => {
     dispatch(setManualPriceEditing(checked));
@@ -445,6 +546,12 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
                       {category.name} Price
                     </th>
                   ))}
+                  {/* Add marketplace price columns */}
+                  {marketplaceCategories.map((marketplace) => (
+                    <th key={marketplace.id} className="p-4 text-right whitespace-nowrap">
+                      {marketplace.name} Price
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -455,8 +562,12 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
                   const variantPrice = {
                     prices: variantData.prices || {},
                     usdPrice: variantData.usdPrice ?? defaultUsdPrice,
-                    adjustmentPercentage: variantData.adjustmentPercentage ?? defaultAdjustment
+                    adjustmentPercentage: variantData.adjustmentPercentage ?? defaultAdjustment,
+                    marketplacePrices: variantData.marketplacePrices || {}
                   };
+
+                  // Get reference price for marketplace calculations
+                  const defaultPrice = getDefaultCategoryPrice(variantPrice);
 
                   return (
                     <Fragment key={variantSku}>
@@ -502,6 +613,23 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
                             />
                           </td>
                         ))}
+                        {/* Add marketplace price inputs */}
+                        {marketplaceCategories.map((marketplace) => {
+                          const marketplacePrice = variantPrice.marketplacePrices?.[marketplace.id] || 
+                            getMarketplacePrice(marketplace.id, defaultPrice);
+                          
+                          return (
+                            <td key={`${variantSku}-${marketplace.name}`} className="p-4">
+                              <Input
+                                type="text"
+                                value={formatCurrency(marketplacePrice)}
+                                onChange={(e) => {/* Disabled for now */}}
+                                disabled={true}
+                                className="text-right bg-muted"
+                              />
+                            </td>
+                          );
+                        })}
                       </tr>
                     </Fragment>
                   );
