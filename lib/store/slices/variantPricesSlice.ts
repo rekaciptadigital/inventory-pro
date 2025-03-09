@@ -1,9 +1,11 @@
 import { PayloadAction, createSlice } from "@reduxjs/toolkit";
 
 interface VariantPrice {
+  marketplacePrices: Record<string, number>;
   prices: Record<string, number>;
   usdPrice: number;
   adjustmentPercentage: number;
+  marketplaceMarkups?: Record<string, number>; // New field
 }
 
 interface VariantPricesState {
@@ -54,13 +56,14 @@ export const variantPricesSlice = createSlice({
             prices: {},
             usdPrice: defaultUsdPrice,
             adjustmentPercentage: defaultAdjustment,
+            marketplacePrices: {} // Add this line
           };
         } else {
           // Update default values while preserving existing structure
           state.prices[sku] = {
             ...state.prices[sku],
             usdPrice: defaultUsdPrice,
-            adjustmentPercentage: defaultAdjustment,
+            adjustmentPercentage: defaultAdjustment
           };
         }
         
@@ -97,6 +100,7 @@ export const variantPricesSlice = createSlice({
             prices: {},
             usdPrice: defaultUsdPrice,
             adjustmentPercentage: defaultAdjustment,
+            marketplacePrices: {} // Add this line
           };
         }
         
@@ -141,6 +145,7 @@ export const variantPricesSlice = createSlice({
           prices: {},
           usdPrice: price,
           adjustmentPercentage: 0,
+          marketplacePrices: {} // Add this line
         };
       } else {
         state.prices[sku].usdPrice = price;
@@ -162,6 +167,7 @@ export const variantPricesSlice = createSlice({
           prices: {},
           usdPrice: 0,
           adjustmentPercentage: percentage,
+          marketplacePrices: {} // Add this line
         };
       } else {
         state.prices[sku].adjustmentPercentage = percentage;
@@ -176,6 +182,23 @@ export const variantPricesSlice = createSlice({
         state.prices[sku].marketplacePrices[marketplace] = price;
       }
     },
+    updateVariantMarketplaceMarkup: (
+      state,
+      action: PayloadAction<{
+        sku: string;
+        marketplace: string;
+        markup: number;
+      }>
+    ) => {
+      const { sku, marketplace, markup } = action.payload;
+      if (state.prices[sku]) {
+        // Initialize marketplaceMarkups if it doesn't exist
+        if (!state.prices[sku].marketplaceMarkups) {
+          state.prices[sku].marketplaceMarkups = {};
+        }
+        state.prices[sku].marketplaceMarkups[marketplace] = markup;
+      }
+    },
   },
 });
 
@@ -187,6 +210,7 @@ export const {
   updateVariantUsdPrice,
   updateVariantAdjustment,
   updateVariantMarketplacePrice,
+  updateVariantMarketplaceMarkup,
 } = variantPricesSlice.actions;
 
 export default variantPricesSlice.reducer;
