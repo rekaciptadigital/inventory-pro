@@ -42,25 +42,12 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
           .find(group => group.type.toLowerCase() === 'marketplace')
           ?.categories || [];
         
-        // Debug all categories for visibility
-        console.group('Customer Categories from API');
-        console.log('All customer categories:', customerCategories);
-        console.log('All marketplace categories:', mpCategories);
-        console.groupEnd();
-        
         // Find default category and store it in form state
         const defaultCategory = customerCategories.find(c => c.set_default);
         if (defaultCategory) {
-          console.group('Default Category Found');
-          console.log('Default category:', defaultCategory);
-          console.log(`Setting default price category: ${defaultCategory.name.toLowerCase()}`);
-          console.log('Default markup percentage:', defaultCategory.percentage);
-          console.groupEnd();
-          
           form.setValue('defaultPriceCategoryId', defaultCategory.name.toLowerCase());
         } else {
           // Set fallback default if none is marked as default
-          console.log('No default category found, using fallback: retail');
           form.setValue('defaultPriceCategoryId', 'retail');
         }
         
@@ -82,15 +69,6 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     const basePrice = hbNaik * (1 + (markup / 100));
     const taxPercentage = 11;
     const taxAmount = basePrice * (taxPercentage / 100);
-    
-    // Debug log price calculation
-    console.group(`Price Calculation: ${category.name}`);
-    console.log(`Category: ${categoryKey}, Markup: ${markup}%`);
-    console.log(`Base Price: ${hbNaik} × (1 + ${markup}/100) = ${basePrice}`);
-    console.log(`Tax Amount: ${basePrice} × ${taxPercentage}% = ${taxAmount}`);
-    console.log(`Tax Inclusive Price: ${basePrice} + ${taxAmount} = ${basePrice + taxAmount}`);
-    console.log(`Is Default Category: ${category.set_default ? 'Yes' : 'No'}`);
-    console.groupEnd();
 
     return {
       basePrice: Number(basePrice.toFixed(2)),
@@ -104,30 +82,16 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
   // Calculate marketplace prices with custom percentage
   const calculateMarketplacePrices = (category: PriceCategory, customPercentage?: number) => {
     const defaultCategory = categories.find(c => c.set_default);
-    
-    // Debug default category
-    console.group(`Marketplace Price: ${category.name}`);
-    console.log('Default category for marketplace prices:', defaultCategory?.name || 'none');
-    
+
     if (!defaultCategory) {
-      console.log('No default category found, using zeroes');
-      console.groupEnd();
       return { basePrice: 0, taxAmount: 0, taxInclusivePrice: 0, appliedTaxPercentage: 11 };
     }
     
     const defaultCategoryKey = defaultCategory.name.toLowerCase();
     const defaultPrices = form.watch(`customerPrices.${defaultCategoryKey}`) || calculatePrices(defaultCategory);
     
-    // Log default prices
-    console.log('Default category key:', defaultCategoryKey);
-    console.log('Default prices:', defaultPrices);
-    
     const markup = customPercentage ?? marketplacePercentages[category.name.toLowerCase()] ?? category.percentage;
     const marketplaceBasePrice = defaultPrices.taxInclusivePrice * (1 + (parseFloat(markup.toString()) / 100));
-    
-    console.log(`Marketplace markup: ${markup}%`);
-    console.log(`Calculation: ${defaultPrices.taxInclusivePrice} × (1 + ${markup}/100) = ${marketplaceBasePrice}`);
-    console.groupEnd();
     
     return {
       basePrice: Number(marketplaceBasePrice.toFixed(2)),
@@ -140,25 +104,11 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
 
   // Update prices whenever hbNaik or percentages change
   useEffect(() => {
-    // Log current form state for debugging
-    console.group('Updating Prices');
-    console.log('Current HB Naik:', hbNaik);
-    console.log('Current Percentages:', percentages);
-    console.log('Current Marketplace Percentages:', marketplacePercentages);
-    
-    // Find and log the default category
-    const defaultCategory = categories.find(c => c.set_default);
-    console.log('Default Category:', defaultCategory?.name || 'none');
-    
     // Update customer prices
     categories.forEach(category => {
       const categoryKey = category.name.toLowerCase();
       const prices = calculatePrices(category);
       form.setValue(`customerPrices.${categoryKey}`, prices);
-      
-      if (category.set_default) {
-        console.log('Default category prices calculated:', prices);
-      }
     });
 
     // Update marketplace prices
@@ -168,30 +118,14 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
       form.setValue(`marketplacePrices.${categoryKey}`, prices);
     });
     
-    // Log final customer prices
-    console.log('Final customer prices:', form.watch('customerPrices'));
-    console.groupEnd();
-    
   }, [hbNaik, percentages, marketplacePercentages, categories, marketplaceCategories, form]);
 
   // After form initialization, check and log the default category data
   useEffect(() => {
     if (!isLoading && categories.length > 0) {
-      const defaultCategoryObj = categories.find(c => c.set_default);
-      const defaultId = defaultCategoryObj?.name.toLowerCase() || 'retail';
+      // Removed useless assignment to defaultCategoryObj variable
       
-      console.group('Default Category State Check');
-      console.log('Default category object:', defaultCategoryObj);
-      console.log('Default category ID:', defaultId);
-      
-      // Get price data for default category
-      const defaultPrice = form.watch(`customerPrices.${defaultId}`);
-      console.log(`Default category (${defaultId}) price data:`, defaultPrice);
-      
-      // Get markup for default category
-      const defaultMarkup = percentages[defaultId] ?? defaultCategoryObj?.percentage;
-      console.log(`Default category markup: ${defaultMarkup}%`);
-      console.groupEnd();
+      // All useless assignments have been removed
     }
   }, [isLoading, categories, form, percentages]);
 
@@ -200,15 +134,9 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     const numValue = parseFloat(value);
     
     if (!isNaN(numValue)) {
-      console.group(`Percentage Change: ${category.name}`);
-      console.log(`Setting percentage for ${categoryKey} to ${numValue}%`);
-      
       form.setValue(`percentages.${categoryKey}`, numValue);
       const prices = calculatePrices(category, numValue);
       form.setValue(`customerPrices.${categoryKey}`, prices);
-      
-      console.log(`New prices calculated:`, prices);
-      console.groupEnd();
     }
   };
 
