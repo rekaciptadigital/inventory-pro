@@ -235,24 +235,72 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
 
   // Helper function to get default markup values based on category id
   const getFallbackMarkup = useCallback((categoryId: string): number => {
-    console.log(`Getting fallback markup for ${categoryId}`);
-    // Set appropriate default markups based on category ID
-    switch(categoryId) {
-      case 'retail':
-        return 20; // Set retail default markup to 20%
-      case 'gold':
-        return 5;
-      case 'silver':
-        return 10;
-      case 'super':
-        return 15;
-      case 'bronze':
-        return 20;
-      default:
-        return 20; // Default markup is 20%
+    console.log(`Getting markup for category ${categoryId}`);
+    
+    // Get customer prices from form
+    const formCustomerPrices = form.watch('customerPrices') || {};
+    
+    // Debug the customer prices to find which is the default
+    console.log('Available customer price categories:', Object.keys(formCustomerPrices));
+    const defaultCategoryId = form.watch('defaultPriceCategoryId') || defaultPriceCategory;
+    console.log(`Default price category: ${defaultCategoryId}`);
+    
+    // Check if we have pricing info for this category
+    if (formCustomerPrices[categoryId]) {
+      // Try to extract markup percentage from the customer price data
+      const categoryData = formCustomerPrices[categoryId];
+      
+      // Log the category data to see its structure
+      console.log(`Category ${categoryId} data:`, categoryData);
+      
+      // Look for markup in different possible fields
+      if (categoryData.markup !== undefined) {
+        console.log(`Found markup in category data: ${categoryData.markup}%`);
+        return categoryData.markup;
+      }
+      
+      // If basePrice and taxInclusivePrice are available, calculate the implied markup
+      if (categoryData.basePrice && defaultUsdPrice > 0) {
+        // Calculate implied markup from base price vs USD price with exchange rate
+        const impliedBasePrice = defaultUsdPrice * exchangeRate * (1 + (defaultAdjustment / 100));
+        if (impliedBasePrice > 0) {
+          const impliedMarkup = ((categoryData.basePrice / impliedBasePrice) - 1) * 100;
+          console.log(`Calculated implied markup from basePrice: ${impliedMarkup.toFixed(2)}%`);
+          return impliedMarkup;
+        }
+      }
     }
-  }, []);
-  
+    
+    // Look for the markup in the percentages object
+    const percentages = form.watch('percentages') || {};
+    if (percentages[categoryId] !== undefined) {
+      console.log(`Found markup in percentages: ${percentages[categoryId]}%`);
+      return percentages[categoryId];
+    }
+    
+    // If we have a default category in formValues, use that category's markup for others
+    if (categoryId !== defaultCategoryId && formCustomerPrices[defaultCategoryId]) {
+      // Get default category data
+      const defaultCategoryData = formCustomerPrices[defaultCategoryId];
+      if (defaultCategoryData.markup !== undefined) {
+        console.log(`Using default category markup: ${defaultCategoryData.markup}%`);
+        return defaultCategoryData.markup;
+      }
+    }
+    
+    // Fallback based on common values if nothing else is available
+    const fallbackValues = {
+      'retail': 20,
+      'gold': 5,
+      'silver': 10,
+      'super': 15,
+      'bronze': 20
+    };
+    
+    console.log(`Using hardcoded fallback markup: ${fallbackValues[categoryId] || 20}%`);
+    return fallbackValues[categoryId] || 20; // Default to 20% if no other info is available
+  }, [form, defaultPriceCategory, defaultUsdPrice, defaultAdjustment, exchangeRate]);
+
   // Helper function to check if a property exists and has the right type
   const getMarkupFromProperty = useCallback((obj: Record<string, any>, prop: string): number | null => {
     // Direct property access - check if it's a number
