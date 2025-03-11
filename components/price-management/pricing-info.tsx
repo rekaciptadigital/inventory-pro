@@ -124,6 +124,22 @@ export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
                 )}
               />
             </div>
+            <div className="flex-1">
+              <FormItem>
+                <FormLabel>Adjustment Value</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    disabled
+                    value={formatCurrency((form.watch("hbReal") || 0) * (form.watch("adjustmentPercentage") || 0) / 100)}
+                    className="bg-muted/30"
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground mt-1">
+                  HB Real × Adjustment/100
+                </p>
+              </FormItem>
+            </div>
           </div>
 
           {/* Second row: HB Real (Base Price) and HB Naik (Adjusted Price) */}

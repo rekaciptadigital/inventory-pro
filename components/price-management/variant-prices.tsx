@@ -654,23 +654,22 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
             <table className="w-full">
               <thead>
                 <tr className="bg-muted/50">
-                  <th className="p-4 text-left whitespace-nowrap">Variant</th>
-                  <th className="p-4 text-right whitespace-nowrap w-[8%]">USD Price</th>
-                  <th className="p-4 text-right whitespace-nowrap w-[8%]">Markup (%)</th>
-                  {/* Remove "Price" from category column headers */}
+                  <th className="p-4 text-center whitespace-nowrap w-[8%]">USD Price</th>
+                  <th className="p-4 text-center whitespace-nowrap w-[8%]">Markup (%)</th>
+                  {/* Remove "Price" from category column headers and center them */}
                   {customerCategories.map((category) => (
                     <th 
                       key={category.id} 
-                      className="p-4 text-right whitespace-nowrap"
+                      className="p-4 text-center whitespace-nowrap"
                     >
                       {category.name}
                     </th>
                   ))}
-                  {/* Remove "Price" from marketplace column headers */}
+                  {/* Remove "Price" from marketplace column headers and center them */}
                   {marketplaceCategories.map((marketplace) => (
                     <th 
                       key={marketplace.id} 
-                      className="p-4 text-right whitespace-nowrap"
+                      className="p-4 text-center whitespace-nowrap"
                     >
                       {marketplace.name}
                     </th>
@@ -687,7 +686,7 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
                     usdPrice: variantData.usdPrice ?? defaultUsdPrice,
                     adjustmentPercentage: variantData.adjustmentPercentage ?? defaultAdjustment,
                     marketplacePrices: variantData.marketplacePrices || {},
-                    status: true // Add status property which is required by the interface
+                    status: true
                   };
 
                   // Get reference price for marketplace calculations
@@ -695,15 +694,22 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
 
                   return (
                     <Fragment key={variantSku}>
-                      <tr className="hover:bg-muted/30">
-                        <td className="p-4">
-                          <div className="font-medium">{variant.full_product_name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            SKU: {variant.sku_product_variant}
+                      {/* Add variant name as a subheader row */}
+                      <tr className="bg-muted/20">
+                        <td colSpan={2 + customerCategories.length + marketplaceCategories.length} className="p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="font-medium">{variant.full_product_name}</div>
+                            <div className="text-sm text-muted-foreground whitespace-nowrap">
+                              (SKU: {variant.sku_product_variant})
+                            </div>
                           </div>
                         </td>
+                      </tr>
+                      
+                      {/* Data row with price fields */}
+                      <tr className="hover:bg-muted/30">
                         {/* Make input cells narrower with fixed widths */}
-                        <td className="p-4 w-[8%]">
+                        <td className="p-3 w-[8%]">
                           <Input
                             type="text"
                             value={formatUsdPrice(variantPrice.usdPrice || 0)}
@@ -715,7 +721,7 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
                             className={`text-right ${!manualPriceEditing ? 'bg-muted' : ''}`}
                           />
                         </td>
-                        <td className="p-4 w-[8%]">
+                        <td className="p-3 w-[8%]">
                           <Input
                             type="number"
                             value={variantPrice.adjustmentPercentage || 0}
@@ -728,7 +734,7 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
                           />
                         </td>
                         {customerCategories.map((category) => (
-                          <td key={`${variant.sku_product_variant}-${category.name}`} className="p-4">
+                          <td key={`${variant.sku_product_variant}-${category.name}`} className="p-3">
                             <Input
                               type="text"
                               value={formatCurrency(variantPrice.prices[category.id] || 0)}
@@ -744,7 +750,7 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
                             calculateMarketplacePrice(defaultPrice, marketplace.id);
                           
                           return (
-                            <td key={`${variantSku}-${marketplace.name}`} className="p-4">
+                            <td key={`${variantSku}-${marketplace.name}`} className="p-3">
                               <Input
                                 type="text"
                                 value={formatCurrency(marketplacePrice)}

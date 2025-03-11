@@ -313,7 +313,7 @@ function DiscountTable({
           {/* Make sure we're showing all category columns */}
           {categories.map((category) => (
             <th key={category.id} className="p-2 text-right whitespace-nowrap">
-              {category.name} Price
+              {category.name}
             </th>
           ))}
           <th className="p-2 w-[100px]"></th>
@@ -379,7 +379,16 @@ function DiscountCard({
           </Button>
         </div>
       </div>
-      {(!onToggle || enabled) && renderTable(tiers)}
+      
+      {/* Moved the QTY explanation to appear after the table */}
+      {(!onToggle || enabled) && (
+        <>
+          {renderTable(tiers)}
+          <p className="text-sm text-muted-foreground mt-2">
+            <strong>Note:</strong> QTY values represent the minimum quantity required to apply the corresponding discount.
+          </p>
+        </>
+      )}
     </div>
   );
 }
