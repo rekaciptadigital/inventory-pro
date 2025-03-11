@@ -145,20 +145,22 @@ const utils = {
 function NumericInput({
   value,
   onChange,
+  onBlur,
   min = "0",
   max,
   className = "",
   readOnly = false,
   disabled = false
-}: {
+}: Readonly<{
   value: string;
   onChange?: (value: string) => void;
+  onBlur?: () => void;  // Add onBlur to the props interface
   min?: string;
   max?: string;
   className?: string;
   readOnly?: boolean;
   disabled?: boolean;
-}) {
+}>) {
   return (
     <Input
       type="number"
@@ -166,6 +168,7 @@ function NumericInput({
       max={max}
       value={value}
       onChange={e => onChange?.(e.target.value)}
+      onBlur={onBlur}  // Pass onBlur to the Input component
       className={className}
       readOnly={readOnly}
       disabled={disabled}
@@ -173,7 +176,7 @@ function NumericInput({
   );
 }
 
-// A single row in the discount table
+// A single row in the discount table - updated for real-time discount changes
 function DiscountTierRow({
   tier,
   index,
@@ -181,14 +184,14 @@ function DiscountTierRow({
   categories,
   onUpdate,
   onRemove
-}: {
+}: Readonly<{
   tier: DiscountTier;
   index: number;
   variantSku: string;
   categories: Array<{ id: string; name: string }>;
   onUpdate: (variantSku: string, index: number, field: string, value: number) => void;
   onRemove: (variantSku: string, index: number) => void;
-}) {
+}>) {
   const [localQuantity, setLocalQuantity] = useState(tier.quantity.toString());
   const [localDiscount, setLocalDiscount] = useState(tier.discount.toString());
   
@@ -207,13 +210,27 @@ function DiscountTierRow({
     }
   };
   
-  // Handlers for discount updates
-  const handleDiscountChange = (value: string) => setLocalDiscount(value);
+  // Handlers for discount updates - update in real-time
+  const handleDiscountChange = (value: string) => {
+    setLocalDiscount(value);
+    // Convert to number and update immediately
+    const numericValue = parseFloat(value) || 0;
+    // Only update if the value is different and valid
+    if (numericValue !== tier.discount && numericValue >= 0 && numericValue <= 100) {
+      onUpdate(variantSku, index, 'discount', numericValue);
+    }
+  };
   
+  // Still keep blur handler for validation and final confirmation
   const handleDiscountBlur = () => {
     const value = parseFloat(localDiscount) || 0;
-    if (value !== tier.discount) {
-      onUpdate(variantSku, index, 'discount', value);
+    // Ensure value is within valid range
+    const clampedValue = Math.min(Math.max(value, 0), 100);
+    if (clampedValue !== value) {
+      setLocalDiscount(clampedValue.toString());
+    }
+    if (clampedValue !== tier.discount) {
+      onUpdate(variantSku, index, 'discount', clampedValue);
     }
   };
   
@@ -280,13 +297,13 @@ function DiscountTable({
   categories,
   onUpdate,
   onRemove
-}: {
+}: Readonly<{
   variantSku: string;
   tiers: ReadonlyArray<DiscountTier>;
   categories: ReadonlyArray<{ id: string; name: string }>;
   onUpdate: (variantSku: string, index: number, field: string, value: number) => void;
   onRemove: (variantSku: string, index: number) => void;
-}) {
+}>) {
   return (
     <table className="w-full mt-4">
       <thead>
@@ -328,7 +345,7 @@ function DiscountCard({
   onAddTier,
   tiers,
   renderTable
-}: {
+}: Readonly<{
   title: string;
   subtitle?: string;
   enabled?: boolean;
@@ -336,7 +353,7 @@ function DiscountCard({
   onAddTier: () => void;
   tiers: DiscountTier[];
   renderTable: (tiers: DiscountTier[]) => React.ReactNode;
-}) {
+}>) {
   return (
     <div className="border rounded-lg p-4">
       <div className="flex justify-between items-center mb-4">
@@ -367,6 +384,315 @@ function DiscountCard({
   );
 }
 
+// Extract RenderDiscountTable component outside of VolumeDiscount 
+function RenderDiscountTable({
+  variantSku,
+  tiers,
+  categories,
+  onUpdate,
+  onRemove
+}: Readonly<{
+  variantSku: string;
+  tiers: DiscountTier[];
+  categories: ReadonlyArray<{ id: string; name: string }>;
+  onUpdate: (variantSku: string, index: number, field: string, value: number) => void;
+  onRemove: (variantSku: string, index: number) => void;
+}>) {
+  return (
+    <DiscountTable
+      variantSku={variantSku}
+      tiers={tiers}
+      categories={categories}
+      onUpdate={onUpdate}
+      onRemove={onRemove}
+    />
+  );
+}
+
+// Create a factory function outside the component to avoid nested component definitions
+function createTableRenderer(
+  variantSku: string,
+  categories: ReadonlyArray<{ id: string; name: string }>,
+  onUpdate: (variantSku: string, index: number, field: string, value: number) => void,
+  onRemove: (variantSku: string, index: number) => void
+) {
+  // Return a function that accepts tiers and renders the table
+  return function renderTable(tiers: DiscountTier[]) {
+    return (
+      <RenderDiscountTable
+        variantSku={variantSku}
+        tiers={tiers}
+        categories={categories}
+        onUpdate={onUpdate}
+        onRemove={onRemove}
+      />
+    );
+  };
+}
+
+// Move helper functions outside to module scope
+// Safe clone utility for price objects
+function safeClone(obj: any) {
+  if (!obj || typeof obj !== 'object') return {};
+  try {
+    return JSON.parse(JSON.stringify(obj));
+  } catch (e) {
+    console.error("Error cloning price object:", e);
+    return {};
+  }
+}
+
+// Helper for getting combined prices
+function getCombinedPricesHelper(customerPrices: any, marketplacePrices: any) {
+  return {
+    ...safeClone(customerPrices),
+    ...safeClone(marketplacePrices)
+  };
+}
+
+// Helper for adding a tier to global tiers
+function addGlobalTier(
+  globalTiers: DiscountTier[],
+  allPrices: Record<string, any>,
+  customizePerVariant: boolean,
+  variants: any[],
+  variantDiscounts: Record<string, VariantDiscount>
+) {
+  const defaultQuantity = utils.getDefaultQuantity(globalTiers);
+  const newTier = utils.createNewTier(allPrices, defaultQuantity);
+  
+  const updatedGlobalTiers = [...globalTiers, newTier];
+  
+  // Only sync if not in custom variant mode
+  let updatedVariantDiscounts = variantDiscounts;
+  if (!customizePerVariant) {
+    updatedVariantDiscounts = { ...variantDiscounts };
+    variants.forEach(variant => {
+      const sku = variant.sku_product_variant;
+      if (updatedVariantDiscounts[sku]?.enabled) {
+        updatedVariantDiscounts[sku] = {
+          ...updatedVariantDiscounts[sku],
+          tiers: [
+            ...(updatedVariantDiscounts[sku].tiers || []), 
+            { ...newTier, id: `${newTier.id}-${sku}` }
+          ]
+        };
+      }
+    });
+  }
+  
+  return { updatedGlobalTiers, updatedVariantDiscounts };
+}
+
+// Helper for adding a tier to variant
+function addVariantTier(
+  variantSku: string,
+  variantDiscounts: Record<string, VariantDiscount>,
+  allPrices: Record<string, any>
+) {
+  const updated = { ...variantDiscounts };
+  const variant = updated[variantSku] || { enabled: true, tiers: [] };
+  const defaultQuantity = utils.getDefaultQuantity(variant.tiers);
+  
+  updated[variantSku] = {
+    ...variant,
+    tiers: [
+      ...(variant.tiers || []),
+      utils.createNewTier(allPrices, defaultQuantity)
+    ]
+  };
+  
+  return updated;
+}
+
+// Helper for updating global tier
+function updateGlobalTierHelper(
+  prevTiers: DiscountTier[],
+  index: number,
+  field: string,
+  value: number,
+  allPrices: Record<string, any>,
+  validateFunc: (prev: DiscountTier[], index: number, field: keyof DiscountTier, value: number) => string | null
+): { updatedTiers: DiscountTier[], error: string | null } {
+  // For real-time updates of discount, skip validation to allow smooth typing
+  if ((field === 'quantity' || field === 'discount') && field !== 'discount') {
+    const error = validateFunc(prevTiers, index, field as keyof DiscountTier, value);
+    if (error) {
+      return { updatedTiers: prevTiers, error };
+    }
+  }
+  
+  // Create new tiers array
+  const updatedTiers = prevTiers.map((tier, i) => {
+    if (i === index) {
+      // Create a new tier object
+      const updatedTier = { ...tier, [field]: value };
+      
+      // If discount is updated, recalculate prices
+      if (field === 'discount') {
+        updatedTier.prices = utils.calculateDiscountedPrices(allPrices, value);
+      }
+      
+      return updatedTier;
+    }
+    return tier;
+  });
+  
+  return { updatedTiers, error: null };
+}
+
+// Helper for updating variant tier
+function updateVariantTierHelper(
+  prevDiscounts: Record<string, VariantDiscount>,
+  variantSku: string,
+  index: number,
+  field: string,
+  value: number,
+  allPrices: Record<string, any>,
+  validateFunc: (tiers: DiscountTier[], index: number, field: keyof DiscountTier, value: number) => string | null
+): { updatedDiscounts: Record<string, VariantDiscount>, error: string | null } {
+  const variant = prevDiscounts[variantSku];
+  if (!variant) return { updatedDiscounts: prevDiscounts, error: null };
+  
+  // Validate input for specific fields - but for real-time updates, we skip validation
+  // to avoid interrupting the user's typing flow
+  if ((field === 'quantity' || field === 'discount') && field !== 'discount') {
+    const error = validateFunc(variant.tiers, index, field as keyof DiscountTier, value);
+    if (error) {
+      return { updatedDiscounts: prevDiscounts, error };
+    }
+  }
+  
+  // Create updated variant
+  const updatedVariant = {
+    ...variant,
+    tiers: variant.tiers.map((tier, i) => {
+      if (i === index) {
+        const updatedTier = { ...tier, [field]: value };
+        
+        if (field === 'discount') {
+          updatedTier.prices = utils.calculateDiscountedPrices(allPrices, value);
+        }
+        
+        return updatedTier;
+      }
+      return tier;
+    })
+  };
+  
+  return { 
+    updatedDiscounts: { ...prevDiscounts, [variantSku]: updatedVariant },
+    error: null 
+  };
+}
+
+// Move more logic to module-level functions to reduce nesting depth
+
+// Transform prices into categories array
+function createCategoriesFromPrices(customerPrices: any, marketplacePrices: any): Array<{ id: string; name: string }> {
+  const result: Array<{ id: string; name: string }> = [];
+  const uniqueCategories = new Set<string>();
+  
+  // Add customer price categories
+  if (customerPrices && typeof customerPrices === 'object') {
+    Object.keys(customerPrices).forEach(key => {
+      if (!uniqueCategories.has(key)) {
+        uniqueCategories.add(key);
+        result.push({
+          id: key,
+          name: key.charAt(0).toUpperCase() + key.slice(1)
+        });
+      }
+    });
+  }
+  
+  // Add marketplace price categories
+  if (marketplacePrices && typeof marketplacePrices === 'object') {
+    Object.keys(marketplacePrices).forEach(key => {
+      if (!uniqueCategories.has(key)) {
+        uniqueCategories.add(key);
+        result.push({
+          id: key,
+          name: key.charAt(0).toUpperCase() + key.slice(1)
+        });
+      }
+    });
+  }
+  
+  return result;
+}
+
+// Update global tier prices
+function updateGlobalTierPrices(
+  prevTiers: DiscountTier[],
+  allPrices: Record<string, any>
+): DiscountTier[] {
+  return prevTiers.map(tier => ({
+    ...tier,
+    prices: utils.calculateDiscountedPrices(allPrices, tier.discount)
+  }));
+}
+
+// Update variant tier prices
+function updateVariantTierPrices(
+  variantDiscounts: Record<string, VariantDiscount>,
+  allPrices: Record<string, any>
+): Record<string, VariantDiscount> {
+  const updated = { ...variantDiscounts };
+  
+  Object.keys(updated).forEach(sku => {
+    if (updated[sku]?.enabled) {
+      updated[sku] = {
+        ...updated[sku],
+        tiers: updated[sku].tiers.map(tier => ({
+          ...tier,
+          prices: utils.calculateDiscountedPrices(allPrices, tier.discount)
+        }))
+      };
+    }
+  });
+  
+  return updated;
+}
+
+// Function to toggle variant
+function toggleVariantDiscount(
+  variantDiscounts: Record<string, VariantDiscount>,
+  sku: string,
+  enabled: boolean
+): Record<string, VariantDiscount> {
+  return {
+    ...variantDiscounts,
+    [sku]: {
+      ...variantDiscounts[sku],
+      enabled
+    }
+  };
+}
+
+// Function to remove a tier
+function removeTierFromArray(tiers: DiscountTier[], index: number): DiscountTier[] {
+  return tiers.filter((_, i) => i !== index);
+}
+
+// Function to remove a tier from a variant
+function removeVariantTier(
+  variantDiscounts: Record<string, VariantDiscount>,
+  variantSku: string,
+  index: number
+): Record<string, VariantDiscount> {
+  const variant = variantDiscounts[variantSku];
+  if (!variant) return variantDiscounts;
+  
+  return {
+    ...variantDiscounts,
+    [variantSku]: {
+      ...variant,
+      tiers: variant.tiers.filter((_, i) => i !== index)
+    }
+  };
+}
+
 export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>) {
   const { toast } = useToast();
   const variants = product?.product_by_variant || [];
@@ -375,41 +701,11 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
   const customerPrices = form.watch('customerPrices');
   const marketplacePrices = form.watch('marketplacePrices');
   
-  // Transform all prices into categories array - include both customer and marketplace prices
-  const categories = useMemo(() => {
-    const result: Array<{ id: string; name: string }> = [];
-    
-    // Create a set to track unique categories
-    const uniqueCategories = new Set<string>();
-    
-    // Add customer price categories
-    if (customerPrices && typeof customerPrices === 'object') {
-      Object.keys(customerPrices).forEach(key => {
-        if (!uniqueCategories.has(key)) {
-          uniqueCategories.add(key);
-          result.push({
-            id: key,
-            name: key.charAt(0).toUpperCase() + key.slice(1)
-          });
-        }
-      });
-    }
-    
-    // Add marketplace price categories
-    if (marketplacePrices && typeof marketplacePrices === 'object') {
-      Object.keys(marketplacePrices).forEach(key => {
-        if (!uniqueCategories.has(key)) {
-          uniqueCategories.add(key);
-          result.push({
-            id: key,
-            name: key.charAt(0).toUpperCase() + key.slice(1)
-          });
-        }
-      });
-    }
-    
-    return result;
-  }, [customerPrices, marketplacePrices]);
+  // Transform all prices into categories array using the extracted function
+  const categories = useMemo(() => 
+    createCategoriesFromPrices(customerPrices, marketplacePrices), 
+    [customerPrices, marketplacePrices]
+  );
 
   // Main state
   const [isEnabled, setIsEnabled] = useState(false);
@@ -421,55 +717,22 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
   ]);
   const [variantDiscounts, setVariantDiscounts] = useState<Record<string, VariantDiscount>>({});
 
-  // Helper to combine all price sources - with additional type safety
+  // Helper to combine all price sources - simplified with extracted helper function
   const getCombinedPrices = useCallback(() => {
-    // Create a safe clone - handle null, undefined, and non-objects
-    const safeClone = (obj: any) => {
-      if (!obj || typeof obj !== 'object') return {};
-      try {
-        return JSON.parse(JSON.stringify(obj));
-      } catch (e) {
-        console.error("Error cloning price object:", e);
-        return {};
-      }
-    };
-    
-    // Combine prices with proper error handling
-    const combined = {
-      ...safeClone(customerPrices),
-      ...safeClone(marketplacePrices)
-    };
-    
-    return combined;
+    return getCombinedPricesHelper(customerPrices, marketplacePrices);
   }, [customerPrices, marketplacePrices]);
 
-  // Update all prices when customer or marketplace prices change
+  // Update all prices when customer or marketplace prices change - simplified with extracted functions
   useEffect(() => {
     const allPrices = getCombinedPrices();
     
     // Only update if we have prices and categories
     if (Object.keys(allPrices).length > 0 && categories.length > 0) {
-      // Update global tier prices
-      setGlobalTiers(prevTiers => 
-        prevTiers.map(tier => ({
-          ...tier,
-          prices: utils.calculateDiscountedPrices(allPrices, tier.discount)
-        }))
-      );
+      // Update global tier prices using extracted function
+      setGlobalTiers(prevTiers => updateGlobalTierPrices(prevTiers, allPrices));
       
-      // Update variant tier prices
-      setVariantDiscounts(prev => {
-        const updated = { ...prev };
-        Object.keys(updated).forEach(sku => {
-          if (updated[sku]?.enabled) {
-            updated[sku].tiers = updated[sku].tiers.map(tier => ({
-              ...tier,
-              prices: utils.calculateDiscountedPrices(allPrices, tier.discount)
-            }));
-          }
-        });
-        return updated;
-      });
+      // Update variant tier prices using extracted function
+      setVariantDiscounts(prev => updateVariantTierPrices(prev, allPrices));
     }
   }, [customerPrices, marketplacePrices, categories, isEnabled, getCombinedPrices]);
 
@@ -499,7 +762,16 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
     }
   }, [syncVariantTiersWithGlobal]);
 
-  // Add new tier handler
+  // Show error toast - simple function
+  const showError = useCallback((error: string) => {
+    toast({
+      variant: 'destructive',
+      title: 'Invalid Input',
+      description: error
+    });
+  }, [toast]);
+
+  // Add new tier handler using the extracted helpers
   const addQuantityTier = useCallback((variantSku?: string) => {
     // Only proceed if we have categories
     if (categories.length === 0) {
@@ -511,216 +783,107 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
       return;
     }
     
-    // Get combined prices
     const allPrices = getCombinedPrices();
     
     if (customizePerVariant && variantSku && variantSku !== 'global') {
-      setVariantDiscounts(prev => {
-        const variant = prev[variantSku] || { enabled: true, tiers: [] };
-        const defaultQuantity = utils.getDefaultQuantity(variant.tiers);
-        
-        return {
-          ...prev,
-          [variantSku]: {
-            ...variant,
-            tiers: [
-              ...(variant.tiers || []),
-              utils.createNewTier(allPrices, defaultQuantity)
-            ]
-          }
-        };
-      });
+      setVariantDiscounts(prev => addVariantTier(variantSku, prev, allPrices));
     } else {
-      // Add global tier with a safe default quantity
-      const defaultQuantity = utils.getDefaultQuantity(globalTiers);
-      const newTier = utils.createNewTier(allPrices, defaultQuantity);
+      const result = addGlobalTier(globalTiers, allPrices, customizePerVariant, variants, variantDiscounts);
+      setGlobalTiers(result.updatedGlobalTiers);
       
-      setGlobalTiers(prev => [...prev, newTier]);
-      
-      // Sync new tier to all variants if not in custom variant mode
-      if (!customizePerVariant) {
-        setVariantDiscounts(prev => {
-          const updated = { ...prev };
-          variants.forEach(variant => {
-            const sku = variant.sku_product_variant;
-            if (updated[sku]?.enabled) {
-              updated[sku] = {
-                ...updated[sku],
-                tiers: [
-                  ...(updated[sku].tiers || []), 
-                  { ...newTier, id: `${newTier.id}-${sku}` }
-                ]
-              };
-            }
-          });
-          return updated;
-        });
+      if (result.updatedVariantDiscounts !== variantDiscounts) {
+        setVariantDiscounts(result.updatedVariantDiscounts);
       }
     }
-  }, [customizePerVariant, variants, getCombinedPrices, globalTiers, categories, toast]);
+  }, [
+    categories,
+    customizePerVariant, 
+    variants, 
+    getCombinedPrices, 
+    globalTiers, 
+    toast, 
+    variantDiscounts
+  ]);
 
-  // Show validation error
-  const showError = useCallback((error: string) => {
-    toast({
-      variant: 'destructive',
-      title: 'Invalid Input',
-      description: error
-    });
-  }, [toast]);
-
-  // Update tier data - cleaned version without debug logs
+  // Update tier data - optimized for real-time updates
   const updateTier = useCallback((
     variantSku: string,
     index: number,
     field: string,
     value: number
   ) => {
-    // Only proceed if we have categories
+    // Skip validation if no categories
     if (categories.length === 0) {
       showError("Cannot update tier: No price categories available");
       return;
     }
     
-    // Get combined prices
     const allPrices = getCombinedPrices();
     
-    // Check for missing price data
-    const missingPrices = categories.filter(cat => !allPrices[cat.id]);
-    if (missingPrices.length > 0) {
-      // Only log in dev environment
-      if (process.env.NODE_ENV === 'development') {
-        console.warn("Missing price data for categories:", 
-          missingPrices.map(c => c.id).join(", "));
+    // Check for missing price data, but only log in dev environment
+    if (process.env.NODE_ENV === 'development') {
+      const missingPrices = categories.filter(cat => !allPrices[cat.id]);
+      if (missingPrices.length > 0) {
+        console.warn("Missing price data for categories:", missingPrices.map(c => c.id).join(", "));
       }
     }
     
     if (variantSku === 'global') {
-      setGlobalTiers(prev => {
-        // Validate input for specific fields
-        if (field === 'quantity' || field === 'discount') {
-          const error = utils.validateTier(prev, index, field as keyof DiscountTier, value);
-          if (error) {
-            setTimeout(() => showError(error), 0);
-            return prev;
-          }
+      const { updatedTiers, error } = updateGlobalTierHelper(
+        globalTiers, index, field, value, allPrices, utils.validateTier
+      );
+      
+      if (error) {
+        // For discount updates, we may want to skip error display during typing
+        if (field !== 'discount') {
+          setTimeout(() => showError(error), 0);
         }
-        
-        // Create new tiers array to ensure state updates
-        const updatedTiers = prev.map((tier, i) => {
-          if (i === index) {
-            // Create a new tier object
-            const updatedTier = { ...tier, [field]: value };
-            
-            // If discount is updated, recalculate prices
-            if (field === 'discount') {
-              updatedTier.prices = utils.calculateDiscountedPrices(allPrices, value);
-            }
-            
-            return updatedTier;
-          }
-          return tier;
-        });
-        
-        return updatedTiers;
-      });
+        return;
+      }
       
-      // Force rerender by setting state again
-      setTimeout(() => {
-        setGlobalTiers(current => [...current]);
-      }, 10);
-      
+      // Update state immediately without the setTimeout delay for real-time updates
+      setGlobalTiers(updatedTiers);
     } else {
-      setVariantDiscounts(prev => {
-        const variant = prev[variantSku];
-        if (!variant) return prev;
-        
-        // Validate input for specific fields
-        if (field === 'quantity' || field === 'discount') {
-          const error = utils.validateTier(variant.tiers, index, field as keyof DiscountTier, value);
-          if (error) {
-            setTimeout(() => showError(error), 0);
-            return prev;
-          }
-        }
-        
-        // Create new updated variant to ensure state updates
-        const updatedVariant = {
-          ...variant,
-          tiers: variant.tiers.map((tier, i) => {
-            if (i === index) {
-              // Create a new tier object
-              const updatedTier = { ...tier, [field]: value };
-              
-              // If discount is updated, recalculate prices
-              if (field === 'discount') {
-                updatedTier.prices = utils.calculateDiscountedPrices(allPrices, value);
-              }
-              
-              return updatedTier;
-            }
-            return tier;
-          })
-        };
-        
-        // Create a new object to ensure state updates
-        return { ...prev, [variantSku]: updatedVariant };
-      });
+      const { updatedDiscounts, error } = updateVariantTierHelper(
+        variantDiscounts, variantSku, index, field, value, allPrices, utils.validateTier
+      );
       
-      // Force rerender by setting state again
-      setTimeout(() => {
-        setVariantDiscounts(current => ({...current}));
-      }, 10);
+      if (error) {
+        // For discount updates, we may want to skip error display during typing
+        if (field !== 'discount') {
+          setTimeout(() => showError(error), 0);
+        }
+        return;
+      }
+      
+      // Update state immediately without the setTimeout delay for real-time updates
+      setVariantDiscounts(updatedDiscounts);
     }
-  }, [getCombinedPrices, showError, categories]);
+  }, [categories, getCombinedPrices, globalTiers, showError, variantDiscounts]);
 
-  // Remove tier handler
+  // Remove tier handler using extracted functions
   const removeTier = useCallback((variantSku: string, index: number) => {
     if (variantSku === 'global') {
-      setGlobalTiers(prev => prev.filter((_, i) => i !== index));
+      setGlobalTiers(prev => removeTierFromArray(prev, index));
     } else {
-      setVariantDiscounts(prev => {
-        const variant = prev[variantSku];
-        if (!variant) return prev;
-        
-        return {
-          ...prev,
-          [variantSku]: {
-            ...variant,
-            tiers: variant.tiers.filter((_, i) => i !== index)
-          }
-        };
-      });
+      setVariantDiscounts(prev => removeVariantTier(prev, variantSku, index));
     }
   }, []);
 
-  // Handle variant toggle
+  // Handle variant toggle using extracted function
   const handleVariantToggle = useCallback((sku: string, checked: boolean) => {
-    setVariantDiscounts(prev => ({
-      ...prev,
-      [sku]: {
-        ...prev[sku],
-        enabled: checked
-      }
-    }));
+    setVariantDiscounts(prev => toggleVariantDiscount(prev, sku, checked));
   }, []);
 
-  // Render table with appropriate props - cleaned version without debugging
-  const renderTable = useCallback((variantSku: string) => (tiers: DiscountTier[]) => (
-    <DiscountTable
-      variantSku={variantSku}
-      tiers={tiers}
-      categories={categories}
-      onUpdate={updateTier}
-      onRemove={removeTier}
-    />
-  ), [categories, updateTier, removeTier]);
+  // Create table renderer
+  const getTableRenderer = useCallback((variantSku: string) => {
+    return createTableRenderer(variantSku, categories, updateTier, removeTier);
+  }, [categories, updateTier, removeTier]);
 
   // Don't render anything if there are no variants
-  if (!variants.length) {
-    return null;
-  }
+  if (!variants.length) return null;
 
-  // Show a clearer initial state if we have no price categories
+  // Show initial state message if no categories
   if (categories.length === 0) {
     return (
       <div className="rounded-lg border p-4">
@@ -739,6 +902,7 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
     );
   }
 
+  // Main component rendering
   return (
     <div className="rounded-lg border p-4 space-y-4">
       <div className="flex items-center justify-between">
@@ -775,7 +939,7 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
               title="Global Discount Rules"
               onAddTier={() => addQuantityTier('global')}
               tiers={globalTiers}
-              renderTable={renderTable('global')}
+              renderTable={getTableRenderer('global')}
             />
           ) : (
             <div className="space-y-6">
@@ -795,7 +959,7 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
                     onToggle={(checked) => handleVariantToggle(sku, checked)}
                     onAddTier={() => addQuantityTier(sku)}
                     tiers={variantDiscount.tiers}
-                    renderTable={renderTable(sku)}
+                    renderTable={getTableRenderer(sku)}
                   />
                 );
               })}
