@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import axios from 'axios';
 import {
   Form,
   FormControl,
@@ -19,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { generateProductTypeCode, validateProductTypeCode, formatProductTypeCode } from '@/lib/utils/product-type-code';
 import type { ProductType, ProductTypeFormData } from '@/types/product-type';
+import axiosInstance from '@/lib/api/axios';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Product type name is required'),
@@ -43,51 +45,150 @@ export function ProductTypeForm({
   initialData, 
   isSubmitting,
   existingCodes = []
-}: ProductTypeFormProps) {
+}: Readonly<ProductTypeFormProps>) {
   const { toast } = useToast();
   const form = useForm<ProductTypeFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: initialData?.name || '',
-      code: initialData?.code || '',
-      description: initialData?.description || '',
+      name: initialData?.name ?? '',
+      code: initialData?.code ?? '',
+      description: initialData?.description ?? '',
       status: initialData?.status ?? true,
     },
   });
 
-  const handleSubmit = async (values: ProductTypeFormData) => {
+  // Helper function to check if code exists in the API
+  const checkCodeExists = async (code: string): Promise<boolean> => {
     try {
-      let code = values.code;
-      
-      // If code is empty, generate a unique code
-      if (!code) {
-        code = generateProductTypeCode(existingCodes);
-      } else {
-        code = formatProductTypeCode(code);
-        
-        // Check if code is unique (when editing, exclude current code)
-        if (existingCodes.includes(code) && code !== initialData?.code) {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "This code is already in use"
-          });
-          return;
-        }
-      }
-
-      await onSubmit({
-        ...values,
-        code,
+      // Use the search parameter to find if code exists
+      const params = new URLSearchParams({
+        search: code
       });
+      const response = await axiosInstance.get(`/product-types?${params.toString()}`);
+      
+      if (response.data?.data) {
+        // Check if any returned product type has the exact code
+        return response.data.data.some((item: any) => item.code === code);
+      }
+      return false;
     } catch (error) {
-      console.error('Error submitting form:', error);
+      console.error('Error checking code existence:', error);
+      return false; // Assume it doesn't exist on error
+    }
+  };
+
+  // Generate a unique code with retry mechanism
+  const generateUniqueCode = async (existingCodesList: string[]): Promise<string | null> => {
+    let code: string;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 5;
+    let isCodeTaken = false;
+    
+    do {
+      code = generateProductTypeCode([...existingCodesList]);
+      console.log(`Attempt ${attempts+1}: Generated code: ${code}`);
+      
+      isCodeTaken = await checkCodeExists(code);
+      
+      if (isCodeTaken) {
+        console.log(`Code ${code} already exists, adding to existingCodes`);
+        existingCodesList.push(code);
+      }
+      
+      attempts++;
+    } while (isCodeTaken && attempts < MAX_ATTEMPTS);
+    
+    if (attempts >= MAX_ATTEMPTS) {
+      toast({
+        variant: "destructive",
+        title: "Error Generating Code",
+        description: "Failed to generate a unique code after multiple attempts"
+      });
+      return null;
+    }
+    
+    return code;
+  };
+  
+  // Validate user-provided code
+  const validateUserCode = async (code: string): Promise<string | null> => {
+    const formattedCode = formatProductTypeCode(code);
+    
+    // Skip validation if we're editing and the code hasn't changed
+    if (formattedCode === initialData?.code) {
+      return formattedCode;
+    }
+    
+    const isCodeTaken = await checkCodeExists(formattedCode);
+    if (isCodeTaken) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "This code is already in use"
+      });
+      return null;
+    }
+    
+    return formattedCode;
+  };
+  
+  // Handle API errors
+  const handleApiError = (error: unknown) => {
+    console.error('Error submitting form:', error);
+    
+    if (axios.isAxiosError(error)) {
+      const errorMessage = error.response?.data?.message || 
+                        error.response?.data?.error || 
+                        "Failed to save product type";
+      
+      toast({
+        variant: "destructive",
+        title: error.response?.status === 409 ? "Duplicate Code" : "Error",
+        description: errorMessage
+      });
+    } else {
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to save product type"
       });
     }
+  };
+
+  // Main submit handler with reduced complexity
+  const handleSubmit = async (values: ProductTypeFormData) => {
+    try {
+      let finalCode: string | null;
+      
+      // Process code based on whether user provided one or not
+      if (!values.code) {
+        finalCode = await generateUniqueCode(existingCodes);
+      } else {
+        finalCode = await validateUserCode(values.code);
+      }
+      
+      // If we couldn't get a valid code, abort submission
+      if (!finalCode) {
+        return;
+      }
+
+      // Submit with validated/generated code
+      await onSubmit({
+        ...values,
+        code: finalCode,
+      });
+      
+    } catch (error) {
+      handleApiError(error);
+    }
+  };
+
+  // Helper function to get button text
+  const getButtonText = () => {
+    if (isSubmitting) {
+      return initialData ? 'Updating...' : 'Creating...';
+    }
+    return initialData ? 'Update Type' : 'Create Type';
   };
 
   return (
@@ -142,7 +243,6 @@ export function ProductTypeForm({
               <FormControl>
                 <Textarea 
                   placeholder="Enter product type description (optional)"
-                  value={field.value || ''}
                   className="resize-none"
                   {...field}
                 />
@@ -175,10 +275,7 @@ export function ProductTypeForm({
 
         <div className="flex justify-end space-x-4">
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting 
-              ? (initialData ? 'Updating...' : 'Creating...') 
-              : (initialData ? 'Update Type' : 'Create Type')
-            }
+            {getButtonText()}
           </Button>
         </div>
       </form>
