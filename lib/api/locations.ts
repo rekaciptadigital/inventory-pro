@@ -15,6 +15,9 @@ export interface LocationResponse {
     type: string;
     description: string;
     status: boolean;
+    parent_id: number | null;
+    level: number;
+    children?: Array<any>;
   }>;
   pagination: {
     links: {
@@ -39,12 +42,14 @@ export interface LocationFormData {
   type: "warehouse" | "store" | "affiliate" | "others";
   description?: string;
   status: boolean;
+  parent_id?: number | null;
 }
 
 export interface GetLocationsParams {
   search?: string;
   type?: "warehouse" | "store" | "affiliate" | "others";
   status?: boolean;
+  parent_id?: number | null;
   page?: number;
   limit?: number;
 }
@@ -53,6 +58,7 @@ export const getLocations = async ({
   search = "",
   type,
   status,
+  parent_id,
   page = 1,
   limit = 10,
 }: GetLocationsParams = {}) => {
@@ -61,6 +67,10 @@ export const getLocations = async ({
     if (search) params.append("search", search);
     if (type) params.append("type", type);
     if (typeof status === "boolean") params.append("status", status.toString());
+    // Only include parent_id if it's not null and not undefined
+    if (parent_id !== undefined && parent_id !== null) {
+      params.append("parent_id", parent_id.toString());
+    }
     params.append("page", page.toString());
     params.append("limit", limit.toString());
 
@@ -94,12 +104,21 @@ interface CreateLocationResponse {
 
 export const createLocation = async (data: LocationFormData) => {
   try {
+    // Create a new object without parent_id to avoid sending it if API doesn't support it
+    const { parent_id, ...restData } = data;
+    const payload = {
+      ...restData,
+      type: data.type.charAt(0).toUpperCase() + data.type.slice(1), // Capitalize first letter
+    };
+    
+    // Only include parent_id if it's not null
+    if (parent_id !== null && parent_id !== undefined) {
+      Object.assign(payload, { parent_id });
+    }
+    
     const response = await axiosInstance.post<CreateLocationResponse>(
       "/inventory-locations",
-      {
-        ...data,
-        type: data.type.charAt(0).toUpperCase() + data.type.slice(1) // Capitalize first letter
-      }
+      payload
     );
     return response.data;
   } catch (error) {
@@ -128,12 +147,21 @@ interface UpdateLocationResponse {
 
 export const updateLocation = async (id: number, data: LocationFormData) => {
   try {
+    // Create a new object without parent_id to avoid sending it if API doesn't support it
+    const { parent_id, ...restData } = data;
+    const payload = {
+      ...restData,
+      type: data.type.charAt(0).toUpperCase() + data.type.slice(1), // Capitalize first letter
+    };
+    
+    // Only include parent_id if it's not null
+    if (parent_id !== null && parent_id !== undefined) {
+      Object.assign(payload, { parent_id });
+    }
+    
     const response = await axiosInstance.put<UpdateLocationResponse>(
       `/inventory-locations/${id}`,
-      {
-        ...data,
-        type: data.type.charAt(0).toUpperCase() + data.type.slice(1) // Capitalize first letter
-      }
+      payload
     );
     return response.data;
   } catch (error) {

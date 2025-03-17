@@ -5,9 +5,12 @@ export interface Location {
   type: 'warehouse' | 'store' | 'affiliate' | 'others';
   description?: string;
   status: boolean;
+  parentId: number | null;
+  level: number;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  children?: Location[];
 }
 
 export interface LocationFormData {
@@ -16,4 +19,9 @@ export interface LocationFormData {
   type: 'warehouse' | 'store' | 'affiliate' | 'others';
   description?: string;
   status: boolean;
+  parentId?: number | null;
+}
+
+export interface LocationTreeItem extends Location {
+  children: LocationTreeItem[];
 }

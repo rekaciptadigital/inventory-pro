@@ -86,7 +86,19 @@ export function LocationList({
           {locations.map((location) => (
             <TableRow key={location.id}>
               <TableCell className="font-medium">{location.code}</TableCell>
-              <TableCell>{location.name}</TableCell>
+              <TableCell>
+                {location.parentId && (
+                  <span className="text-xs text-muted-foreground mr-2">
+                    ↳
+                  </span>
+                )}
+                {location.name}
+                {location.children && location.children.length > 0 && (
+                  <Badge variant="outline" className="ml-2">
+                    {location.children.length} sub-location{location.children.length !== 1 ? 's' : ''}
+                  </Badge>
+                )}
+              </TableCell>
               <TableCell>{getLocationTypeBadge(location.type)}</TableCell>
               <TableCell>{formatDate(location.created_at)}</TableCell>
               <TableCell>{formatDate(location.updated_at)}</TableCell>

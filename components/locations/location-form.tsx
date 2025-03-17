@@ -26,6 +26,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { generateLocationCode } from '@/lib/utils/location-code';
+import { LocationSelect } from './location-select';
 import type { Location } from '@/types/location';
 
 const formSchema = z.object({
@@ -34,6 +35,7 @@ const formSchema = z.object({
   type: z.enum(['warehouse', 'store', 'affiliate', 'others'] as const),
   description: z.string().optional(),
   status: z.boolean().default(true),
+  parentId: z.number().nullable().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -57,6 +59,7 @@ export function LocationForm({ onSubmit, initialData, onClose }: LocationFormPro
       type: initialData?.type ?? 'warehouse',
       description: initialData?.description ?? '',
       status: initialData?.status ?? true,
+      parentId: initialData?.parentId ?? null,
     },
   });
 
@@ -161,6 +164,28 @@ export function LocationForm({ onSubmit, initialData, onClose }: LocationFormPro
                   <SelectItem value="others">Others</SelectItem>
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="parentId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Parent Location</FormLabel>
+              <FormControl>
+                <LocationSelect
+                  value={field.value || undefined}
+                  onValueChange={(value) => field.onChange(value)}
+                  excludeIds={initialData ? [initialData.id] : []}
+                  placeholder="Select parent location (optional)"
+                />
+              </FormControl>
+              <FormDescription>
+                Optional. Select a parent location to create a sub-location.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

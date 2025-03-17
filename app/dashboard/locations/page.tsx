@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { LocationList } from '@/components/locations/location-list';
 import { LocationForm } from '@/components/locations/location-form';
+import { LocationSelect } from '@/components/locations/location-select';
 import { useLocations } from '@/lib/hooks/locations/use-locations';
 import { PaginationControls } from '@/components/ui/pagination/pagination-controls';
 import { PaginationInfo } from '@/components/ui/pagination/pagination-info';
@@ -29,6 +30,7 @@ import type { Location } from '@/types/location';
 export default function LocationsPage() {
   const [search, setSearch] = useState('');
   const [locationType, setLocationType] = useState<string>('all');
+  const [parentId, setParentId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<Location | undefined>();
   const { currentPage, pageSize, handlePageChange, handlePageSizeChange } = usePagination();
@@ -45,6 +47,7 @@ export default function LocationsPage() {
   } = useLocations({
     search,
     type: locationType === 'all' ? undefined : locationType as Location['type'],
+    parent_id: parentId,
     page: currentPage,
     limit: pageSize,
   });
@@ -106,6 +109,16 @@ export default function LocationsPage() {
             <SelectItem value="others">Others</SelectItem>
           </SelectContent>
         </Select>
+        <div className="w-[220px]">
+          <LocationSelect
+            value={parentId ?? undefined}
+            onValueChange={(value) => {
+              setParentId(value);
+              handlePageChange(1); // Reset to first page on parent change
+            }}
+            placeholder="Filter by parent location"
+          />
+        </div>
       </div>
 
       <LocationList
@@ -152,7 +165,8 @@ export default function LocationsPage() {
                     name: data.name,
                     type: data.type,
                     description: data.description,
-                    status: data.status
+                    status: data.status,
+                    parent_id: data.parentId ?? null
                   },
                 });
               } else {
@@ -161,7 +175,8 @@ export default function LocationsPage() {
                   name: data.name,
                   type: data.type,
                   description: data.description,
-                  status: data.status
+                  status: data.status,
+                  parent_id: data.parentId ?? null
                 });
               }
               handleSuccess();

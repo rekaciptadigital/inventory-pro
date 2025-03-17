@@ -16,9 +16,24 @@ export function useLocations(filters: GetLocationsParams = {}) {
       type: location.type.toLowerCase() as Location["type"],
       description: location.description,
       status: location.status,
+      parentId: location.parent_id,
+      level: location.level || 0,
       created_at: location.created_at,
       updated_at: location.updated_at,
       deleted_at: location.deleted_at,
+      children: location.children?.map((child: any) => ({
+        id: child.id,
+        code: child.code,
+        name: child.name,
+        type: child.type.toLowerCase() as Location["type"],
+        description: child.description,
+        status: child.status,
+        parentId: child.parent_id,
+        level: child.level || 0,
+        created_at: child.created_at,
+        updated_at: child.updated_at,
+        deleted_at: child.deleted_at,
+      })),
     })) ?? [];
 
   return {
