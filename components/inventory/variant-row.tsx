@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Barcode } from 'lucide-react';
+import { CopyToClipboard } from '@/components/ui/copy-to-clipboard';
 import { formatDate } from '@/lib/utils/format';
 import { getVariantDetails } from '@/lib/utils/variant-helper';
 import type { InventoryProduct, InventoryProductVariant } from '@/types/inventory';
@@ -18,10 +19,17 @@ export function VariantRow({ variant, product, onShowBarcode }: VariantRowProps)
   return (
     <TableRow className="bg-muted/30 hover:bg-muted/50 transition-colors">
       <TableCell className="pl-10 font-mono text-sm">
-        {variant.sku_product_variant}
+        <CopyToClipboard 
+          value={variant.sku_product_variant} 
+          className="font-mono text-sm" 
+          tooltipText="Copy variant SKU"
+        />
       </TableCell>
       <TableCell className="pl-10">
-        {variant.full_product_name}
+        <CopyToClipboard 
+          value={variant.full_product_name} 
+          tooltipText="Copy variant name"
+        />
       </TableCell>
       <TableCell colSpan={4}>
         {Object.entries(variantDetails).length > 0 ? (

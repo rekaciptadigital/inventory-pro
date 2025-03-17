@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Edit, ChevronDown, ChevronRight, Barcode, Trash2 } from 'lucide-react';
+import { CopyToClipboard } from '@/components/ui/copy-to-clipboard';
 import { formatDate } from '@/lib/utils/format';
 import type { InventoryProduct } from '@/types/inventory';
 import {
@@ -38,8 +39,19 @@ export function ProductRow({
 }: ProductRowProps) {
   return (
     <TableRow className="group hover:bg-muted/50 transition-colors">
-      <TableCell className="font-medium">{product.sku}</TableCell>
-      <TableCell>{product.full_product_name}</TableCell>
+      <TableCell className="font-medium">
+        <CopyToClipboard 
+          value={product.sku} 
+          className="font-medium" 
+          tooltipText="Copy SKU"
+        />
+      </TableCell>
+      <TableCell>
+        <CopyToClipboard 
+          value={product.full_product_name} 
+          tooltipText="Copy product name"
+        />
+      </TableCell>
       <TableCell>{product.brand_name}</TableCell>
       <TableCell>{product.product_type_name}</TableCell>
       <TableCell>
