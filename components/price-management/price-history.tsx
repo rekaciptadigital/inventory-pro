@@ -18,7 +18,7 @@ interface PriceHistoryProps {
   product: InventoryProduct;
 }
 
-export function PriceHistory({ product }: PriceHistoryProps) {
+export function PriceHistory({ product }: Readonly<PriceHistoryProps>) {
   const [isEditing, setIsEditing] = useState(false);
 
   // Mock price history data - replace with actual API data

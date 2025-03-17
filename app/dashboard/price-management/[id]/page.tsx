@@ -1,6 +1,4 @@
-import { Suspense } from 'react';
 import { PriceManagementDetail } from './price-management-detail';
-import { Skeleton } from '@/components/ui/skeleton';
 
 export async function generateStaticParams() {
   // For small IDs (1-1000), ensure complete coverage without gaps
@@ -79,9 +77,5 @@ export async function generateStaticParams() {
 export const dynamicParams = false;
 
 export default function PriceManagementDetailPage() {
-  return (
-    <Suspense fallback={<Skeleton className="h-[400px]" />}>
-      <PriceManagementDetail />
-    </Suspense>
-  );
+  return <PriceManagementDetail />;
 }

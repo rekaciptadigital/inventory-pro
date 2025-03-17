@@ -1,5 +1,5 @@
 export interface InventoryProduct {
-  id: number;
+  id: number | string;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -18,7 +18,7 @@ export interface InventoryProduct {
   unit: string;
   slug: string;
   categories: InventoryCategory[];
-  variants: InventoryVariant[];
+  variants: InventoryVariant[]; // Keep this one with specific type
   product_by_variant: InventoryProductVariant[];
   // Additional pricing fields
   usdPrice?: number;
@@ -33,6 +33,8 @@ export interface InventoryProduct {
     appliedTaxPercentage: number;
   }>;
   percentages?: Record<string, number>;
+  price?: number;
+  base_price?: number;
 }
 
 export interface InventoryCategory {
