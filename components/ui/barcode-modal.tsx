@@ -66,6 +66,8 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
           if (ref) {
             try {
               const config = getBarcodeConfig(layout, true);
+              // Increase the displayed SKU size in the preview
+              config.fontSize = layout.skuFontSize; // Use the larger SKU font size
               JsBarcode(ref, skus[index].sku, config);
             } catch (error) {
               console.error(`Error generating barcode for SKU ${skus[index].sku}:`, error);
@@ -81,9 +83,28 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
     }
   }, [open, skus, selectedPageSize, toast]);
 
+  // Keep track of generated blob URLs to ensure they're not revoked too early
+  const blobUrlRef = useRef<string | null>(null);
+
+  // Clean up any existing blob URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, []);
+
   const generatePDF = async () => {
     setIsGeneratingPDF(true);
     try {
+      // Clean up any previous blob URL
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+
       const pageSize = PAGE_SIZES[selectedPageSize];
       const layout = calculateBarcodeLayout(pageSize);
       
@@ -106,8 +127,11 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
           layout.fontSize // Height for SKU text
         );
         
-        // Start Y position to center content vertically
-        let startY = (pageSize.height - totalContentHeight) / 2;
+        // Apply vertical offset to move content lower than center
+        const verticalOffset = pageSize.height * 0.08; // 8% of the label height
+        
+        // Start Y position - moved lower by offset amount
+        let startY = (pageSize.height - totalContentHeight) / 2 + verticalOffset;
         const centerX = pageSize.width / 2;
 
         // Draw product name
@@ -141,11 +165,18 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
         });
       }
 
-      // Output PDF
+      // Output PDF - Back to opening in new tab but with improved URL handling
       const pdfBlob = doc.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
+      
+      // Store the URL reference to prevent garbage collection
+      blobUrlRef.current = pdfUrl;
+      
+      // Open in new tab (original flow)
       window.open(pdfUrl, '_blank');
-      URL.revokeObjectURL(pdfUrl);
+      
+      // Don't revoke the URL immediately - PDF needs to stay available
+      // We'll clean it up when component unmounts or next PDF is generated
 
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -191,13 +222,17 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
           <div className="space-y-6">
             {skus.map(({ sku, name }, index) => (
               <div key={sku} className="flex flex-col items-center gap-1 p-4 border rounded-lg bg-white">
-                <h3 className="font-medium text-base" style={{ fontSize: `${dimensions.fontSize}px` }}>
+                <h3 className="font-medium text-base" 
+                    style={{ 
+                      fontSize: `${dimensions.fontSize * 1.5}px`, // Reduced from 1.7 to 1.5
+                      marginBottom: '6px' 
+                    }}>
                   {name}
                 </h3>
                 <svg
                   ref={setRef(index)}
                   style={{
-                    height: '100px',
+                    height: '50px',
                     width: 'auto'
                   }}
                   xmlns="http://www.w3.org/2000/svg"

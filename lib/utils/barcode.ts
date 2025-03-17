@@ -51,24 +51,24 @@ type PaperSizeKey = 'label-small' | 'label-medium' | 'label-large';
 const PAPER_CONFIGS: Record<PaperSizeKey, PaperConfig> = {
   // Ukuran label kecil (50x25mm)
   'label-small': {
-    nameFontScale: 0.65,     // Skala font untuk nama produk (lebih kecil)
-    skuFontScale: 0.8,       // Skala font untuk SKU (sedikit lebih besar)
-    barcodeHeightRatio: 0.55,// Rasio tinggi barcode terhadap tinggi kertas
-    spacing: 0.4,            // Jarak antar elemen (dalam mm)
+    nameFontScale: 1.6,
+    skuFontScale: 1.8,
+    barcodeHeightRatio: 0.26, 
+    spacing: 0.1,            // Further reduced from 0.2 - Minimal spacing
   },
   // Ukuran label sedang (100x30mm)
   'label-medium': {
-    nameFontScale: 0.7,      // Ukuran font nama standar
-    skuFontScale: 0.9,       // Ukuran font SKU standar
-    barcodeHeightRatio: 0.6, // 60% dari tinggi yang tersedia
-    spacing: 0.5,            // Jarak standar
+    nameFontScale: 1.4,
+    skuFontScale: 1.95,
+    barcodeHeightRatio: 0.285, 
+    spacing: 0.12,           // Further reduced from 0.25 - Minimal spacing
   },
   // Ukuran label besar (100x50mm)
   'label-large': {
-    nameFontScale: 0.75,     // Font nama lebih besar
-    skuFontScale: 0.95,      // Font SKU lebih besar
-    barcodeHeightRatio: 0.65,// Lebih banyak ruang untuk barcode
-    spacing: 0.6,            // Jarak lebih longgar
+    nameFontScale: 1.9,
+    skuFontScale: 2.1,
+    barcodeHeightRatio: 0.30, 
+    spacing: 0.15,           // Further reduced from 0.3 - Minimal spacing
   }
 };
 
@@ -110,7 +110,7 @@ export function calculateBarcodeLayout(pageSize: PageSize): BarcodeLayout {
   // Menghitung dimensi barcode
   const maxBarcodeHeight = availableHeight * sizeConfig.barcodeHeightRatio; // Tinggi maksimal barcode
   const barcodeWidth = availableWidth;
-  const barcodeHeight = Math.min(maxBarcodeHeight, barcodeWidth * 0.25); // Menjaga rasio aspek barcode
+  const barcodeHeight = Math.min(maxBarcodeHeight, barcodeWidth * 0.125); // Halved from 0.25 - Menjaga rasio aspek barcode
 
   // Menghitung total tinggi konten untuk penempatan vertikal
   const totalContentHeight = nameHeight + elementSpacing + barcodeHeight + elementSpacing + skuHeight;
