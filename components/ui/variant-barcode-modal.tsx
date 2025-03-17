@@ -21,19 +21,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-
-interface PageSize {
-  name: string;
-  width: number;
-  height: number;
-  unit: 'mm';
-}
-
-const PAGE_SIZES: Record<string, PageSize> = {
-  'label-small': { name: '50 x 25mm Label', width: 50, height: 25, unit: 'mm' },
-  'label-medium': { name: '100 x 30mm Label', width: 100, height: 30, unit: 'mm' },
-  'label-large': { name: '100 x 50mm Label', width: 100, height: 50, unit: 'mm' },
-};
+import { 
+  PAGE_SIZES, 
+  calculateBarcodeLayout, 
+  getPreviewBarcodeConfig,
+  getPreviewSize,
+} from '@/lib/utils/barcode';
 
 const BARCODE_CONFIG = {
   format: 'CODE128',
@@ -57,84 +50,25 @@ interface VariantBarcodeModalProps {
   readonly name: string;
 }
 
-interface BarcodeLayout {
-  paperWidth: number;
-  paperHeight: number;
-  margins: {
-    top: number;
-    right: number;
-    bottom: number;
-    left: number;
-  };
-  textSpacing: number;
-  barcodeWidth: number;
-  barcodeHeight: number;
-  fontSize: number;
-  scale: number;
-}
-
-// Add reference size constants
-const REFERENCE_SIZE = {
-  width: 100, // Reference width (100mm - size of medium label)
-  height: 30, // Reference height (30mm - size of medium label)
-  fontSize: 8,
-  spacing: 2,
-  barcodeHeight: 20,
-};
-
-function calculateBarcodeLayout(pageSize: PageSize): BarcodeLayout {
-  // Calculate scale factors based on both dimensions
-  const widthScale = pageSize.width / REFERENCE_SIZE.width;
-  const heightScale = pageSize.height / REFERENCE_SIZE.height;
-  
-  // Use the smaller scale to ensure everything fits
-  const scale = Math.min(widthScale, heightScale);
-
-  // Calculate scaled dimensions
-  const fontSize = REFERENCE_SIZE.fontSize * scale;
-  const spacing = REFERENCE_SIZE.spacing * scale;
-  const margins = {
-    top: spacing * 2,
-    right: spacing * 2,
-    bottom: spacing * 2,
-    left: spacing * 2
-  };
-
-  // Calculate available width for barcode
-  const availableWidth = pageSize.width - (margins.left + margins.right);
-
-  // Calculate barcode size proportionally
-  let barcodeHeight = REFERENCE_SIZE.barcodeHeight * scale;
-  let barcodeWidth = barcodeHeight * 2.5; // Maintain aspect ratio
-
-  // If barcode is too wide, scale it down while maintaining aspect ratio
-  if (barcodeWidth > availableWidth) {
-    const reductionRatio = availableWidth / barcodeWidth;
-    barcodeWidth = availableWidth;
-    barcodeHeight = barcodeHeight * reductionRatio;
-  }
-
-  // Ensure minimum readable sizes
-  const minFontSize = 6;
-  const maxFontSize = 14;
-  
-  return {
-    paperWidth: pageSize.width,
-    paperHeight: pageSize.height,
-    margins,
-    textSpacing: spacing,
-    barcodeWidth,
-    barcodeHeight,
-    fontSize: Math.min(Math.max(fontSize, minFontSize), maxFontSize),
-    scale
-  };
-}
-
 export function VariantBarcodeModal({ open, onOpenChange, sku, name }: VariantBarcodeModalProps) {
   const { toast } = useToast();
   const barcodeRef = useRef<SVGSVGElement | null>(null);
   const [selectedPageSize, setSelectedPageSize] = useState<string>('label-medium');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  
+  // Calculate preview size using utility function
+  const [previewSize, setPreviewSize] = useState(() => 
+    getPreviewSize(selectedPageSize, 400) // 400px max width for variant modal
+  );
+  
+  // Update preview size when page size changes or window resizes
+  useEffect(() => {
+    setPreviewSize(getPreviewSize(selectedPageSize, 400));
+    
+    const handleResize = () => setPreviewSize(getPreviewSize(selectedPageSize, 400));
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [selectedPageSize]);
 
   useEffect(() => {
     if (open) {
@@ -145,16 +79,13 @@ export function VariantBarcodeModal({ open, onOpenChange, sku, name }: VariantBa
             // Clear existing content
             barcodeRef.current.innerHTML = '';
             
-            // Generate barcode dengan konfigurasi yang sama dengan main product
-            JsBarcode(barcodeRef.current, sku, {
-              format: 'CODE128',
-              width: 2,
-              height: 100,
-              displayValue: true,
-              fontSize: 14,
-              margin: 10,
-              background: '#ffffff',
-            });
+            // Get layout for selected size with preview settings
+            const previewLayout = calculateBarcodeLayout(PAGE_SIZES[selectedPageSize], true);
+            
+            // Use the special preview config function
+            JsBarcode(barcodeRef.current, sku, 
+              getPreviewBarcodeConfig(previewLayout, previewSize)
+            );
           } catch (error) {
             console.error(`Error generating barcode for SKU ${sku}:`, error);
             toast({
@@ -164,15 +95,16 @@ export function VariantBarcodeModal({ open, onOpenChange, sku, name }: VariantBa
             });
           }
         }
-      }, 100); // Delay 100ms sama seperti main product
+      }, 100);
     }
-  }, [open, sku, toast]);
+  }, [open, sku, toast, selectedPageSize, previewSize]);
 
   const generatePDF = async () => {
     setIsGeneratingPDF(true);
     try {
       const pageSize = PAGE_SIZES[selectedPageSize];
-      const layout = calculateBarcodeLayout(pageSize);
+      // Use print layout configuration (not preview)
+      const layout = calculateBarcodeLayout(pageSize, false);
       
       const doc = new jsPDF({
         orientation: pageSize.height > pageSize.width ? 'portrait' : 'landscape',
@@ -215,6 +147,7 @@ export function VariantBarcodeModal({ open, onOpenChange, sku, name }: VariantBa
 
       // Position SKU with scaled spacing
       currentY += layout.barcodeHeight + (layout.textSpacing * 2);
+      doc.setFontSize(layout.fontSize * 0.8); // Reduced SKU font size
       doc.text(sku, centerX, currentY, {
         align: 'center',
         baseline: 'top'
@@ -252,20 +185,60 @@ export function VariantBarcodeModal({ open, onOpenChange, sku, name }: VariantBa
         </DialogHeader>
 
         <div className="flex flex-col items-center space-y-6">
-          <div className="p-8 border rounded-lg bg-white w-full shadow-sm">
-            <div className="flex flex-col items-center gap-1"> {/* Changed from space-y-4 to gap-1 */}
-              <h3 className="text-lg font-medium text-center">{name}</h3>
-              <div className="w-full flex justify-center">
+          <div className="p-4 border rounded-lg bg-white w-full shadow-sm">
+            <div className="flex flex-col items-center gap-1">
+              {/* Label-sized container with proper proportions */}
+              <div 
+                className="relative bg-white rounded border"
+                style={{
+                  width: `${previewSize.width}px`,
+                  height: `${previewSize.height}px`,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '12px 0',
+                  padding: '4px',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Size indicator label */}
+                <div className="absolute top-0 right-0 bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-bl">
+                  {PAGE_SIZES[selectedPageSize].width} × {PAGE_SIZES[selectedPageSize].height} mm
+                </div>
+                
+                {/* Product name inside the canvas */}
+                <div style={{ 
+                  width: '90%', // Slightly narrower for better readability
+                  textAlign: 'center',
+                  fontSize: `${calculateBarcodeLayout(PAGE_SIZES[selectedPageSize], true).fontSize * previewSize.width / PAGE_SIZES[selectedPageSize].width * 0.8 * 0.425}px`, // adjusted from 0.5 to 0.425
+                  fontWeight: 500,
+                  marginBottom: '4px',
+                  overflow: 'hidden',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2, // Limit to 2 lines
+                  WebkitBoxOrient: 'vertical',
+                  lineHeight: 1.3,
+                  maxHeight: `${calculateBarcodeLayout(PAGE_SIZES[selectedPageSize], true).fontSize * previewSize.width / PAGE_SIZES[selectedPageSize].width * 0.8 * 0.425 * 2.8}px`, // adjusted max height to match new font size
+                }}>
+                  {name}
+                </div>
+                
                 <svg
                   ref={barcodeRef}
                   xmlns="http://www.w3.org/2000/svg"
                   style={{ 
-                    height: '100px',
-                    width: 'auto'
+                    width: `${previewSize.width * 0.8}px`,
+                    height: `${previewSize.height * 0.6}px`,
+                    maxWidth: '100%',
+                    maxHeight: '100%',
                   }}
+                  preserveAspectRatio="xMidYMid meet"
                 />
+                
+                {/* SKU display removed from preview */}
               </div>
-              <span className="text-sm font-mono text-muted-foreground">{sku}</span>
             </div>
           </div>
 

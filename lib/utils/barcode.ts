@@ -72,6 +72,31 @@ const PAPER_CONFIGS: Record<PaperSizeKey, PaperConfig> = {
   }
 };
 
+// Konfigurasi khusus untuk preview di layar
+const PREVIEW_CONFIGS: Record<PaperSizeKey, PaperConfig> = {
+  // Ukuran label kecil (50x25mm)
+  'label-small': {
+    nameFontScale: 1.6,
+    skuFontScale: 1.8,
+    barcodeHeightRatio: 0.35, // Increased for better preview visibility
+    spacing: 0.15,            // More spacing for preview
+  },
+  // Ukuran label sedang (100x30mm)
+  'label-medium': {
+    nameFontScale: 1.4,
+    skuFontScale: 1.95,
+    barcodeHeightRatio: 0.4,  // Increased for better preview visibility
+    spacing: 0.17,            // More spacing for preview
+  },
+  // Ukuran label besar (100x50mm)
+  'label-large': {
+    nameFontScale: 1.9,
+    skuFontScale: 2.1,
+    barcodeHeightRatio: 0.45, // Increased for better preview visibility
+    spacing: 0.2,             // More spacing for preview
+  }
+};
+
 // Fungsi untuk menentukan jenis ukuran kertas berdasarkan dimensi
 function getPaperSizeKey(pageSize: PageSize): PaperSizeKey {
   if (pageSize.width === 50) return 'label-small';
@@ -79,10 +104,12 @@ function getPaperSizeKey(pageSize: PageSize): PaperSizeKey {
   return 'label-large';
 }
 
-export function calculateBarcodeLayout(pageSize: PageSize): BarcodeLayout {
+export function calculateBarcodeLayout(pageSize: PageSize, isPreview = false): BarcodeLayout {
   // Mendapatkan konfigurasi berdasarkan ukuran kertas
   const sizeKey = getPaperSizeKey(pageSize);
-  const sizeConfig = PAPER_CONFIGS[sizeKey];
+  
+  // Pilih konfigurasi berdasarkan apakah untuk preview atau print
+  const sizeConfig = isPreview ? PREVIEW_CONFIGS[sizeKey] : PAPER_CONFIGS[sizeKey];
   
   // Menghitung margin berdasarkan spacing yang ditentukan
   const baseSpacing = sizeConfig.spacing;
@@ -134,10 +161,10 @@ export function calculateBarcodeLayout(pageSize: PageSize): BarcodeLayout {
   };
 }
 
-export function getBarcodeConfig(layout: BarcodeLayout, displayValue: boolean = false) {
+export function getBarcodeConfig(layout: BarcodeLayout, displayValue: boolean = false, isPreview = false) {
   // Menghitung lebar bar barcode
   // Barcode CODE128 biasanya memiliki 67-70 bar, kita gunakan 67 untuk lebar maksimal
-  const barWidth = (layout.barcodeWidth * 0.013) * (layout.scale * 0.8);
+  const barWidth = (layout.barcodeWidth * 0.013) * (layout.scale * (isPreview ? 1 : 0.8));
   
   // Konfigurasi untuk generate barcode
   return {
@@ -145,13 +172,45 @@ export function getBarcodeConfig(layout: BarcodeLayout, displayValue: boolean = 
     width: barWidth,         // Lebar setiap bar
     height: layout.barcodeHeight, // Tinggi barcode
     displayValue,            // Tampilkan teks di bawah barcode atau tidak
-    fontSize: layout.fontSize, // Ukuran font untuk teks
+    fontSize: isPreview ? layout.fontSize * 1.2 : layout.fontSize, // Ukuran font lebih besar untuk preview
     margin: 0,               // Tanpa margin tambahan
-    background: '#FFFFFF',    // Latar belakang putih
+    background: '#FFFFFF',   // Latar belakang putih
     lineColor: '#000000',    // Warna bar hitam
     textAlign: 'center',     // Teks di tengah
     textPosition: 'bottom',  // Posisi teks di bawah
     textMargin: layout.textSpacing, // Jarak teks dari barcode
     font: 'monospace',       // Font monospace untuk keterbacaan
   };
+}
+
+// New function specifically for preview configuration
+export function getPreviewBarcodeConfig(layout: BarcodeLayout, previewSize: { width: number, height: number }) {
+  const previewScale = previewSize.width / layout.paperWidth;
+  const contentScale = 0.85; // Scale content to 85% of container to leave margins
+  
+  return {
+    format: 'CODE128',
+    width: (layout.barcodeWidth * 0.013) * layout.scale * previewScale * contentScale,
+    height: layout.barcodeHeight * previewScale * contentScale,
+    displayValue: true,
+    fontSize: layout.fontSize * previewScale * contentScale * 0.7 * 0.8, // Reduced by 20% (multiplied by 0.8)
+    margin: 0,
+    background: '#FFFFFF',
+    lineColor: '#000000',
+    textAlign: 'center',
+    textPosition: 'bottom',
+    textMargin: layout.textSpacing * previewScale * contentScale,
+    font: 'monospace',
+  };
+}
+
+// Utility function to get preview dimensions
+export function getPreviewSize(selectedPageSize: string, maxWidth = 320) {
+  const pageSize = PAGE_SIZES[selectedPageSize];
+  const containerWidth = window.innerWidth > 768 ? maxWidth : window.innerWidth * 0.7;
+  const previewWidth = Math.min(maxWidth, containerWidth);
+  const aspectRatio = pageSize.height / pageSize.width;
+  const previewHeight = previewWidth * aspectRatio;
+  
+  return { width: previewWidth, height: previewHeight };
 }

@@ -22,7 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PAGE_SIZES, calculateBarcodeLayout, getBarcodeConfig, type BarcodeLayout } from '@/lib/utils/barcode';
+import { 
+  PAGE_SIZES, 
+  calculateBarcodeLayout, 
+  getBarcodeConfig, 
+  getPreviewBarcodeConfig,
+  getPreviewSize,
+  type BarcodeLayout 
+} from '@/lib/utils/barcode';
 
 interface BarcodeModalProps {
   readonly open: boolean;
@@ -46,29 +53,42 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
   // State untuk manajemen UI
   const [selectedPageSize, setSelectedPageSize] = useState<string>('label-medium');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [dimensions, setDimensions] = useState<BarcodeLayout>(() => 
-    calculateBarcodeLayout(PAGE_SIZES['label-medium'])
+  const [previewDimensions, setPreviewDimensions] = useState<BarcodeLayout>(() =>
+    calculateBarcodeLayout(PAGE_SIZES['label-medium'], true)
   );
 
   // Update dimensi saat ukuran kertas berubah
   useEffect(() => {
-    const newDimensions = calculateBarcodeLayout(PAGE_SIZES[selectedPageSize]);
-    setDimensions(newDimensions);
+    const newPreviewDimensions = calculateBarcodeLayout(PAGE_SIZES[selectedPageSize], true);
+    setPreviewDimensions(newPreviewDimensions);
+  }, [selectedPageSize]);
+
+  // Calculate preview size to match label proportions using utility function
+  const [previewSize, setPreviewSize] = useState(() => getPreviewSize(selectedPageSize));
+  
+  // Update preview size when page size changes or window resizes
+  useEffect(() => {
+    setPreviewSize(getPreviewSize(selectedPageSize));
+    
+    const handleResize = () => setPreviewSize(getPreviewSize(selectedPageSize));
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, [selectedPageSize]);
 
   // Update barcode rendering when dimensions change
   useEffect(() => {
     if (open) {
       setTimeout(() => {
-        const layout = calculateBarcodeLayout(PAGE_SIZES[selectedPageSize]);
-        
         barcodeRefs.current.forEach((ref, index) => {
           if (ref) {
             try {
-              const config = getBarcodeConfig(layout, true);
-              // Increase the displayed SKU size in the preview
-              config.fontSize = layout.skuFontSize; // Use the larger SKU font size
-              JsBarcode(ref, skus[index].sku, config);
+              // Clear existing content
+              ref.innerHTML = '';
+              
+              // Use the special preview config instead of the print config
+              JsBarcode(ref, skus[index].sku, 
+                getPreviewBarcodeConfig(previewDimensions, previewSize)
+              );
             } catch (error) {
               console.error(`Error generating barcode for SKU ${skus[index].sku}:`, error);
               toast({
@@ -81,7 +101,7 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
         });
       }, 100);
     }
-  }, [open, skus, selectedPageSize, toast]);
+  }, [open, skus, selectedPageSize, toast, previewSize, previewDimensions]);
 
   // Keep track of generated blob URLs to ensure they're not revoked too early
   const blobUrlRef = useRef<string | null>(null);
@@ -106,7 +126,8 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
       }
 
       const pageSize = PAGE_SIZES[selectedPageSize];
-      const layout = calculateBarcodeLayout(pageSize);
+      // Use the print layout configuration (not the preview one)
+      const layout = calculateBarcodeLayout(pageSize, false);
       
       const doc = new jsPDF({
         orientation: pageSize.height > pageSize.width ? 'portrait' : 'landscape',
@@ -222,22 +243,58 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
           <div className="space-y-6">
             {skus.map(({ sku, name }, index) => (
               <div key={sku} className="flex flex-col items-center gap-1 p-4 border rounded-lg bg-white">
-                <h3 className="font-medium text-base" 
-                    style={{ 
-                      fontSize: `${dimensions.fontSize * 1.5}px`, // Reduced from 1.7 to 1.5
-                      marginBottom: '6px' 
-                    }}>
-                  {name}
-                </h3>
-                <svg
-                  ref={setRef(index)}
+                {/* Label-sized container with proper proportions */}
+                <div 
+                  className="relative bg-white rounded border"
                   style={{
-                    height: '50px',
-                    width: 'auto'
+                    width: `${previewSize.width}px`,
+                    height: `${previewSize.height}px`,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '12px 0',
+                    padding: '4px',
+                    overflow: 'hidden',
                   }}
-                  xmlns="http://www.w3.org/2000/svg"
-                  preserveAspectRatio="xMidYMid meet"
-                />
+                >
+                  {/* Size indicator label */}
+                  <div className="absolute top-0 right-0 bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-bl">
+                    {PAGE_SIZES[selectedPageSize].width} × {PAGE_SIZES[selectedPageSize].height} mm
+                  </div>
+                  
+                  {/* Product name inside the canvas */}
+                  <div style={{ 
+                    width: '90%', // Slightly narrower for better readability
+                    textAlign: 'center',
+                    fontSize: `${previewDimensions.fontSize * previewSize.width / previewDimensions.paperWidth * 0.8 * 0.425}px`, // adjusted from 0.5 to 0.425
+                    fontWeight: 500,
+                    marginBottom: '4px',
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2, // Limit to 2 lines
+                    WebkitBoxOrient: 'vertical',
+                    lineHeight: 1.3,
+                    maxHeight: `${previewDimensions.fontSize * previewSize.width / previewDimensions.paperWidth * 0.8 * 0.425 * 2.8}px`, // adjusted max height to match new font size
+                  }}>
+                    {name}
+                  </div>
+                  
+                  <svg
+                    ref={setRef(index)}
+                    style={{
+                      width: `${previewSize.width * 0.8}px`,
+                      height: `${previewSize.height * 0.6}px`,
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                    }}
+                    xmlns="http://www.w3.org/2000/svg"
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                  
+                  {/* SKU display removed from preview */}
+                </div>
               </div>
             ))}
           </div>
