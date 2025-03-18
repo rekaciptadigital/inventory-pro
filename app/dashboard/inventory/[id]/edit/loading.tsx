@@ -14,7 +14,7 @@ export default function Loading() {
             <Skeleton className="h-6 w-[200px] mb-4" />
             <div className="grid grid-cols-2 gap-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-10" />
+                <Skeleton key={`loading-field-${i}-${Date.now()}`} className="h-10" />
               ))}
             </div>
           </div>
@@ -23,7 +23,7 @@ export default function Loading() {
             <Skeleton className="h-6 w-[200px] mb-4" />
             <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-10" />
+                <Skeleton key={`loading-field-${i}-${Date.now()}`} className="h-10" />
               ))}
             </div>
           </div>

@@ -25,7 +25,7 @@ interface ProductListProps {
 }
 
 // Kolom yang ditampilkan saat loading
-const LOADING_COLUMNS = ['sku', 'name', 'brand', 'type', 'category', 'unit', 'date', 'actions'];
+const LOADING_COLUMNS = ['sku', 'name', 'vendor_sku', 'brand', 'type', 'category', 'unit', 'actions'];
 
 export function ProductList({ products, isLoading, onDelete }: ProductListProps) {
   // State untuk manajemen UI
@@ -51,10 +51,11 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
   // Handler untuk expand/collapse produk
   const toggleExpand = (productId: number) => {
     const newExpanded = new Set(expandedProducts);
-    if (newExpanded.has(productId)) {
-      newExpanded.delete(productId);
+    const numericId = Number(productId);
+    if (newExpanded.has(numericId)) {
+      newExpanded.delete(numericId);
     } else {
-      newExpanded.add(productId);
+      newExpanded.add(numericId);
     }
     setExpandedProducts(newExpanded);
   };
@@ -169,8 +170,8 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
         return product.unit || '';
       }
         
-      case 'date': {
-        return product.created_at ? new Date(product.created_at).getTime().toString() : '';
+      case 'vendor_sku': {
+        return product.vendor_sku || '';
       }
         
       default: {
@@ -212,12 +213,7 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
         const valueA = getDisplayValue(a, sortColumn);
         const valueB = getDisplayValue(b, sortColumn);
         
-        // Compare as numbers if date column
-        if (sortColumn === 'date') {
-          const numA = valueA ? parseInt(valueA, 10) : 0;
-          const numB = valueB ? parseInt(valueB, 10) : 0;
-          return sortDirection === 'asc' ? numA - numB : numB - numA;
-        }
+        // No special handling needed for vendor_sku, it's a string comparison
         
         // Compare as strings for text columns
         if (sortDirection === 'asc') {
@@ -234,6 +230,33 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
     if (!products) return [];
     return sortProductsRef.current(products);
   }, [products, sortColumn, sortDirection]);
+
+  // Helper function to sort variants by their unique code
+  const sortVariants = (variants: ReadonlyArray<InventoryProductVariant>) => {
+    return [...variants].sort((a, b) => {
+      // Sort by sku_product_unique_code if available
+      if (a.sku_product_unique_code && b.sku_product_unique_code) {
+        // First convert both values to strings to ensure consistent handling
+        const strCodeA = String(a.sku_product_unique_code);
+        const strCodeB = String(b.sku_product_unique_code);
+        
+        // Attempt to extract numbers from the strings
+        const numA = /^\d+$/.test(strCodeA) ? Number(strCodeA) : NaN;
+        const numB = /^\d+$/.test(strCodeB) ? Number(strCodeB) : NaN;
+        
+        // If both are valid numbers, sort numerically
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return numA - numB;
+        }
+        
+        // Fall back to string comparison
+        return strCodeA.localeCompare(strCodeB);
+      }
+      
+      // Fallback to sorting by full SKU as strings
+      return String(a.sku_product_variant).localeCompare(String(b.sku_product_variant));
+    });
+  };
 
   // Render loading state
   const renderLoadingState = () => (
@@ -292,6 +315,13 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
               onSort={handleSort}
             />
             <SortableHeader
+              column="vendor_sku"
+              label="SKU Vendor"
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+            />
+            <SortableHeader
               column="brand"
               label="Brand"
               sortColumn={sortColumn}
@@ -319,13 +349,6 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
               sortDirection={sortDirection}
               onSort={handleSort}
             />
-            <SortableHeader
-              column="date"
-              label="Created Date"
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-            />
             <TableCell className="bg-muted/50 text-muted-foreground text-sm font-bold py-3">Actions</TableCell>
           </TableRow>
         </TableHeader>
@@ -334,15 +357,15 @@ export function ProductList({ products, isLoading, onDelete }: ProductListProps)
             <React.Fragment key={product.id}>
               <ProductRow
                 product={product}
-                isExpanded={expandedProducts.has(product.id)}
+                isExpanded={expandedProducts.has(Number(product.id))}
                 isDeleting={isDeleting === product.id}
-                onToggleExpand={() => toggleExpand(product.id)}
+                onToggleExpand={() => toggleExpand(Number(product.id))}
                 onShowBarcode={() => handleShowBarcode(product)}
                 onEdit={() => router.push(`/dashboard/inventory/${product.id}/edit`)}
-                onDelete={() => handleDelete(product.id)}
+                onDelete={() => handleDelete(Number(product.id))}
               />
-              {expandedProducts.has(product.id) &&
-                product.product_by_variant.map((variant) => (
+              {expandedProducts.has(Number(product.id)) &&
+                sortVariants(product.product_by_variant).map((variant) => (
                   <VariantRow
                     key={variant.id}
                     variant={variant}

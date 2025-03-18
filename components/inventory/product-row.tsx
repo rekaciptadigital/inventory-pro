@@ -4,7 +4,6 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Edit, ChevronDown, ChevronRight, Barcode, Trash2 } from 'lucide-react';
 import { CopyToClipboard } from '@/components/ui/copy-to-clipboard';
-import { formatDate } from '@/lib/utils/format';
 import type { InventoryProduct } from '@/types/inventory';
 import {
   AlertDialog,
@@ -52,6 +51,7 @@ export function ProductRow({
           tooltipText="Copy product name"
         />
       </TableCell>
+      <TableCell>{product.vendor_sku || '-'}</TableCell>
       <TableCell>{product.brand_name}</TableCell>
       <TableCell>{product.product_type_name}</TableCell>
       <TableCell>
@@ -62,7 +62,6 @@ export function ProductRow({
         ))}
       </TableCell>
       <TableCell>{product.unit}</TableCell>
-      <TableCell>{formatDate(product.created_at)}</TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={onShowBarcode}>

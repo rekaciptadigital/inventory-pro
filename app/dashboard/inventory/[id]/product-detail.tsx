@@ -3,7 +3,6 @@
 import { useParams } from 'next/navigation';
 import { useInventory } from '@/lib/hooks/inventory/use-inventory';
 import { Badge } from '@/components/ui/badge';
-import { formatDate } from '@/lib/utils/format';
 
 export function ProductDetail() {
   const { id } = useParams();

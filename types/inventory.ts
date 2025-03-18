@@ -65,6 +65,8 @@ export interface InventoryVariantValue {
 }
 
 export interface InventoryProductVariant {
+  variant_combination: any;
+  variant_combination_data: any;
   id: string;
   created_at: string;
   updated_at: string;
