@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
-  BarChart3,
   Box,
   BoxSelect,
   Moon,
@@ -58,6 +57,11 @@ const navigation = [
         href: "/dashboard/products/stock",
         icon: Package,
       },
+      {
+        name: "Stock Transactions", 
+        href: "/stock/transactions", 
+        icon: BoxSelect 
+      },
       { name: "Locations", href: "/dashboard/locations", icon: Building2 },
     ],
   },
@@ -84,12 +88,16 @@ export function DashboardNav() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Determine if we're on the stock transactions page
+  const isStockTransactionPage = pathname === '/stock/transactions' || pathname.startsWith('/stock/transactions/');
 
-  // Close sidebar on mobile when route changes
+  // Handle sidebar state on initial load and resize
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) {
-        setIsOpen(true);
+        // Keep sidebar visible but collapsed on stock transaction page
+        setIsOpen(!isStockTransactionPage); // Simplified boolean expression
       } else {
         setIsOpen(false);
       }
@@ -98,13 +106,14 @@ export function DashboardNav() {
     window.addEventListener("resize", handleResize);
     handleResize(); // Set initial state
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [isStockTransactionPage]);
 
   useEffect(() => {
-    if (window.innerWidth < 1024) {
+    // Keep sidebar closed on stock transaction page navigation or on small screens
+    if (isStockTransactionPage || window.innerWidth < 1024) {
       setIsOpen(false);
     }
-  }, [pathname]);
+  }, [pathname, isStockTransactionPage]);
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
@@ -253,7 +262,7 @@ export function DashboardNav() {
           "hidden lg:block",
           "bg-background border-r",
           "transition-all duration-300 ease-in-out",
-          "group",
+          "group z-10", // Fixed syntax error here
           isOpen ? "w-64" : "w-20"
         )}
       >

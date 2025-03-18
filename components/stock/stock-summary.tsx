@@ -18,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Tooltip, 
@@ -114,7 +113,7 @@ export function StockSummary() {
         </div>
 
         <div className="border rounded-lg">
-          <ScrollArea className="w-full" orientation="horizontal">
+          <ScrollArea className="w-full">
             <div className="min-w-[800px]">
               <Table>
                 <TableHeader>
@@ -133,6 +132,7 @@ export function StockSummary() {
                   {products.map((product) => {
                     // Mock stock data for each location
                     const locationStocks = STOCK_LOCATIONS.map(location => ({
+                      locationId: location.id, // Add locationId to use in the key
                       quantity: Math.floor(Math.random() * 100),
                       ...MOCK_STOCK_DATA[location.id as keyof typeof MOCK_STOCK_DATA]
                     }));
@@ -143,8 +143,8 @@ export function StockSummary() {
                       <TableRow key={product.id}>
                         <TableCell className="font-medium">{product.sku}</TableCell>
                         <TableCell>{product.full_product_name}</TableCell>
-                        {locationStocks.map((stock, index) => (
-                          <TableCell key={index}>
+                        {locationStocks.map((stock) => (
+                          <TableCell key={`${product.id}-${stock.locationId}`}>
                             <Tooltip>
                               <TooltipTrigger className="w-full">
                                 <div className={getStockCellStyle(stock.quantity, stock.min)}>
