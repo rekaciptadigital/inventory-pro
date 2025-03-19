@@ -68,14 +68,15 @@ export interface InventoryProductVariant {
   variant_combination: any;
   variant_combination_data: any;
   id: string;
-  created_at: string;
-  updated_at: string;
-  inventory_product_id: number;
+  created_at?: string;
+  updated_at?: string;
+  inventory_product_id?: number;
   full_product_name: string;
   sku_product_variant: string;
-  sku_product_unique_code: number;
-  vendor_sku?: string; // Add optional vendor SKU
-  deleted_at: string | null;
+  sku_product_unique_code: string;
+  sku_vendor?: string | null; // Add this property
+  deleted_at?: string | null;
+  status: boolean;
   // Optional field to store variant values when processed client-side
   variantValues?: Array<{
     variantId: string;

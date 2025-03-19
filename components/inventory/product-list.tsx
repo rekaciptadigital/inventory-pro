@@ -17,7 +17,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { ProductRow } from './product-row';
 import { VariantRow } from './variant-row';
 import type { InventoryProduct, InventoryProductVariant } from '@/types/inventory';
-
 interface ProductListProps {
   readonly products: ReadonlyArray<InventoryProduct>;
   readonly isLoading?: boolean;

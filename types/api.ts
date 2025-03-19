@@ -4,20 +4,22 @@ export interface ApiResponse<T> {
     message: string;
   };
   data: T;
-  pagination?: {
-    links: {
-      first: string;
-      previous: string | null;
-      current: string;
-      next: string | null;
-      last: string;
-    };
-    currentPage: number;
-    totalPages: number;
-    pageSize: number;
-    totalItems: number;
-    hasNext: boolean;
-    hasPrevious: boolean;
+  pagination?: PaginationData;
+}
+
+export interface PaginationData {
+  totalItems: number;
+  pageSize: number;
+  totalPages: number;
+  currentPage: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+  links: {
+    first: string;
+    previous: string | null;
+    current: string;
+    next: string | null;
+    last: string;
   };
 }
 

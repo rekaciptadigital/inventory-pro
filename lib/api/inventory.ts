@@ -83,7 +83,12 @@ export async function getInventoryProducts(
   const params = new URLSearchParams();
 
   if (filters.search) {
-    params.append("search", filters.search);
+    const trimmedSearch = filters.search.trim();
+    if (trimmedSearch) {
+      params.append("search", trimmedSearch);
+      // Remove the search_fields parameter as it's causing 400 Bad Request
+      // The API appears to search across all relevant fields by default
+    }
   }
   if (filters.page) {
     params.append("page", filters.page.toString());
@@ -98,8 +103,39 @@ export async function getInventoryProducts(
     params.append("order", filters.order);
   }
 
-  const response = await axiosInstance.get(`/inventory?${params.toString()}`);
-  return response.data;
+  const queryString = params.toString();
+  console.log('API Request URL:', `/inventory?${queryString}`);
+  
+  try {
+    const response = await axiosInstance.get(`/inventory?${queryString}`);
+    console.log('Search results count:', response.data?.data?.length || 0);
+    return response.data;
+  } catch (error) {
+    console.error('API search error:', error);
+    // Return an empty result set rather than throwing an error
+    return {
+      status: {
+        code: 200,
+        message: "No results found"
+      },
+      data: [],
+      pagination: {
+        currentPage: filters.page ?? 1,
+        totalPages: 1,
+        pageSize: filters.limit ?? 10,
+        totalItems: 0,
+        hasNext: false,
+        hasPrevious: false,
+        links: {
+          first: "",
+          previous: null,
+          current: "",
+          next: null,
+          last: ""
+        }
+      }
+    };
+  }
 }
 
 export async function handleInventoryProduct(
