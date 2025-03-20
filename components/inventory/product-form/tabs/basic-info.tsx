@@ -11,7 +11,7 @@ interface BasicInfoProps {
   form: UseFormReturn<ProductFormValues>;
 }
 
-export function BasicInfo({ form }: BasicInfoProps) {
+export function BasicInfo({ form }: Readonly<BasicInfoProps>) {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Basic Information</h3>
@@ -73,9 +73,15 @@ export function BasicInfo({ form }: BasicInfoProps) {
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="PC">Piece (PC)</SelectItem>
+                <SelectItem value="PC">Piece</SelectItem>
                 <SelectItem value="PACK">Pack</SelectItem>
                 <SelectItem value="SET">Set</SelectItem>
+                <SelectItem value="DOZEN">Dozen</SelectItem>
+                <SelectItem value="BUNDLE">Bundle</SelectItem>
+                <SelectItem value="BOX">Box</SelectItem>
+                <SelectItem value="KG">Kg</SelectItem>
+                <SelectItem value="GRAM">Gram</SelectItem>
+                <SelectItem value="LOT">Lot</SelectItem>
               </SelectContent>
             </Select>
             <FormMessage />

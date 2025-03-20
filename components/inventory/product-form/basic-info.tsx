@@ -25,8 +25,6 @@ import {
 } from "./enhanced-selectors";
 import { UseFormReturn } from "react-hook-form";
 import { ProductFormValues } from "./form-schema";
-import { useBrands } from "@/lib/hooks/use-brands";
-import { useProductTypeList } from "@/lib/hooks/product-types/use-product-type-list";
 import { generateSKU } from "@/lib/utils/sku-generator";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -155,7 +153,7 @@ export function BasicInfo({ form, initialData }: Readonly<BasicInfoProps>) {
       dispatch(
         updateForm({
           sku: generatedSku,
-          unique_code: uniqueCode || "",
+          unique_code: uniqueCode ?? "",
         })
       );
     } catch (error) {
@@ -202,8 +200,8 @@ export function BasicInfo({ form, initialData }: Readonly<BasicInfoProps>) {
     if (initialVendorSku || initialDescription) {
       dispatch(
         updateForm({
-          vendor_sku: initialVendorSku || "",
-          description: initialDescription || "",
+          vendor_sku: initialVendorSku ?? "",
+          description: initialDescription ?? "",
         })
       );
     }
@@ -405,7 +403,7 @@ export function BasicInfo({ form, initialData }: Readonly<BasicInfoProps>) {
             <FormControl>
               <Textarea 
                 placeholder="Enter product description (optional)"
-                value={field.value || ''}
+                value={field.value ?? ''}
                 onChange={handleDescriptionChange}
                 onBlur={(e) => {
                   field.onBlur();
@@ -441,9 +439,15 @@ export function BasicInfo({ form, initialData }: Readonly<BasicInfoProps>) {
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="PC">Piece (PC)</SelectItem>
+                <SelectItem value="PC">Piece</SelectItem>
                 <SelectItem value="PACK">Pack</SelectItem>
                 <SelectItem value="SET">Set</SelectItem>
+                <SelectItem value="DOZEN">Dozen</SelectItem>
+                <SelectItem value="BUNDLE">Bundle</SelectItem>
+                <SelectItem value="BOX">Box</SelectItem>
+                <SelectItem value="KG">Kg</SelectItem>
+                <SelectItem value="GRAM">Gram</SelectItem>
+                <SelectItem value="LOT">Lot</SelectItem>
               </SelectContent>
             </Select>
             <FormMessage />

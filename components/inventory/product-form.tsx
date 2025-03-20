@@ -27,7 +27,7 @@ const formSchema = z.object({
   brand: z.string().min(1, "Brand is required"),
   sku: z.string().min(1, "SKU is required"),
   productName: z.string().min(1, "Product name is required"),
-  unit: z.enum(["PC", "PACK", "SET"]),
+  unit: z.enum(["PC", "PACK", "SET", "DOZEN", "BUNDLE", "BOX", "KG", "GRAM", "LOT"]),
   hbReal: z.number().min(0, "HB Real must be greater than 0"),
   adjustmentPercentage: z
     .number()
@@ -215,9 +215,15 @@ export function ProductForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="PC">Piece (PC)</SelectItem>
+                    <SelectItem value="PC">Piece</SelectItem>
                     <SelectItem value="PACK">Pack</SelectItem>
                     <SelectItem value="SET">Set</SelectItem>
+                    <SelectItem value="DOZEN">Dozen</SelectItem>
+                    <SelectItem value="BUNDLE">Bundle</SelectItem>
+                    <SelectItem value="BOX">Box</SelectItem>
+                    <SelectItem value="KG">Kg</SelectItem>
+                    <SelectItem value="GRAM">Gram</SelectItem>
+                    <SelectItem value="LOT">Lot</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
