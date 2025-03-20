@@ -7,6 +7,7 @@ export interface PageSize {
 
 export const PAGE_SIZES: Record<string, PageSize> = {
   'label-small': { name: '50 x 25mm Label', width: 50, height: 25, unit: 'mm' },
+  'label-medium-small': { name: '55 x 30mm Label', width: 55, height: 30, unit: 'mm' }, // Add the new size
   'label-medium': { name: '100 x 30mm Label', width: 100, height: 30, unit: 'mm' },
   'label-large': { name: '100 x 50mm Label', width: 100, height: 50, unit: 'mm' },
 };

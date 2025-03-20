@@ -51,10 +51,10 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
   };
 
   // State untuk manajemen UI
-  const [selectedPageSize, setSelectedPageSize] = useState<string>('label-medium');
+  const [selectedPageSize, setSelectedPageSize] = useState<string>('label-small');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [previewDimensions, setPreviewDimensions] = useState<BarcodeLayout>(() =>
-    calculateBarcodeLayout(PAGE_SIZES['label-medium'], true)
+    calculateBarcodeLayout(PAGE_SIZES['label-small'], true)
   );
 
   // Update dimensi saat ukuran kertas berubah
@@ -232,6 +232,7 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="label-small">Label (50 x 25 mm)</SelectItem>
+                <SelectItem value="label-medium-small">Label (55 x 30 mm)</SelectItem>
                 <SelectItem value="label-medium">Label (100 x 30 mm)</SelectItem>
                 <SelectItem value="label-large">Label (100 x 50 mm)</SelectItem>
               </SelectContent>
@@ -261,7 +262,7 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
                 >
                   {/* Size indicator label */}
                   <div className="absolute top-0 right-0 bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-bl">
-                    {PAGE_SIZES[selectedPageSize].width} × {PAGE_SIZES[selectedPageSize].height} mm
+                    {PAGE_SIZES[selectedPageSize]?.width ?? '55'} × {PAGE_SIZES[selectedPageSize]?.height ?? '30'} mm
                   </div>
                   
                   {/* Product name inside the canvas */}
