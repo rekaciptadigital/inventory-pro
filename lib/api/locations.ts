@@ -1,24 +1,27 @@
 import axiosInstance from "./axios";
+import { generateLocationCode } from "@/lib/utils/location-code";
+
+export interface LocationApiItem {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: null | string;
+  code: string;
+  name: string;
+  type: string;
+  description: string;
+  status: boolean;
+  parent_id: number | null;
+  level?: number;
+  children?: LocationApiItem[];
+}
 
 export interface LocationResponse {
   status: {
     code: number;
     message: string;
   };
-  data: Array<{
-    id: number;
-    created_at: string;
-    updated_at: string;
-    deleted_at: null | string;
-    code: string;
-    name: string;
-    type: string;
-    description: string;
-    status: boolean;
-    parent_id: number | null;
-    level: number;
-    children?: Array<any>;
-  }>;
+  data: LocationApiItem[];
   pagination: {
     links: {
       first: string;
@@ -37,7 +40,7 @@ export interface LocationResponse {
 }
 
 export interface LocationFormData {
-  code: string;
+  code?: string; // Make optional to match our form
   name: string;
   type: "warehouse" | "store" | "affiliate" | "others";
   description?: string;
@@ -108,6 +111,7 @@ export const createLocation = async (data: LocationFormData) => {
     const { parent_id, ...restData } = data;
     const payload = {
       ...restData,
+      code: data.code ?? generateLocationCode(data.type), // Ensure code exists
       type: data.type.charAt(0).toUpperCase() + data.type.slice(1), // Capitalize first letter
     };
     

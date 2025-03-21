@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useLocations } from '@/lib/hooks/locations/use-locations';
+import type { Location } from '@/types/location';
 
 interface LocationSelectProps {
   value?: number;
@@ -35,23 +36,20 @@ export function LocationSelect({
   parentId,
   placeholder = "Select location...",
   excludeIds = [],
-}: LocationSelectProps) {
+}: Readonly<LocationSelectProps>) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   
-  const { locations, isLoading } = useLocations({
-    parent_id: parentId,
-  });
+  const { locations, isLoading } = useLocations();
 
   // Flatten locations for easier searching
-  const flattenLocations = (locations: any[]): any[] => {
-    let result: any[] = [];
+  const flattenLocations = (locations: Location[]): Location[] => {
+    let result: Location[] = [];
     locations.forEach(location => {
-      const flatLocation = { ...location };
-      if (location.children) {
+      result.push(location);
+      if (location.children && location.children.length > 0) {
         result = [...result, ...flattenLocations(location.children)];
       }
-      result.push(flatLocation);
     });
     return result;
   };
@@ -73,6 +71,21 @@ export function LocationSelect({
 
   const selectedLocation = flattenLocations(locations)
     .find(loc => loc.id === value);
+
+  const getIndentation = (location: Location) => {
+    let level = 0;
+    const flattened = flattenLocations(locations);
+    let current = location;
+    
+    while (current.parentId) {
+      level++;
+      const parent = flattened.find(loc => loc.id === current.parentId);
+      if (!parent) break;
+      current = parent;
+    }
+    
+    return level;
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -102,27 +115,41 @@ export function LocationSelect({
           </CommandEmpty>
           <CommandGroup>
             <ScrollArea className="h-60">
-              {filteredLocations.map((location) => (
-                <CommandItem
-                  key={location.id}
-                  value={location.id.toString()}
-                  onSelect={() => {
-                    onValueChange(location.id);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === location.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <span className="truncate">{location.name}</span>
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    {location.code}
-                  </span>
-                </CommandItem>
-              ))}
+              {filteredLocations.map((location) => {
+                const indentLevel = getIndentation(location);
+                
+                return (
+                  <CommandItem
+                    key={location.id}
+                    value={location.id.toString()}
+                    onSelect={() => {
+                      onValueChange(location.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <div
+                      className="flex items-center w-full"
+                      style={{ paddingLeft: `${indentLevel * 12}px` }}
+                    >
+                      {indentLevel > 0 && (
+                        <span className="text-xs text-muted-foreground mr-2">
+                          ↳
+                        </span>
+                      )}
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          value === location.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <span className="truncate">{location.name}</span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {location.code}
+                      </span>
+                    </div>
+                  </CommandItem>
+                );
+              })}
               {filteredLocations.length === 0 && !isLoading && (
                 <div className="py-6 text-center text-sm text-muted-foreground">
                   No locations found

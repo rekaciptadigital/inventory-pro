@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,197 +11,156 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { LocationList } from '@/components/locations/location-list';
 import { LocationForm } from '@/components/locations/location-form';
-import { LocationSelect } from '@/components/locations/location-select';
 import { useLocations } from '@/lib/hooks/locations/use-locations';
-import { PaginationControls } from '@/components/ui/pagination/pagination-controls';
-import { PaginationInfo } from '@/components/ui/pagination/pagination-info';
-import { usePagination } from '@/lib/hooks/use-pagination';
-import type { Location } from '@/types/location';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { type Location, type LocationFormData } from '@/types/location';
+import { generateLocationCode } from '@/lib/utils/location-code';
 
 export default function LocationsPage() {
-  const [search, setSearch] = useState('');
-  const [locationType, setLocationType] = useState<string>('all');
-  const [parentId, setParentId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<Location | undefined>();
-  const { currentPage, pageSize, handlePageChange, handlePageSizeChange } = usePagination();
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
+  const [filter, setFilter] = useState({
+    search: '',
+    type: 'all' as 'all' | 'warehouse' | 'store' | 'affiliate' | 'others',
+    parent_id: undefined as number | null | undefined,
+  });
 
   const {
     locations,
-    pagination,
     isLoading,
-    error,
     createLocation,
     updateLocation,
     deleteLocation,
     updateLocationStatus,
   } = useLocations({
-    search,
-    type: locationType === 'all' ? undefined : locationType as Location['type'],
-    parent_id: parentId,
-    page: currentPage,
-    limit: pageSize,
+    search: filter.search,
+    type: filter.type === 'all' ? undefined : filter.type,
+    parent_id: filter.parent_id,
   });
 
-  const handleSuccess = () => {
-    setIsDialogOpen(false);
-    setSelectedLocation(undefined);
+  const handleOpenDialog = (location?: Location) => {
+    setEditingLocation(location || null);
+    setIsDialogOpen(true);
   };
 
-  if (error) {
-    return (
-      <div className="p-8 text-center text-destructive">
-        Error loading locations. Please try again later.
-      </div>
-    );
-  }
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setEditingLocation(null);
+  };
+
+  const handleSubmit = async (data: LocationFormData) => {
+    try {
+      // Ensure code exists (either from form or auto-generated)
+      const formattedData = {
+        ...data,
+        code: data.code ?? generateLocationCode(data.type),
+      };
+
+      if (editingLocation) {
+        // Map parentId to parent_id for API
+        const apiData = {
+          ...formattedData,
+          parent_id: formattedData.parentId,
+        };
+        await updateLocation({ id: editingLocation.id, data: apiData });
+      } else {
+        // Map parentId to parent_id for API
+        const apiData = {
+          ...formattedData,
+          parent_id: formattedData.parentId,
+        };
+        await createLocation(apiData);
+      }
+      handleCloseDialog();
+    } catch (error) {
+      console.error('Failed to save location:', error);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteLocation(id);
+    } catch (error) {
+      console.error('Failed to delete location:', error);
+    }
+  };
+
+  const handleStatusChange = async (id: number, status: boolean) => {
+    try {
+      await updateLocationStatus({ id, status });
+    } catch (error) {
+      console.error('Failed to update location status:', error);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Location Management</h1>
-          <p className="text-muted-foreground">
-            Manage your storage locations and warehouses
-          </p>
-        </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
+    <div className="container mx-auto py-8">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Locations</h1>
+        <Button onClick={() => handleOpenDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           Add New Location
         </Button>
       </div>
 
-      <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Input
-            placeholder="Search locations..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              handlePageChange(1); // Reset to first page on search
-            }}
-          />
+      <div className="mb-6 flex items-end gap-4">
+        <div className="flex-1">
+          <div className="relative">
+            <Input
+              placeholder="Search locations..."
+              value={filter.search}
+              onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+              className="w-full pl-10"
+            />
+            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 transform -translate-y-1/2" />
+          </div>
         </div>
-        <Select 
-          value={locationType} 
-          onValueChange={(value) => {
-            setLocationType(value);
-            handlePageChange(1); // Reset to first page on type change
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="warehouse">Warehouse</SelectItem>
-            <SelectItem value="store">Store</SelectItem>
-            <SelectItem value="affiliate">Affiliate Store</SelectItem>
-            <SelectItem value="others">Others</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="w-[220px]">
-          <LocationSelect
-            value={parentId ?? undefined}
-            onValueChange={(value) => {
-              setParentId(value);
-              handlePageChange(1); // Reset to first page on parent change
-            }}
-            placeholder="Filter by parent location"
-          />
+        <div className="w-48">
+          <Select
+            value={filter.type}
+            onValueChange={(value) => setFilter({ 
+              ...filter, 
+              type: value as 'all' | 'warehouse' | 'store' | 'affiliate' | 'others' 
+            })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="warehouse">Warehouse</SelectItem>
+              <SelectItem value="store">Store</SelectItem>
+              <SelectItem value="affiliate">Affiliate Store</SelectItem>
+              <SelectItem value="others">Others</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       <LocationList
         locations={locations}
-        onEdit={(location) => {
-          setSelectedLocation(location);
-          setIsDialogOpen(true);
-        }}
-        onDelete={deleteLocation}
-        onStatusChange={(id, status) => updateLocationStatus({ id, status })}
+        onEdit={handleOpenDialog}
+        onDelete={handleDelete}
+        onStatusChange={handleStatusChange}
         isLoading={isLoading}
       />
 
-      <Dialog
-        open={isDialogOpen}
-        onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) setSelectedLocation(undefined);
-        }}
-      >
-        <DialogContent>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {selectedLocation ? 'Edit Location' : 'Add New Location'}
+              {editingLocation ? 'Edit Location' : 'Add New Location'}
             </DialogTitle>
-            <DialogDescription>
-              {selectedLocation
-                ? 'Edit location details below'
-                : 'Add a new storage location to your system'}
-            </DialogDescription>
           </DialogHeader>
           <LocationForm
-            onSubmit={async (data) => {
-              // Ensure code exists before submitting
-              if (!data.code) {
-                throw new Error('Location code is required');
-              }
-
-              if (selectedLocation) {
-                await updateLocation({
-                  id: selectedLocation.id,
-                  data: {
-                    code: data.code,
-                    name: data.name,
-                    type: data.type,
-                    description: data.description,
-                    status: data.status,
-                    parent_id: data.parentId ?? null
-                  },
-                });
-              } else {
-                await createLocation({
-                  code: data.code,
-                  name: data.name,
-                  type: data.type,
-                  description: data.description,
-                  status: data.status,
-                  parent_id: data.parentId ?? null
-                });
-              }
-              handleSuccess();
-            }}
-            initialData={selectedLocation}
-            onClose={() => setIsDialogOpen(false)}
+            initialData={editingLocation || undefined}
+            onSubmit={handleSubmit}
+            onClose={handleCloseDialog}
           />
         </DialogContent>
       </Dialog>
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <PaginationInfo
-          currentPage={currentPage}
-          pageSize={pageSize}
-          totalItems={pagination?.totalItems || 0}
-        />
-        <PaginationControls
-          currentPage={currentPage}
-          totalPages={pagination?.totalPages || 1}
-          pageSize={pageSize}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-          isLoading={isLoading}
-        />
-      </div>
     </div>
   );
 }

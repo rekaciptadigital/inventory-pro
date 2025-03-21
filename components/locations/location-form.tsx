@@ -177,7 +177,7 @@ export function LocationForm({ onSubmit, initialData, onClose }: LocationFormPro
               <FormLabel>Parent Location</FormLabel>
               <FormControl>
                 <LocationSelect
-                  value={field.value || undefined}
+                  value={field.value ?? undefined}
                   onValueChange={(value) => field.onChange(value)}
                   excludeIds={initialData ? [initialData.id] : []}
                   placeholder="Select parent location (optional)"

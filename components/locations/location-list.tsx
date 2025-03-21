@@ -21,8 +21,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Edit, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils/format";
+import { useState, Fragment } from "react";
 import type { Location } from "@/types/location";
 
 interface LocationListProps {
@@ -40,6 +41,15 @@ export function LocationList({
   onStatusChange,
   isLoading,
 }: LocationListProps) {
+  const [expandedLocations, setExpandedLocations] = useState<Record<number, boolean>>({});
+
+  const toggleExpand = (id: number) => {
+    setExpandedLocations((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
   if (isLoading) {
     return (
       <div className="border rounded-lg p-8 text-center">
@@ -69,6 +79,106 @@ export function LocationList({
     return <Badge variant={variant}>{label}</Badge>;
   };
 
+  const renderLocationRow = (location: Location, depth = 0) => {
+    const hasChildren = location.children && location.children.length > 0;
+    const isExpanded = !!expandedLocations[location.id];
+
+    return (
+      <Fragment key={location.id}>
+        <TableRow>
+          <TableCell className="font-medium">
+            <div className="flex items-center">
+              {hasChildren && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 p-0 mr-1"
+                  onClick={() => toggleExpand(location.id)}
+                >
+                  {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                </Button>
+              )}
+              {!hasChildren && depth > 0 && <div className="w-5 mr-1"></div>}
+              {location.code}
+            </div>
+          </TableCell>
+          <TableCell>
+            <div className="flex items-center">
+              {depth > 0 && (
+                <span className="text-xs text-muted-foreground mr-2" style={{ marginLeft: `${(depth - 1) * 20}px` }}>
+                  ↳
+                </span>
+              )}
+              {location.name}
+              {hasChildren && (
+                <Badge variant="outline" className="ml-2">
+                  {location.children!.length} sub-location{location.children!.length !== 1 ? 's' : ''}
+                </Badge>
+              )}
+            </div>
+          </TableCell>
+          <TableCell>{getLocationTypeBadge(location.type)}</TableCell>
+          <TableCell>{formatDate(location.created_at)}</TableCell>
+          <TableCell>{formatDate(location.updated_at)}</TableCell>
+          <TableCell>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onEdit(location)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Location</AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                      <div>
+                        Are you sure you want to delete this location? This action cannot be undone.
+                        {hasChildren && (
+                          <p className="text-destructive mt-2">
+                            Warning: This location has {location.children!.length} sub-location{location.children!.length !== 1 ? 's' : ''} that will also be deleted.
+                          </p>
+                        )}
+                        <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-2">
+                          <p>
+                            <strong>Code:</strong> {location.code}
+                          </p>
+                          <p>
+                            <strong>Name:</strong> {location.name}
+                          </p>
+                          <p>
+                            <strong>Type:</strong> {location.type}
+                          </p>
+                        </div>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onDelete(location.id)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </TableCell>
+        </TableRow>
+        {hasChildren && isExpanded && location.children!.map(child => renderLocationRow(child, depth + 1))}
+      </Fragment>
+    );
+  };
+
   return (
     <div className="border rounded-lg">
       <Table>
@@ -83,75 +193,7 @@ export function LocationList({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {locations.map((location) => (
-            <TableRow key={location.id}>
-              <TableCell className="font-medium">{location.code}</TableCell>
-              <TableCell>
-                {location.parentId && (
-                  <span className="text-xs text-muted-foreground mr-2">
-                    ↳
-                  </span>
-                )}
-                {location.name}
-                {location.children && location.children.length > 0 && (
-                  <Badge variant="outline" className="ml-2">
-                    {location.children.length} sub-location{location.children.length !== 1 ? 's' : ''}
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell>{getLocationTypeBadge(location.type)}</TableCell>
-              <TableCell>{formatDate(location.created_at)}</TableCell>
-              <TableCell>{formatDate(location.updated_at)}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onEdit(location)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Location</AlertDialogTitle>
-                        <AlertDialogDescription asChild>
-                          <div>
-                            Are you sure you want to delete this location? This action cannot be undone.
-                            <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-2">
-                              <p>
-                                <strong>Code:</strong> {location.code}
-                              </p>
-                              <p>
-                                <strong>Name:</strong> {location.name}
-                              </p>
-                              <p>
-                                <strong>Type:</strong> {location.type}
-                              </p>
-                            </div>
-                          </div>
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => onDelete(location.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+          {locations.map(location => renderLocationRow(location))}
         </TableBody>
       </Table>
     </div>

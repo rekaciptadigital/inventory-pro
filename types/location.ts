@@ -14,7 +14,7 @@ export interface Location {
 }
 
 export interface LocationFormData {
-  code?: string;
+  code?: string; // Make code optional to match form schema
   name: string;
   type: 'warehouse' | 'store' | 'affiliate' | 'others';
   description?: string;
