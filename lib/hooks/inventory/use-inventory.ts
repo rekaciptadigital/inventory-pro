@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getInventoryProducts, deleteInventoryProduct, InventoryFilters } from '@/lib/api/inventory';
+import { 
+  getInventoryProducts, 
+  deleteInventoryProduct, 
+  getInventoryProduct, // Add this import
+  InventoryFilters 
+} from '@/lib/api/inventory';
 import type { InventoryProduct } from '@/types/inventory';
 import type { PaginationData } from '@/types/api';
 
@@ -10,6 +15,7 @@ interface UseInventoryResult {
   error: Error | null;
   deleteProduct: (id: number) => Promise<void>;
   refetch: () => Promise<void>;
+  getProduct: (id: string) => Promise<InventoryProduct>; // Add this function signature
 }
 
 // Fungsi untuk menghasilkan kunci pencarian yang lebih cepat untuk pencarian produk
@@ -380,6 +386,17 @@ export function useInventory(filters: InventoryFilters = {}): UseInventoryResult
     }
   }, [isSearchMode, filters.search, fetchAllForSearch, fetchNormalPage]);
 
+  // Add the getProduct function implementation
+  const getProduct = useCallback(async (id: string): Promise<InventoryProduct> => {
+    try {
+      const response = await getInventoryProduct(id);
+      return response.data;
+    } catch (err) {
+      console.error('Error fetching product details:', err);
+      throw err;
+    }
+  }, []);
+
   return {
     products: filteredProducts,
     pagination,
@@ -387,5 +404,6 @@ export function useInventory(filters: InventoryFilters = {}): UseInventoryResult
     error,
     deleteProduct,
     refetch,
+    getProduct, // Add this to the returned object
   };
 }

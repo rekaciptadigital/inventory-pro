@@ -1,11 +1,18 @@
-import axios from "axios"; // Add this import for the isAxiosError method
+import axios from "axios";
 import axiosInstance from "./axios";
 import type { ApiResponse } from "@/types/api";
 import type { InventoryProduct } from "@/types/inventory";
 
+// Remove the first declaration of getInventoryProduct and keep this one with error handling
 export async function getInventoryProduct(id: string): Promise<ApiResponse<InventoryProduct>> {
-  const response = await axiosInstance.get(`/inventory/${id}`);
-  return response.data;
+  try {
+    // Using the correct API endpoint
+    const response = await axiosInstance.get<ApiResponse<InventoryProduct>>(`/inventory/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching product details:', error);
+    throw error;
+  }
 }
 
 export interface CreateInventoryData {

@@ -33,16 +33,17 @@ export default function InventoryPage() {
   
   const { products, pagination, isLoading, deleteProduct } = useInventory(inventoryParams);
 
-  // Reset ke halaman pertama saat search term berubah - optimasi dengan useCallback
+  // Remove currentPage from dependency array to prevent recreation when page changes
   const resetToFirstPage = useCallback(() => {
-    if (currentPage > 1) {
-      handlePageChange(1);
-    }
-  }, [currentPage, handlePageChange]);
+    handlePageChange(1);
+  }, [handlePageChange]); // Remove currentPage dependency
 
+  // Only reset to first page when the search term actually changes
   useEffect(() => {
-    resetToFirstPage();
-  }, [debouncedSearchTerm, resetToFirstPage]);
+    if (debouncedSearchTerm !== searchTerm) {
+      resetToFirstPage();
+    }
+  }, [debouncedSearchTerm, resetToFirstPage, searchTerm]);
 
   useEffect(() => {
     // Reset form state when inventory list page mounts

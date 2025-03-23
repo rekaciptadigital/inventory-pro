@@ -24,6 +24,7 @@ export function EditProductForm() {
         // Format categories to match expected structure
         if (data.categories) {
           data.categories = data.categories.map((cat) => ({
+            ...cat,
             product_category_id: cat.product_category_id,
             product_category_name: cat.product_category_name,
             product_category_parent: cat.product_category_parent,
@@ -61,7 +62,7 @@ export function EditProductForm() {
     );
   }
 
-  const handleSuccess = (updatedProduct: InventoryProduct) => {
+  const handleSuccess = (updatedProduct: any) => {
     toast({
       title: "Success",
       description: "Product has been updated successfully",
@@ -77,7 +78,13 @@ export function EditProductForm() {
       </div>
 
       <div className="flex-1 border rounded-lg">
-        <SingleProductForm initialData={product} onSuccess={handleSuccess} />
+        {product && (
+          <SingleProductForm
+            initialData={product as any}
+            onSuccess={handleSuccess}
+            onClose={() => router.push("/dashboard/inventory")}
+          />
+        )}
       </div>
     </div>
   );
