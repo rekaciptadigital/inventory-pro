@@ -362,9 +362,25 @@ export function useInventory(filters: InventoryFilters = {}): UseInventoryResult
   ]);
 
   const deleteProduct = async (id: number) => {
-    setIsLoading(true);
+    // Store the current state to restore in case of error
+    const previousFilteredProducts = [...filteredProducts];
+    const previousAllProducts = [...allProducts];
+    
     try {
+      // Optimistic UI update - remove product immediately from state
+      const numericId = Number(id);
+      setFilteredProducts(prev => prev.filter(p => Number(p.id) !== numericId));
+      setAllProducts(prev => prev.filter(p => Number(p.id) !== numericId));
+      
+      // Make the API call to delete the product
       await deleteInventoryProduct(id);
+      
+      // After successful deletion, do a full refetch to ensure data consistency
+      console.log('Product deleted successfully, refreshing data...');
+      
+      // Short delay to ensure the API has time to process the deletion
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       // Re-fetch based on current mode
       if (isSearchMode && filters.search) {
         await fetchAllForSearch(filters.search);
@@ -372,9 +388,14 @@ export function useInventory(filters: InventoryFilters = {}): UseInventoryResult
         await fetchNormalPage();
       }
     } catch (err: any) {
+      console.error('Error deleting product:', err);
+      
+      // Restore previous state on error
+      setFilteredProducts(previousFilteredProducts);
+      setAllProducts(previousAllProducts);
+      
+      // Set error for UI feedback
       setError(err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
