@@ -312,7 +312,7 @@ function DiscountTable({
           <th className="p-2 text-right">Discount (%)</th>
           {/* Make sure we're showing all category columns */}
           {categories.map((category) => (
-            <th key={category.id} className="p-2 text-right whitespace-nowrap">
+            <th key={`discount-category-${category.id}`} className="p-2 text-right whitespace-nowrap">
               {category.name}
             </th>
           ))}
@@ -597,32 +597,39 @@ function updateVariantTierHelper(
 
 // Move more logic to module-level functions to reduce nesting depth
 
-// Transform prices into categories array
-function createCategoriesFromPrices(customerPrices: any, marketplacePrices: any): Array<{ id: string; name: string }> {
+// Transform prices into categories array with improved type definitions
+function createCategoriesFromPrices(
+  customerPrices?: Record<string, { name?: string } & Record<string, any>> | null, 
+  marketplacePrices?: Record<string, { name?: string } & Record<string, any>> | null
+): Array<{ id: string; name: string }> {
   const result: Array<{ id: string; name: string }> = [];
   const uniqueCategories = new Set<string>();
   
-  // Add customer price categories
+  // Add customer price categories with proper names
   if (customerPrices && typeof customerPrices === 'object') {
-    Object.keys(customerPrices).forEach(key => {
+    Object.entries(customerPrices).forEach(([key, data]) => {
       if (!uniqueCategories.has(key)) {
         uniqueCategories.add(key);
+        // Now TypeScript knows data.name is valid
+        const name = data.name ?? key.charAt(0).toUpperCase() + key.slice(1);
         result.push({
           id: key,
-          name: key.charAt(0).toUpperCase() + key.slice(1)
+          name: name
         });
       }
     });
   }
   
-  // Add marketplace price categories
+  // Add marketplace price categories with proper names
   if (marketplacePrices && typeof marketplacePrices === 'object') {
-    Object.keys(marketplacePrices).forEach(key => {
+    Object.entries(marketplacePrices).forEach(([key, data]) => {
       if (!uniqueCategories.has(key)) {
         uniqueCategories.add(key);
+        // Now TypeScript knows data.name is valid
+        const name = data.name ?? key.charAt(0).toUpperCase() + key.slice(1);
         result.push({
           id: key,
-          name: key.charAt(0).toUpperCase() + key.slice(1)
+          name: name
         });
       }
     });
@@ -828,14 +835,6 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
     }
     
     const allPrices = getCombinedPrices();
-    
-    // Check for missing price data, but only log in dev environment
-    if (process.env.NODE_ENV === 'development') {
-      const missingPrices = categories.filter(cat => !allPrices[cat.id]);
-      if (missingPrices.length > 0) {
-        console.warn("Missing price data for categories:", missingPrices.map(c => c.id).join(", "));
-      }
-    }
     
     if (variantSku === 'global') {
       const { updatedTiers, error } = updateGlobalTierHelper(

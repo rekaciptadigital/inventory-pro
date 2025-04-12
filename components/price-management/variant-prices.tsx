@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, Fragment, useRef } from 'react';
+import { useEffect, useCallback, Fragment, useRef, useMemo } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { PriceFormFields } from '@/types/form';
 import { Switch } from '@/components/ui/switch';
@@ -41,6 +41,7 @@ interface MarketplaceConfig {
   taxInclusivePrice?: number;
   appliedTaxPercentage?: number;
   markup?: number;  // Add markup property that might be used
+  name?: string;    // Add name property for the marketplace
 }
 
 // Format number without currency symbol for USD Price
@@ -115,12 +116,44 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
   // Get marketplace prices from form with typing
   const marketplacePrices = form.watch('marketplacePrices') as Record<string, MarketplaceConfig> || {};
   
-  // Get marketplace categories
-  const marketplaceCategories = Object.keys(marketplacePrices).map(key => ({
-    id: key,
-    name: key.charAt(0).toUpperCase() + key.slice(1)
-  }));
+  // Create combined unique categories object to prevent duplicates
+  const allCategories = useMemo(() => {
+    const uniqueCategories = new Map();
+    
+    // First, add all customer categories
+    Object.entries(customerPrices).forEach(([id, data]) => {
+      uniqueCategories.set(id, {
+        id,
+        name: data.name ?? id.charAt(0).toUpperCase() + id.slice(1),
+        type: 'customer'
+      });
+    });
+    
+    // Then, add marketplace categories only if they don't overlap with customer categories
+    Object.entries(marketplacePrices).forEach(([id, data]) => {
+      if (!uniqueCategories.has(id)) {
+        uniqueCategories.set(id, {
+          id,
+          name: data.name ?? id.charAt(0).toUpperCase() + id.slice(1),
+          type: 'marketplace'
+        });
+      }
+    });
+    
+    return Array.from(uniqueCategories.values());
+  }, [customerPrices, marketplacePrices]);
   
+  // Separate arrays for customer and marketplace categories for data processing
+  const customerCategories = useMemo(() => 
+    allCategories.filter(category => category.type === 'customer'),
+    [allCategories]
+  );
+  
+  const marketplaceCategories = useMemo(() => 
+    allCategories.filter(category => category.type === 'marketplace'),
+    [allCategories]
+  );
+
   // Get pricing information for default values
   const formValues = form.watch();
   const pricingInfo = formValues.pricingInformation || { usdPrice: 0, adjustmentPercentage: 0 };
@@ -131,12 +164,6 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
   
   // Add exchange rate from form values or use default value of 1
   const exchangeRate = formValues.exchangeRate ?? 1;
-  
-  // Use customer price categories to ensure consistency
-  const customerCategories = Object.keys(customerPrices).map(key => ({
-    id: key,
-    name: key.charAt(0).toUpperCase() + key.slice(1) // Capitalize first letter
-  }));
 
   // Update form values from Redux state (separated from Redux update logic)
   useEffect(() => {
@@ -220,7 +247,7 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
     // Get customer prices from form
     const formCustomerPrices = form.watch('customerPrices') || {};
     
-    const defaultCategoryId = form.watch('defaultPriceCategoryId') || defaultPriceCategory;
+    const defaultCategoryId = form.watch('defaultPriceCategoryId') ?? defaultPriceCategory;
     
     // Check if we have pricing info for this category
     if (formCustomerPrices[categoryId]) {
@@ -259,7 +286,7 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
     }
     
     // Fallback based on common values if nothing else is available
-    const fallbackValues = {
+    const fallbackValues: Record<string, number> = {
       'retail': 20,
       'gold': 5,
       'silver': 10,
@@ -413,7 +440,7 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
     
     // Get default values from customer-prices.tsx that would have been used
     // Look at customer-prices.tsx:handleMarketplacePercentageChange implementation
-    const knownDefaults = {
+    const knownDefaults: Record<string, number> = {
       'tokopedia': 5,
       'shopee': 8,
       'lazada': 10,
@@ -437,19 +464,22 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
       form.setValue('marketplacePercentages', marketplacePercentages);
     }
     
+    // Define default percentages for common marketplaces
+    const marketplaceDefaultPercentages: Record<string, number> = {
+      'tokopedia': 5,
+      'shopee': 8,
+      'lazada': 10,
+      'bukalapak': 7,
+      'blibli': 9,
+      'tiktok': 6
+    };
+    
     // For each marketplace, set a default percentage if not already set
     Object.keys(marketplacePrices).forEach(marketplaceId => {
       // If this marketplace doesn't have a percentage set
       if (!(marketplaceId in marketplacePercentages)) {
-        // Use default percentages based on marketplace name
-        let defaultPercentage = 5; // Default for unknown marketplaces
-        
-        // Lookup table for common marketplaces
-        if (marketplaceId === 'tokopedia') defaultPercentage = 5;
-        if (marketplaceId === 'shopee') defaultPercentage = 8;
-        if (marketplaceId === 'lazada') defaultPercentage = 10;
-        if (marketplaceId === 'bukalapak') defaultPercentage = 7;
-        if (marketplaceId === 'blibli') defaultPercentage = 9;
+        // Use default percentage from lookup table or default to 5%
+        const defaultPercentage = marketplaceDefaultPercentages[marketplaceId] || 5;
         
         // Set the default percentage in the form
         form.setValue(`marketplacePercentages.${marketplaceId}`, defaultPercentage);
@@ -468,7 +498,7 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
     
     // Set default percentages for each marketplace 
     // These match the default values in customer-prices.tsx
-    const defaultPercentages = {
+    const defaultPercentages: Record<string, number> = {
       'tokopedia': 5,
       'shopee': 8,
       'lazada': 10,
@@ -555,7 +585,7 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
     
     if (manualPriceEditing) {
       const variant = variantPrices[sku];
-      const adjustment = variant?.adjustmentPercentage || 0;
+      const adjustment = variant?.adjustmentPercentage ?? 0;
       
       // Update customer category prices first
       customerCategories.forEach(category => {
@@ -594,7 +624,7 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
     
     if (manualPriceEditing) {
       const variant = variantPrices[sku];
-      const usdPrice = variant?.usdPrice || 0;
+      const usdPrice = variant?.usdPrice ?? 0;
       
       // Update customer category prices first
       customerCategories.forEach(category => {
@@ -631,7 +661,22 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
   }, [dispatch]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
+      {/* Comment out the debug helper temporarily until we fix the Code component */}
+      {/*
+      {process.env.NODE_ENV === 'development' && (
+        <DebugHelper 
+          title="VariantPrices Input Debug" 
+          data={{
+            product,
+            formVariantPrices: form.getValues().variantPrices,
+            product_variant_prices: product?.product_variant_prices,
+            product_variants: product?.product_variants
+          }}
+        />
+      )}
+      */}
+      
       <div className="rounded-lg border p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -656,22 +701,14 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
                 <tr className="bg-muted/50">
                   <th className="p-4 text-center whitespace-nowrap w-[8%]">USD Price</th>
                   <th className="p-4 text-center whitespace-nowrap w-[8%]">Markup (%)</th>
-                  {/* Remove "Price" from category column headers and center them */}
-                  {customerCategories.map((category) => (
+                  
+                  {/* Use allCategories to ensure unique columns */}
+                  {allCategories.map((category) => (
                     <th 
-                      key={category.id} 
+                      key={`category-${category.type}-${category.id}`} 
                       className="p-4 text-center whitespace-nowrap"
                     >
                       {category.name}
-                    </th>
-                  ))}
-                  {/* Remove "Price" from marketplace column headers and center them */}
-                  {marketplaceCategories.map((marketplace) => (
-                    <th 
-                      key={marketplace.id} 
-                      className="p-4 text-center whitespace-nowrap"
-                    >
-                      {marketplace.name}
                     </th>
                   ))}
                 </tr>
@@ -733,28 +770,20 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
                             className={`text-right ${!manualPriceEditing ? 'bg-muted' : ''}`}
                           />
                         </td>
-                        {customerCategories.map((category) => (
-                          <td key={`${variant.sku_product_variant}-${category.name}`} className="p-3">
-                            <Input
-                              type="text"
-                              value={formatCurrency(variantPrice.prices[category.id] || 0)}
-                              onChange={(e) => {/* Tidak perlu handler karena selalu disabled */}}
-                              disabled={true}
-                              className="text-right bg-muted"
-                            />
-                          </td>
-                        ))}
-                        {/* Add marketplace price inputs */}
-                        {marketplaceCategories.map((marketplace) => {
-                          const marketplacePrice = variantPrice.marketplacePrices[marketplace.id] || 
-                            calculateMarketplacePrice(defaultPrice, marketplace.id);
+                        {/* Render all category cells with type distinction */}
+                        {allCategories.map((category) => {
+                          // Choose the right data source based on category type
+                          const value = category.type === 'customer' 
+                            ? (variantPrice.prices[category.id] || 0)
+                            : (variantPrice.marketplacePrices[category.id] || 
+                               calculateMarketplacePrice(defaultPrice, category.id));
                           
                           return (
-                            <td key={`${variantSku}-${marketplace.name}`} className="p-3">
+                            <td key={`${category.type}-${variantSku}-${category.id}`} className="p-3">
                               <Input
                                 type="text"
-                                value={formatCurrency(marketplacePrice)}
-                                onChange={(e) => {/* Disabled for now */}}
+                                value={formatCurrency(value)}
+                                onChange={(e) => {/* Disabled handler */}}
                                 disabled={true}
                                 className="text-right bg-muted"
                               />

@@ -4,17 +4,17 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 
-export default function Error({
+export default function ErrorPage({
   error,
   reset,
-}: {
+}: Readonly<{
   error: Error & { digest?: string };
   reset: () => void;
-}) {
+}>) {
   const router = useRouter();
   
   useEffect(() => {
-    console.error(error);
+    // Removed console.error for error logging
   }, [error]);
 
   return (

@@ -1,205 +1,181 @@
-import { PayloadAction, createSlice } from "@reduxjs/toolkit";
-
-interface VariantPrice {
-  marketplacePrices: Record<string, number>;
-  prices: Record<string, number>;
-  usdPrice: number;
-  adjustmentPercentage: number;
-  marketplaceMarkups?: Record<string, number>; // New field
-}
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface VariantPricesState {
   manualPriceEditing: boolean;
-  prices: Record<string, VariantPrice>;
+  prices: Record<string, {
+    usdPrice?: number;
+    adjustmentPercentage?: number;
+    prices: Record<string, number>;
+    marketplacePrices?: Record<string, number>;
+  }>;
 }
 
 const initialState: VariantPricesState = {
   manualPriceEditing: false,
-  prices: {},
+  prices: {}
 };
 
-interface UpdateVariantMarketplacePricePayload {
-  sku: string;
-  marketplace: string;
-  price: number;
+// Categories should be { id: string, name: string }[]
+interface InitializePayload {
+  variants: any[];
+  categories: any[];
+  customerPrices: Record<string, any>;
+  pricingInfo: {
+    usdPrice: number;
+    adjustmentPercentage: number;
+  };
 }
 
 export const variantPricesSlice = createSlice({
-  name: "variantPrices",
+  name: 'variantPrices',
   initialState,
   reducers: {
+    // Toggle manual price editing mode
     setManualPriceEditing: (state, action: PayloadAction<boolean>) => {
       state.manualPriceEditing = action.payload;
     },
-    initializeVariantPrices: (
-      state,
-      action: PayloadAction<{
-        variants: Array<{ sku_product_variant: string }>;
-        categories: Array<{ id: string; name: string }>;
-        customerPrices: Record<string, { taxInclusivePrice: number }>;
-        pricingInfo?: {
-          usdPrice?: number;
-          adjustmentPercentage?: number;
-        };
-      }>
-    ) => {
+    
+    // Initialize variant prices with default values
+    initializeVariantPrices: (state, action: PayloadAction<InitializePayload>) => {
       const { variants, categories, customerPrices, pricingInfo } = action.payload;
-      const defaultUsdPrice = pricingInfo?.usdPrice ?? 0; // Use nullish coalescing
-      const defaultAdjustment = pricingInfo?.adjustmentPercentage ?? 0; // Use nullish coalescing
-      
+
+      // Reset prices object
+      state.prices = {};
+
+      // Initialize each variant
       variants.forEach(variant => {
         const sku = variant.sku_product_variant;
+        if (!sku) return;
         
-        // Initialize if not exists
-        if (!state.prices[sku]) {
-          state.prices[sku] = {
-            prices: {},
-            usdPrice: defaultUsdPrice,
-            adjustmentPercentage: defaultAdjustment,
-            marketplacePrices: {} // Add this line
-          };
-        } else {
-          // Update default values while preserving existing structure
-          state.prices[sku] = {
-            ...state.prices[sku],
-            usdPrice: defaultUsdPrice,
-            adjustmentPercentage: defaultAdjustment
-          };
-        }
+        // Create prices object for this variant
+        const prices: Record<string, number> = {};
         
+        // Set prices for each category based on customer pricing rules
         categories.forEach(category => {
-          state.prices[sku].prices[category.id] = 
-            customerPrices[category.id]?.taxInclusivePrice || 0;
+          const categoryData = customerPrices[category.id];
+          let price = 0;
+          
+          if (categoryData && 'taxInclusivePrice' in categoryData) {
+            price = categoryData.taxInclusivePrice;
+          }
+          
+          prices[category.id] = price;
         });
+        
+        // Add the variant with initial properties
+        state.prices[sku] = {
+          usdPrice: pricingInfo.usdPrice,
+          adjustmentPercentage: pricingInfo.adjustmentPercentage,
+          prices,
+          marketplacePrices: {}
+        };
       });
     },
-    updateVariantPrices: (
-      state,
-      action: PayloadAction<{
-        variants: Array<{ sku_product_variant: string }>;
-        categories: Array<{ id: string; name: string }>;
-        customerPrices: Record<string, { taxInclusivePrice: number }>;
-        pricingInfo?: {
-          usdPrice?: number;
-          adjustmentPercentage?: number;
-        };
-      }>
-    ) => {
-      if (state.manualPriceEditing) return; // Don't update if manual editing is on
+    
+    // Update all variant prices based on new customer pricing
+    updateVariantPrices: (state, action: PayloadAction<InitializePayload>) => {
+      const { variants, categories, customerPrices } = action.payload;
       
-      const { variants, categories, customerPrices, pricingInfo } = action.payload;
-      const defaultUsdPrice = pricingInfo?.usdPrice ?? 0; // Use nullish coalescing
-      const defaultAdjustment = pricingInfo?.adjustmentPercentage ?? 0; // Use nullish coalescing
-      
+      // For each variant that exists
       variants.forEach(variant => {
         const sku = variant.sku_product_variant;
+        if (!sku || !state.prices[sku]) return;
         
-        // Initialize if not exists
-        if (!state.prices[sku]) {
-          state.prices[sku] = {
-            prices: {},
-            usdPrice: defaultUsdPrice,
-            adjustmentPercentage: defaultAdjustment,
-            marketplacePrices: {} // Add this line
-          };
-        }
-        
-        // Don't update USD price and adjustment if manual editing is on
+        // Only update if not in manual editing mode
         if (!state.manualPriceEditing) {
-          state.prices[sku].usdPrice = defaultUsdPrice;
-          state.prices[sku].adjustmentPercentage = defaultAdjustment;
+          // Update each category price
+          categories.forEach(category => {
+            const categoryData = customerPrices[category.id];
+            let price = 0;
+            
+            if (categoryData && 'taxInclusivePrice' in categoryData) {
+              price = categoryData.taxInclusivePrice;
+            }
+            
+            // Set the new price for this category
+            if (!state.prices[sku].prices) {
+              state.prices[sku].prices = {};
+            }
+            state.prices[sku].prices[category.id] = price;
+          });
         }
-        
-        categories.forEach(category => {
-          state.prices[sku].prices[category.id] = 
-            customerPrices[category.id]?.taxInclusivePrice || 0;
-        });
       });
     },
-    updateVariantPrice: (
-      state,
-      action: PayloadAction<{
-        sku: string;
-        category: string;
-        price: number;
-      }>
-    ) => {
+    
+    // Update a specific price for a variant and category
+    updateVariantPrice: (state, action: PayloadAction<{ 
+      sku: string; 
+      category: string; 
+      price: number;
+    }>) => {
       const { sku, category, price } = action.payload;
-      if (state.prices[sku]) {
-        state.prices[sku].prices[category] = price;
+      
+      // Ensure variant and prices exist
+      if (!state.prices[sku]) {
+        state.prices[sku] = { prices: {}, marketplacePrices: {} };
       }
+      
+      if (!state.prices[sku].prices) {
+        state.prices[sku].prices = {};
+      }
+      
+      // Update the price
+      state.prices[sku].prices[category] = price;
     },
-    updateVariantUsdPrice: (
-      state,
-      action: PayloadAction<{
-        sku: string;
-        price: number;
-      }>
-    ) => {
+    
+    // Update USD price for a variant
+    updateVariantUsdPrice: (state, action: PayloadAction<{
+      sku: string;
+      price: number;
+    }>) => {
       const { sku, price } = action.payload;
-      console.log(`Updating USD price for ${sku} to ${price}`);
       
+      // Ensure variant exists
       if (!state.prices[sku]) {
-        // Create the variant if it doesn't exist
-        state.prices[sku] = {
-          prices: {},
-          usdPrice: price,
-          adjustmentPercentage: 0,
-          marketplacePrices: {} // Add this line
-        };
-      } else {
-        state.prices[sku].usdPrice = price;
+        state.prices[sku] = { prices: {}, marketplacePrices: {} };
       }
+      
+      // Update USD price
+      state.prices[sku].usdPrice = price;
     },
-    updateVariantAdjustment: (
-      state,
-      action: PayloadAction<{
-        sku: string;
-        percentage: number;
-      }>
-    ) => {
+    
+    // Update adjustment percentage for a variant
+    updateVariantAdjustment: (state, action: PayloadAction<{
+      sku: string;
+      percentage: number;
+    }>) => {
       const { sku, percentage } = action.payload;
-      console.log(`Updating adjustment for ${sku} to ${percentage}%`);
       
+      // Ensure variant exists
       if (!state.prices[sku]) {
-        // Create the variant if it doesn't exist
-        state.prices[sku] = {
-          prices: {},
-          usdPrice: 0,
-          adjustmentPercentage: percentage,
-          marketplacePrices: {} // Add this line
-        };
-      } else {
-        state.prices[sku].adjustmentPercentage = percentage;
+        state.prices[sku] = { prices: {}, marketplacePrices: {} };
       }
+      
+      // Update adjustment percentage
+      state.prices[sku].adjustmentPercentage = percentage;
     },
-    updateVariantMarketplacePrice: (state, action: PayloadAction<UpdateVariantMarketplacePricePayload>) => {
+    
+    // Update marketplace price for a variant
+    updateVariantMarketplacePrice: (state, action: PayloadAction<{
+      sku: string;
+      marketplace: string;
+      price: number;
+    }>) => {
       const { sku, marketplace, price } = action.payload;
-      if (state.prices[sku]) {
-        if (!state.prices[sku].marketplacePrices) {
-          state.prices[sku].marketplacePrices = {};
-        }
-        state.prices[sku].marketplacePrices[marketplace] = price;
+      
+      // Ensure variant and marketplacePrices exist
+      if (!state.prices[sku]) {
+        state.prices[sku] = { prices: {}, marketplacePrices: {} };
       }
-    },
-    updateVariantMarketplaceMarkup: (
-      state,
-      action: PayloadAction<{
-        sku: string;
-        marketplace: string;
-        markup: number;
-      }>
-    ) => {
-      const { sku, marketplace, markup } = action.payload;
-      if (state.prices[sku]) {
-        // Initialize marketplaceMarkups if it doesn't exist
-        if (!state.prices[sku].marketplaceMarkups) {
-          state.prices[sku].marketplaceMarkups = {};
-        }
-        state.prices[sku].marketplaceMarkups[marketplace] = markup;
+      
+      if (!state.prices[sku].marketplacePrices) {
+        state.prices[sku].marketplacePrices = {};
       }
-    },
-  },
+      
+      // Update the marketplace price
+      state.prices[sku].marketplacePrices[marketplace] = price;
+    }
+  }
 });
 
 export const {
@@ -209,8 +185,7 @@ export const {
   updateVariantPrice,
   updateVariantUsdPrice,
   updateVariantAdjustment,
-  updateVariantMarketplacePrice,
-  updateVariantMarketplaceMarkup,
+  updateVariantMarketplacePrice
 } = variantPricesSlice.actions;
 
 export default variantPricesSlice.reducer;
