@@ -1,5 +1,8 @@
-import { UseFormReturn } from "react-hook-form";
-import type { PriceFormFields } from "@/types/form";
+'use client';
+
+import { useCallback } from 'react';
+import type { UseFormReturn } from 'react-hook-form';
+import type { PriceFormFields } from '@/types/form';
 
 interface Category {
   id: number;
@@ -7,20 +10,50 @@ interface Category {
   percentage: number;
 }
 
+/**
+ * Hook to handle price calculations across the application
+ * Provides consistent calculation methods for HB Real and HB Naik values
+ */
 export function usePriceCalculations(form: UseFormReturn<PriceFormFields>) {
-  const updateHBReal = () => {
-    const usdPrice = form.getValues("usdPrice");
-    const exchangeRate = form.getValues("exchangeRate");
-    const hbReal = usdPrice * exchangeRate;
-    form.setValue("hbReal", hbReal);
-  };
+  /**
+   * Calculate HB Real (Base Price) from USD Price and Exchange Rate
+   * Formula: HB Real = USD Price × Exchange Rate
+   */
+  const updateHBReal = useCallback(() => {
+    const usdPrice = form.getValues('usdPrice') || 0;
+    const exchangeRate = form.getValues('exchangeRate') || 0;
+    const hbReal = Math.round(usdPrice * exchangeRate);
+    
+    form.setValue('hbReal', hbReal);
+    
+    // Since HB Real has changed, we should also update HB Naik
+    updateHBNaik(hbReal);
+    
+    return hbReal;
+  }, [form]);
 
-  const updateHBNaik = () => {
-    const hbReal = form.getValues("hbReal");
-    const adjustmentPercentage = form.getValues("adjustmentPercentage");
-    const hbNaik = hbReal * (1 + adjustmentPercentage / 100);
-    form.setValue("hbNaik", hbNaik);
-  };
+  /**
+   * Calculate HB Naik (Adjusted Price) from HB Real and Adjustment Percentage
+   * Formula: HB Naik = HB Real × (1 + Adjustment/100)
+   */
+  const updateHBNaik = useCallback((providedHBReal?: number) => {
+    const hbReal = providedHBReal ?? (form.getValues('hbReal') || 0);
+    const adjustmentPercentage = form.getValues('adjustmentPercentage') || 0;
+    
+    // Calculate HB Naik (adjusted price)
+    const hbNaik = Math.round(hbReal * (1 + (adjustmentPercentage / 100)));
+    
+    // Update form value
+    form.setValue('hbNaik', hbNaik);
+    
+    // Update pricingInformation object for consistency
+    form.setValue('pricingInformation', {
+      usdPrice: form.getValues('usdPrice') || 0,
+      adjustmentPercentage: adjustmentPercentage
+    });
+    
+    return hbNaik;
+  }, [form]);
 
   const updateCustomerPrices = (hbNaik: number, categories: Category[]) => {
     if (!categories?.length) return;
@@ -31,13 +64,20 @@ export function usePriceCalculations(form: UseFormReturn<PriceFormFields>) {
       const categoryKey = category.name.toLowerCase();
       const markup = parseFloat(category.percentage?.toString() || '0');
       const basePrice = hbNaik * (1 + (markup / 100));
-      const taxAmount = basePrice * 0.11;
+      const tax = basePrice * 0.11;
+      const taxInclusivePrice = basePrice + tax;
 
       customerPrices[categoryKey] = {
         basePrice: Number(basePrice.toFixed(2)),
-        taxAmount: Number(taxAmount.toFixed(2)),
-        taxInclusivePrice: Number((basePrice + taxAmount).toFixed(2)),
-        appliedTaxPercentage: 11 // Add missing property
+        preTaxPrice: Number(basePrice.toFixed(2)),
+        // Remove the taxAmount property as it doesn't exist in CustomerPrice type
+        taxInclusivePrice: Number(taxInclusivePrice.toFixed(2)),
+        // Remove appliedTaxPercentage as it doesn't exist in the type
+        taxPercentage: 11,
+        isCustomTaxInclusivePrice: false,
+        markup: markup,
+        // Add any other properties required by CustomerPrice type
+        name: category.name // Add name property if needed by the type
       };
     });
 

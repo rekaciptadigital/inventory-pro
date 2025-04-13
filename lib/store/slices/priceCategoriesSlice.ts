@@ -6,7 +6,6 @@ import {
 import type {
   PriceCategory,
   GroupedPriceCategories,
-  PriceCategoryFormData,
 } from "@/lib/api/price-categories";
 import type { RootState } from "../store";
 
@@ -57,7 +56,8 @@ export const setDefaultCategoryAsync = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const response = await setDefaultPriceCategory(categoryId, setDefault);
+      // Remove useless assignment to response variable
+      await setDefaultPriceCategory(categoryId, setDefault);
       return { categoryId, setDefault };
     } catch (error: any) {
       return rejectWithValue(error);

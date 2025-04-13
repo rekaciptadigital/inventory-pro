@@ -2,6 +2,10 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface VariantPricesState {
   manualPriceEditing: boolean;
+  variantData: Record<string, {
+    usdPrice: number;
+    adjustmentPercentage: number;
+  }>;
   prices: Record<string, {
     usdPrice?: number;
     adjustmentPercentage?: number;
@@ -12,6 +16,7 @@ interface VariantPricesState {
 
 const initialState: VariantPricesState = {
   manualPriceEditing: false,
+  variantData: {},
   prices: {}
 };
 
@@ -26,7 +31,7 @@ interface InitializePayload {
   };
 }
 
-export const variantPricesSlice = createSlice({
+const variantPricesSlice = createSlice({
   name: 'variantPrices',
   initialState,
   reducers: {
@@ -35,7 +40,62 @@ export const variantPricesSlice = createSlice({
       state.manualPriceEditing = action.payload;
     },
     
-    // Initialize variant prices with default values
+    // Initialize variant data with explicit typing for the action
+    initializeVariantData: (state, action: PayloadAction<Record<string, {
+      usdPrice: number;
+      adjustmentPercentage: number;
+    }>>) => {
+      // Ensure it's a valid object before assigning
+      if (action.payload && typeof action.payload === 'object') {
+        state.variantData = { ...action.payload };
+      }
+    },
+    
+    // Update USD price for a variant
+    updateVariantUsdPrice: (state, action: PayloadAction<{
+      sku: string;
+      price: number;
+    }>) => {
+      const { sku, price } = action.payload;
+      
+      // Ensure variant exists in state
+      if (!state.variantData[sku]) {
+        state.variantData[sku] = { usdPrice: 0, adjustmentPercentage: 0 };
+      }
+      
+      // Update USD price
+      state.variantData[sku].usdPrice = price;
+      
+      // Also update in prices object for backward compatibility
+      if (!state.prices[sku]) {
+        state.prices[sku] = { prices: {}, marketplacePrices: {} };
+      }
+      state.prices[sku].usdPrice = price;
+    },
+    
+    // Update adjustment percentage for a variant
+    updateVariantAdjustment: (state, action: PayloadAction<{
+      sku: string;
+      percentage: number;
+    }>) => {
+      const { sku, percentage } = action.payload;
+      
+      // Ensure variant exists in state
+      if (!state.variantData[sku]) {
+        state.variantData[sku] = { usdPrice: 0, adjustmentPercentage: 0 };
+      }
+      
+      // Update adjustment percentage
+      state.variantData[sku].adjustmentPercentage = percentage;
+      
+      // Also update in prices object for backward compatibility
+      if (!state.prices[sku]) {
+        state.prices[sku] = { prices: {}, marketplacePrices: {} };
+      }
+      state.prices[sku].adjustmentPercentage = percentage;
+    },
+    
+    // Initialize variant prices with default values (kept for backwards compatibility)
     initializeVariantPrices: (state, action: PayloadAction<InitializePayload>) => {
       const { variants, categories, customerPrices, pricingInfo } = action.payload;
 
@@ -72,7 +132,7 @@ export const variantPricesSlice = createSlice({
       });
     },
     
-    // Update all variant prices based on new customer pricing
+    // Update all variant prices (kept for backwards compatibility)
     updateVariantPrices: (state, action: PayloadAction<InitializePayload>) => {
       const { variants, categories, customerPrices } = action.payload;
       
@@ -102,7 +162,7 @@ export const variantPricesSlice = createSlice({
       });
     },
     
-    // Update a specific price for a variant and category
+    // Update a specific price for a variant and category (kept for backwards compatibility)
     updateVariantPrice: (state, action: PayloadAction<{ 
       sku: string; 
       category: string; 
@@ -123,39 +183,7 @@ export const variantPricesSlice = createSlice({
       state.prices[sku].prices[category] = price;
     },
     
-    // Update USD price for a variant
-    updateVariantUsdPrice: (state, action: PayloadAction<{
-      sku: string;
-      price: number;
-    }>) => {
-      const { sku, price } = action.payload;
-      
-      // Ensure variant exists
-      if (!state.prices[sku]) {
-        state.prices[sku] = { prices: {}, marketplacePrices: {} };
-      }
-      
-      // Update USD price
-      state.prices[sku].usdPrice = price;
-    },
-    
-    // Update adjustment percentage for a variant
-    updateVariantAdjustment: (state, action: PayloadAction<{
-      sku: string;
-      percentage: number;
-    }>) => {
-      const { sku, percentage } = action.payload;
-      
-      // Ensure variant exists
-      if (!state.prices[sku]) {
-        state.prices[sku] = { prices: {}, marketplacePrices: {} };
-      }
-      
-      // Update adjustment percentage
-      state.prices[sku].adjustmentPercentage = percentage;
-    },
-    
-    // Update marketplace price for a variant
+    // Update marketplace price for a variant (kept for backwards compatibility)
     updateVariantMarketplacePrice: (state, action: PayloadAction<{
       sku: string;
       marketplace: string;
@@ -178,13 +206,15 @@ export const variantPricesSlice = createSlice({
   }
 });
 
+// Export actions from the slice
 export const {
   setManualPriceEditing,
+  initializeVariantData,
+  updateVariantUsdPrice,
+  updateVariantAdjustment,
   initializeVariantPrices,
   updateVariantPrices,
   updateVariantPrice,
-  updateVariantUsdPrice,
-  updateVariantAdjustment,
   updateVariantMarketplacePrice
 } = variantPricesSlice.actions;
 

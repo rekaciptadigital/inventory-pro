@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils/format";
 import { usePriceCalculations } from '@/lib/hooks/use-price-calculations';
+import { Badge } from '@/components/ui/badge';
 
 interface PricingInfoProps {
   readonly form: UseFormReturn<PriceFormFields>;
@@ -44,10 +45,21 @@ export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
     return () => subscription.unsubscribe();
   }, [form, updateHBNaik]);
 
+  // Get current values for calculation display
+  const usdPrice = form.watch("usdPrice") || 0;
+  const exchangeRate = form.watch("exchangeRate") || 0;
+  const hbReal = form.watch("hbReal") || 0;
+  const adjustmentPercentage = form.watch("adjustmentPercentage") || 0;
+  const adjustmentValue = (hbReal * adjustmentPercentage) / 100;
+  const hbNaik = form.watch("hbNaik") || 0;
+
   return (
     <Form {...form}>
       <div className="rounded-lg border p-4">
-        <h3 className="text-lg font-medium mb-4">Pricing Information</h3>
+        <div className="flex items-center gap-2 mb-4">
+          <h3 className="text-lg font-medium">Pricing Information</h3>
+          <Badge variant="outline" className="ml-2">Base Prices</Badge>
+        </div>
 
         <div className="flex flex-col space-y-4">
           {/* First row: USD Price, Exchange Rate (KURS) and Adjustment Percentage */}
@@ -131,12 +143,12 @@ export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
                   <Input
                     type="text"
                     disabled
-                    value={formatCurrency((form.watch("hbReal") || 0) * (form.watch("adjustmentPercentage") || 0) / 100)}
+                    value={formatCurrency(adjustmentValue)}
                     className="bg-muted/30"
                   />
                 </FormControl>
                 <p className="text-xs text-muted-foreground mt-1">
-                  HB Real × Adjustment/100
+                  HB Real × {adjustmentPercentage}% = {formatCurrency(adjustmentValue)}
                 </p>
               </FormItem>
             </div>
@@ -145,26 +157,48 @@ export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
           {/* Second row: HB Real (Base Price) and HB Naik (Adjusted Price) */}
           <div className="flex gap-4">
             <div className="flex-1 bg-muted/50 p-4 rounded-lg">
-              <div className="flex items-center gap-2">
-                <FormLabel>HB Real (Base Price)</FormLabel>
+              <div className="flex flex-col">
+                <FormLabel className="mb-1">HB Real (Base Price)</FormLabel>
                 <div className="text-lg font-medium">
-                  {formatCurrency(form.watch("hbReal"))}
+                  {formatCurrency(hbReal)}
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Calculated: {usdPrice} USD × {formatCurrency(exchangeRate)} = {formatCurrency(hbReal)}
+                </p>
+                <div className="text-xs text-muted-foreground mt-1">
+                  This is the base price in local currency before adjustments
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Automatically calculated: USD Price × Exchange Rate
-              </p>
             </div>
             <div className="flex-1 bg-muted/50 p-4 rounded-lg">
-              <div className="flex items-center gap-2">
-                <FormLabel>HB Naik (Adjusted Price)</FormLabel>
+              <div className="flex flex-col">
+                <FormLabel className="mb-1">HB Naik (Adjusted Price)</FormLabel>
                 <div className="text-lg font-medium">
-                  {formatCurrency(form.watch("hbNaik"))}
+                  {formatCurrency(hbNaik)}
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Calculated: {formatCurrency(hbReal)} + {formatCurrency(adjustmentValue)} = {formatCurrency(hbNaik)}
+                </p>
+                <div className="text-xs text-muted-foreground mt-1">
+                  This price is the basis for all customer category price calculations
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Automatically calculated: HB Real × (1 + Adjustment/100)
-              </p>
+            </div>
+          </div>
+          
+          {/* Add a visual price flow diagram */}
+          <div className="bg-muted/20 p-3 rounded border border-dashed">
+            <div className="text-sm font-medium mb-2">Price Flow:</div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div>USD Price</div>
+              <div>→</div>
+              <div>HB Real<br/>(USD × Exchange)</div>
+              <div>→</div>
+              <div>HB Naik<br/>(+ Adjustment %)</div>
+              <div>→</div>
+              <div>Customer Prices<br/>(+ Markup + Tax)</div>
+              <div>→</div>
+              <div>Marketplace Prices<br/>(+ MP Markup)</div>
             </div>
           </div>
         </div>

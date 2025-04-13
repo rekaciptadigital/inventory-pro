@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { getPriceCategories } from "@/lib/api/price-categories";
 import { formatCurrency } from "@/lib/utils/format";
+import { Badge } from "@/components/ui/badge";
 import type { PriceCategory } from "@/lib/api/price-categories";
 
 interface CustomerPricesProps {
@@ -63,42 +64,77 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     fetchCategories();
   }, [form]); // Add form to dependencies
 
+  /**
+   * Calculate prices for a customer category based on:
+   * 1. Base price (HB Naik)
+   * 2. Apply markup percentage 
+   * 3. Calculate tax amount (fixed 11%)
+   */
   const calculatePrices = (category: PriceCategory, customPercentage?: number) => {
     const categoryKey = category.name.toLowerCase();
     const markup = customPercentage ?? percentages[categoryKey] ?? category.percentage;
+    // Step 1 & 2: Apply markup percentage to base price (HB Naik)
     const basePrice = hbNaik * (1 + (markup / 100));
+    // Step 3: Calculate tax
     const taxPercentage = 11;
     const taxAmount = basePrice * (taxPercentage / 100);
+    // Final price with tax
+    const taxInclusivePrice = basePrice + taxAmount;
 
     return {
-      basePrice: Number(basePrice.toFixed(2)),
-      taxAmount: Number(taxAmount.toFixed(2)),
-      taxInclusivePrice: Number((basePrice + taxAmount).toFixed(2)),
+      basePrice: Math.round(basePrice),
+      preTaxPrice: Math.round(basePrice), // Add missing property
+      taxAmount: Math.round(taxAmount),
+      taxInclusivePrice: Math.round(taxInclusivePrice),
       appliedTaxPercentage: taxPercentage,
-      markup: markup // Add markup to returned object for reference
+      taxPercentage: taxPercentage, // Add missing property
+      isCustomTaxInclusivePrice: false, // Add missing property
+      markup: markup // Store markup for reference
     };
   };
 
-  // Calculate marketplace prices with custom percentage
+  // Calculate marketplace prices from the default customer category price
   const calculateMarketplacePrices = (category: PriceCategory, customPercentage?: number) => {
     const defaultCategory = categories.find(c => c.set_default);
 
     if (!defaultCategory) {
-      return { basePrice: 0, taxAmount: 0, taxInclusivePrice: 0, appliedTaxPercentage: 11 };
+      return { 
+        basePrice: 0, 
+        preTaxPrice: 0,
+        taxAmount: 0, 
+        taxInclusivePrice: 0,
+        appliedTaxPercentage: 11,
+        taxPercentage: 11,
+        isCustomTaxInclusivePrice: false,
+        // Add required properties for MarketplacePrice type
+        price: 0,
+        isCustomPrice: false,
+        customPercentage: customPercentage ?? 0
+      };
     }
     
     const defaultCategoryKey = defaultCategory.name.toLowerCase();
+    // Get the tax-inclusive price from default category (this already includes tax)
     const defaultPrices = form.watch(`customerPrices.${defaultCategoryKey}`) || calculatePrices(defaultCategory);
     
+    // Apply marketplace markup to the default category's tax-inclusive price
     const markup = customPercentage ?? marketplacePercentages[category.name.toLowerCase()] ?? category.percentage;
     const marketplaceBasePrice = defaultPrices.taxInclusivePrice * (1 + (parseFloat(markup.toString()) / 100));
+    const finalPrice = Math.round(marketplaceBasePrice);
     
     return {
-      basePrice: Number(marketplaceBasePrice.toFixed(2)),
-      taxAmount: 0, // Already included in the base price from default category
-      taxInclusivePrice: Number(marketplaceBasePrice.toFixed(2)),
-      appliedTaxPercentage: 0, // Tax already applied
-      markup: markup // Store the markup value
+      basePrice: finalPrice,
+      preTaxPrice: finalPrice,
+      taxAmount: 0, // Tax already included from default category
+      taxInclusivePrice: finalPrice,
+      appliedTaxPercentage: 0, // No additional tax
+      taxPercentage: 0,
+      isCustomTaxInclusivePrice: false,
+      markup: markup, // Store markup value
+      // Add required properties for MarketplacePrice type
+      price: finalPrice, // Same as taxInclusivePrice
+      isCustomPrice: !!customPercentage, // If customPercentage is provided, it's a custom price
+      customPercentage: markup // Use the markup value for customPercentage
     };
   };
 
@@ -119,15 +155,6 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     });
     
   }, [hbNaik, percentages, marketplacePercentages, categories, marketplaceCategories, form]);
-
-  // After form initialization, check and log the default category data
-  useEffect(() => {
-    if (!isLoading && categories.length > 0) {
-      // Removed useless assignment to defaultCategoryObj variable
-      
-      // All useless assignments have been removed
-    }
-  }, [isLoading, categories, form, percentages]);
 
   const handlePercentageChange = (category: PriceCategory, value: string) => {
     const categoryKey = category.name.toLowerCase();
@@ -155,14 +182,21 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     return <div>Loading categories...</div>;
   }
 
+  // Get default category for reference
+  const defaultCategory = categories.find(c => c.set_default);
+  const defaultCategoryName = defaultCategory?.name ?? 'Retail';
+
   return (
     <Form {...form}>
       <form className="space-y-6">
-        {/* Redesigned Customer Category Prices section with grid layout */}
+        {/* Customer Category Prices section */}
         <div className="rounded-lg border p-4 space-y-4">
-          <h3 className="text-lg font-medium">Customer Category Prices</h3>
+          <div className="flex items-center mb-2">
+            <h3 className="text-lg font-medium">Customer Category Prices</h3>
+            <Badge variant="outline" className="ml-2">From HB Naik</Badge>
+          </div>
           
-          {/* Headers - Adjusted columns to include Pre-tax Price */}
+          {/* Headers */}
           <div className="grid grid-cols-12 gap-4 px-4 py-2 font-medium text-sm">
             <div className="col-span-3">Customer Category</div>
             <div className="col-span-3">Markup Percentage (%)</div>
@@ -184,17 +218,17 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                   key={category.id} 
                   className={`grid grid-cols-12 gap-4 items-center px-4 py-3 rounded-md border ${
                     isCustom ? 'bg-muted/50' : ''
-                  }`}
+                  } ${category.set_default ? 'border-primary/30' : ''}`}
                 >
                   {/* Category Name */}
                   <div className="col-span-3">
                     <span className="font-medium">{category.name}</span>
                     {category.set_default && (
-                      <span className="ml-2 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">Default</span>
+                      <Badge variant="default" className="ml-2 text-xs">Default</Badge>
                     )}
                   </div>
                   
-                  {/* Markup Percentage - Reduced to col-span-3 */}
+                  {/* Markup Percentage */}
                   <div className="col-span-3">
                     <FormField
                       control={form.control}
@@ -212,11 +246,11 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                       )}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      From HB Naik ({formatCurrency(hbNaik)})
+                      {currentPercentage}% from {formatCurrency(hbNaik)}
                     </p>
                   </div>
                   
-                  {/* Pre-tax Price - New column with description */}
+                  {/* Pre-tax Price */}
                   <div className="col-span-2">
                     <FormField
                       control={form.control}
@@ -237,7 +271,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                     </p>
                   </div>
                   
-                  {/* Tax-inclusive Price - Reduced to col-span-2 with tax amount description */}
+                  {/* Tax-inclusive Price */}
                   <div className="col-span-2">
                     <FormField
                       control={form.control}
@@ -258,10 +292,10 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                     </p>
                   </div>
                   
-                  {/* Custom Toggle - Unchanged */}
+                  {/* Custom Toggle */}
                   <div className="col-span-2 flex items-center justify-end gap-2">
                     <span className="text-xs text-muted-foreground">
-                      {isCustom ? 'Custom' : 'Manual'}
+                      {isCustom ? 'Custom' : 'Auto'}
                     </span>
                     <Switch
                       checked={isCustom}
@@ -279,15 +313,18 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
           </div>
         </div>
 
-        {/* Marketplace Prices section with aligned fields */}
+        {/* Marketplace Prices section */}
         <div className="rounded-lg border p-4 space-y-4">
-          <h3 className="text-lg font-medium">Marketplace Prices</h3>
+          <div className="flex items-center mb-2">
+            <h3 className="text-lg font-medium">Marketplace Prices</h3>
+            <Badge variant="outline" className="ml-2">From {defaultCategoryName}</Badge>
+          </div>
           
-          {/* Headers with Custom column moved to the right */}
+          {/* Headers */}
           <div className="grid grid-cols-12 gap-4 px-4 py-2 font-medium text-sm">
             <div className="col-span-3">Marketplace</div>
             <div className="col-span-4">Markup Percentage (%)</div>
-            <div className="col-span-3">Price</div>
+            <div className="col-span-3">Final Price</div>
             <div className="col-span-2">Custom Price</div>
           </div>
           
@@ -299,6 +336,10 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
               const defaultCategory = categories.find(c => c.set_default);
               const marketplacePrice = form.watch(`marketplacePrices.${categoryKey}.taxInclusivePrice`) || 0;
               const currentPercentage = marketplacePercentages[categoryKey] ?? category.percentage;
+
+              // Get default category price for reference
+              const defaultCategoryKey = defaultCategory?.name.toLowerCase() ?? 'retail';
+              const defaultCategoryPrice = form.watch(`customerPrices.${defaultCategoryKey}.taxInclusivePrice`) || 0;
 
               return (
                 <div 
@@ -312,7 +353,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                     <span className="font-medium">{category.name}</span>
                   </div>
                   
-                  {/* Markup Percentage - Restructured for alignment */}
+                  {/* Markup Percentage */}
                   <div className="col-span-4">
                     <div className="flex flex-col">
                       <FormField
@@ -331,12 +372,12 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                         )}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        &nbsp;{/* Placeholder to maintain alignment */}
+                        {currentPercentage}% from {formatCurrency(defaultCategoryPrice)}
                       </p>
                     </div>
                   </div>
                   
-                  {/* Price */}
+                  {/* Final Price */}
                   <div className="col-span-3">
                     <div className="flex flex-col">
                       <FormField
@@ -354,7 +395,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                         )}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        {currentPercentage}% markup from {defaultCategory?.name}
+                        {defaultCategory?.name} + {currentPercentage}%
                       </p>
                     </div>
                   </div>
@@ -362,7 +403,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                   {/* Custom Toggle */}
                   <div className="col-span-2 flex items-center justify-end gap-2 pt-2">
                     <span className="text-xs text-muted-foreground">
-                      {isCustom ? 'Custom' : 'Manual'}
+                      {isCustom ? 'Custom' : 'Auto'}
                     </span>
                     <Switch
                       checked={isCustom}
@@ -377,6 +418,14 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                 </div>
               );
             })}
+          </div>
+          
+          {/* Price flow explanation */}
+          <div className="bg-muted/20 p-3 rounded border border-dashed mt-2">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium">Price flow:</span> Marketplace prices are calculated based on the default customer 
+              category price ({defaultCategoryName}) with an additional markup percentage applied.
+            </p>
           </div>
         </div>
       </form>

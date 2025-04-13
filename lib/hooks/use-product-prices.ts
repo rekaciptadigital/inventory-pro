@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
-import type { Product } from '@/types/inventory';
+import type { InventoryProduct } from '@/types/inventory';
 
 export function useProductPrices() {
   const { toast } = useToast();
@@ -10,16 +10,16 @@ export function useProductPrices() {
 
   const updateProductPrices = async (
     productId: string,
-    priceData: Partial<Product>
+    priceData: Partial<InventoryProduct>
   ): Promise<void> => {
     try {
       setIsUpdating(true);
       
       // Get existing products
-      const existingProducts = JSON.parse(localStorage.getItem('products') || '[]');
+      const existingProducts = JSON.parse(localStorage.getItem('products') ?? '[]');
       
       // Update product prices
-      const updatedProducts = existingProducts.map((product: Product) => {
+      const updatedProducts = existingProducts.map((product: InventoryProduct) => {
         if (product.id === productId) {
           return {
             ...product,
