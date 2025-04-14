@@ -235,7 +235,7 @@ export function EditPriceForm() {
             tax_id: 2,
             tax_percentage: priceData.taxPercentage ?? 11,
             is_custom_tax_inclusive_price: !!priceData.isCustomTaxInclusivePrice,
-            price_category_custom_percentage: parseFloat(String((values.percentages ?? {})[categoryId] ?? priceData.markup ?? 0))
+            price_category_custom_percentage: parseFloat(String(values.percentages?.[categoryId] ?? priceData.markup ?? 0))
           };
         }),
       
@@ -243,9 +243,8 @@ export function EditPriceForm() {
       marketplace_category_prices: Object.entries(values.marketplacePrices ?? {})
         .filter(([categoryId, priceData]) => {
           // Only include entries with proper price data and name
-          return priceData && 
-                 priceData.name && 
-                 (priceData.price > 0);
+          return priceData?.name && 
+                 (priceData?.price > 0);
         })
         .map(([categoryId, priceData]) => {
           // Parse ID to number if possible
@@ -258,7 +257,7 @@ export function EditPriceForm() {
             price_category_percentage: parseFloat(String(priceData.customPercentage ?? 0)),
             price_category_set_default: false,
             price: priceData.price ?? 0,
-            price_category_custom_percentage: parseFloat(String((values.marketplacePercentages ?? {})[categoryId] ?? priceData.customPercentage ?? 0)),
+            price_category_custom_percentage: parseFloat(String(values.marketplacePercentages?.[categoryId] ?? priceData.customPercentage ?? 0)),
             is_custom_price_category: !!priceData.isCustomPrice
           };
         }),
@@ -275,7 +274,7 @@ export function EditPriceForm() {
           
           const allCategories = [
             ...Object.entries(values.customerPrices ?? {})
-              .filter(([_, data]) => data && data.name) // Only include entries with name
+              .filter(([_, data]) => data?.name) // Only include entries with name
               .map(([id, data]) => ({
                 id: parseInt(id) || id,
                 name: data.name ?? '',
@@ -283,7 +282,7 @@ export function EditPriceForm() {
                 set_default: id === values.defaultPriceCategoryId
               })),
             ...Object.entries(values.marketplacePrices ?? {})
-              .filter(([_, data]) => data && data.name) // Only include entries with name
+              .filter(([_, data]) => data?.name) // Only include entries with name
               .map(([id, data]) => ({
                 id: parseInt(id) || id,
                 name: data.name ?? '',
@@ -298,15 +297,15 @@ export function EditPriceForm() {
             
             // For customer prices
             if (category.type === 'customer') {
-              const customerPrice = (variantData.customerPrices ?? {})[category.id as string];
+              const customerPrice = variantData.customerPrices?.[category.id as string];
               price = customerPrice?.rounded ?? 
-                    (values.customerPrices ?? {})[category.id as string]?.taxInclusivePrice ?? 0;
+                    values.customerPrices?.[category.id as string]?.taxInclusivePrice ?? 0;
             } 
             // For marketplace prices
             else {
-              const marketplacePrice = (variantData.marketplacePrices ?? {})[category.id as string];
+              const marketplacePrice = variantData.marketplacePrices?.[category.id as string];
               price = marketplacePrice?.rounded ?? 
-                    (values.marketplacePrices ?? {})[category.id as string]?.price ?? 0;
+                    values.marketplacePrices?.[category.id as string]?.price ?? 0;
             }
             
             return {
@@ -315,8 +314,8 @@ export function EditPriceForm() {
               price_category_name: category.name,
               percentage: parseFloat(String(
                 category.type === 'customer' 
-                  ? ((values.percentages ?? {})[category.id as string] ?? 0)
-                  : ((values.marketplacePercentages ?? {})[category.id as string] ?? 0)
+                  ? (values.percentages?.[category.id as string] ?? 0)
+                  : (values.marketplacePercentages?.[category.id as string] ?? 0)
               )),
               type: category.type,
               set_default: category.set_default
@@ -429,7 +428,7 @@ export function EditPriceForm() {
       
       // Add customer categories - only include those with valid names
       for (const [categoryId, priceData] of Object.entries(values.customerPrices ?? {})) {
-        if (!priceData || !priceData.name) continue;
+        if (!priceData?.name) continue;
         
         // Parse ID to number if possible
         const categoryIdNum = parseInt(categoryId);
@@ -449,7 +448,7 @@ export function EditPriceForm() {
       
       // Add marketplace categories - only include those with valid names
       for (const [categoryId, priceData] of Object.entries(values.marketplacePrices ?? {})) {
-        if (!priceData || !priceData.name) continue;
+        if (!priceData?.name) continue;
         
         // Parse ID to number if possible
         const categoryIdNum = parseInt(categoryId);
@@ -504,7 +503,7 @@ export function EditPriceForm() {
           
           // Add customer categories - only include those with valid names
           for (const [categoryId, priceData] of Object.entries(values.customerPrices ?? {})) {
-            if (!priceData || !priceData.name) continue;
+            if (!priceData?.name) continue;
             
             // Parse ID to number if possible
             const categoryIdNum = parseInt(categoryId);
@@ -524,7 +523,7 @@ export function EditPriceForm() {
           
           // Add marketplace categories - only include those with valid names
           for (const [categoryId, priceData] of Object.entries(values.marketplacePrices ?? {})) {
-            if (!priceData || !priceData.name) continue;
+            if (!priceData?.name) continue;
             
             // Parse ID to number if possible
             const categoryIdNum = parseInt(categoryId);

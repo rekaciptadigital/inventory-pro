@@ -940,6 +940,14 @@ function removeVariantTier(
   };
 }
 
+// Helper function to create variant-specific tiers from global tiers
+function createVariantTiersFromGlobal(globalTiers: DiscountTier[], sku: string): DiscountTier[] {
+  return globalTiers.map(tier => ({ 
+    ...tier, 
+    id: `${tier.id}-${sku}` 
+  }));
+}
+
 // --- New Component: VariantDiscountCardRenderer ---
 // This component renders a single DiscountCard for a variant
 function VariantDiscountCardRenderer({
@@ -962,8 +970,13 @@ function VariantDiscountCardRenderer({
   const variantDiscount = variantDiscounts[sku] || {
     enabled: true, // Default to enabled if not found
     // Default tiers based on global tiers if not customized yet
-    tiers: globalTiers.map(tier => ({ ...tier, id: `${tier.id}-${sku}` }))
+    tiers: createVariantTiersFromGlobal(globalTiers, sku)
   };
+
+  // Pre-bind functions to avoid nested callbacks in JSX
+  const handleToggle = (checked: boolean) => handleVariantToggle(sku, checked);
+  const handleAddTier = () => addQuantityTier(sku);
+  const tableRenderer = getTableRenderer(sku);
 
   return (
     <DiscountCard
@@ -971,10 +984,10 @@ function VariantDiscountCardRenderer({
       title={variant.full_product_name}
       subtitle={`SKU: ${sku}`}
       enabled={variantDiscount.enabled}
-      onToggle={(checked) => handleVariantToggle(sku, checked)}
-      onAddTier={() => addQuantityTier(sku)}
+      onToggle={handleToggle}
+      onAddTier={handleAddTier}
       tiers={variantDiscount.tiers}
-      renderTable={getTableRenderer(sku)} // Pass the renderer function for this SKU
+      renderTable={tableRenderer}
     />
   );
 }
@@ -997,21 +1010,20 @@ function VariantDiscountListRenderer({
   handleVariantToggle: (sku: string, checked: boolean) => void;
   addQuantityTier: (sku: string) => void;
 }>) {
-  return (
-    <div className="space-y-6">
-      {variants.map((variant) => (
-        <VariantDiscountCardRenderer
-          key={variant.sku_product_variant}
-          variant={variant}
-          variantDiscounts={variantDiscounts}
-          globalTiers={globalTiers}
-          getTableRenderer={getTableRenderer}
-          handleVariantToggle={handleVariantToggle}
-          addQuantityTier={addQuantityTier}
-        />
-      ))}
-    </div>
-  );
+  // Pre-render variant cards to avoid nesting map callback in JSX
+  const variantCards = variants.map((variant) => (
+    <VariantDiscountCardRenderer
+      key={variant.sku_product_variant}
+      variant={variant}
+      variantDiscounts={variantDiscounts}
+      globalTiers={globalTiers}
+      getTableRenderer={getTableRenderer}
+      handleVariantToggle={handleVariantToggle}
+      addQuantityTier={addQuantityTier}
+    />
+  ));
+
+  return <div className="space-y-6">{variantCards}</div>;
 }
 // --- End New Component ---
 
@@ -1102,6 +1114,138 @@ function handleAddGlobalOrSyncedTier(
 }
 // --- End New Helper Function ---
 
+// Group parameters into a single object to reduce parameter count
+interface HandleUpdateTierParams {
+  variantSku: string;
+  index: number;
+  field: string;
+  value: number;
+  categories: Array<{ id: string; name: string }>;
+  getCombinedPrices: () => Record<string, any>;
+  globalTiers: DiscountTier[];
+  setGlobalTiers: React.Dispatch<React.SetStateAction<DiscountTier[]>>;
+  variantDiscounts: Record<string, VariantDiscount>;
+  setVariantDiscounts: React.Dispatch<React.SetStateAction<Record<string, VariantDiscount>>>;
+  showError: (error: string) => void;
+  validateTier: (
+    tiers: DiscountTier[],
+    index: number,
+    field: keyof DiscountTier,
+    value: number
+  ) => string | null;
+}
+
+// Refactored: Accept a single object parameter
+function handleUpdateTier({
+  variantSku,
+  index,
+  field,
+  value,
+  categories,
+  getCombinedPrices,
+  globalTiers,
+  setGlobalTiers,
+  variantDiscounts,
+  setVariantDiscounts,
+  showError,
+  validateTier
+}: HandleUpdateTierParams) {
+  if (categories.length === 0) {
+    showError("Cannot update tier: No price categories available");
+    return;
+  }
+
+  const allPrices = getCombinedPrices();
+
+  if (variantSku === 'global') {
+    const { updatedTiers, error } = updateGlobalTierHelper(
+      globalTiers, index, field, value, allPrices, validateTier
+    );
+
+    if (error) {
+      if (field !== 'discount') {
+        setTimeout(() => showError(error), 0);
+      }
+      return;
+    }
+    setGlobalTiers(updatedTiers);
+  } else {
+    const { updatedDiscounts, error } = updateVariantTierHelper(
+      variantDiscounts, variantSku, index, field, value, allPrices, validateTier
+    );
+
+    if (error) {
+      if (field !== 'discount') {
+        setTimeout(() => showError(error), 0);
+      }
+      return;
+    }
+    setVariantDiscounts(updatedDiscounts);
+  }
+}
+
+// Refactor deeply nested logic in useEffect to a helper function
+function updateAllTierPrices({
+  getCombinedPrices,
+  categories,
+  setGlobalTiers,
+  setVariantDiscounts,
+  isEnabled,
+  hbNaik,
+  prevHbNaikRef,
+  toast
+}: {
+  getCombinedPrices: () => Record<string, any>;
+  categories: Array<{ id: string; name: string }>;
+  setGlobalTiers: React.Dispatch<React.SetStateAction<DiscountTier[]>>;
+  setVariantDiscounts: React.Dispatch<React.SetStateAction<Record<string, VariantDiscount>>>;
+  isEnabled: boolean;
+  hbNaik: number;
+  prevHbNaikRef: React.MutableRefObject<number>;
+  toast: ReturnType<typeof useToast>['toast'];
+}) {
+  const allPrices = getCombinedPrices();
+
+  if (Object.keys(allPrices).length > 0 && categories.length > 0) {
+    const hbNaikChanged = prevHbNaikRef.current !== hbNaik;
+    prevHbNaikRef.current = hbNaik;
+
+    setGlobalTiers(prevTiers => updateGlobalTierPrices(prevTiers, allPrices));
+    setVariantDiscounts(prev => updateVariantTierPrices(prev, allPrices));
+
+    if (hbNaikChanged && isEnabled) {
+      toast({
+        title: "Harga Modal Diperbarui",
+        description: `Perbandingan harga diskon terhadap modal (HB Naik: ${formatCurrency(hbNaik)}) telah diperbarui.`,
+        duration: 3000,
+      });
+    }
+  }
+}
+
+// Refactor deeply nested logic in syncVariantTiersWithGlobal to a helper function
+function getSyncedVariantDiscounts({
+  prevDiscounts,
+  variants,
+  globalTiers
+}: {
+  prevDiscounts: Record<string, VariantDiscount>;
+  variants: InventoryProductVariant[];
+  globalTiers: DiscountTier[];
+}): Record<string, VariantDiscount> {
+  const updated = { ...prevDiscounts };
+  variants.forEach(variant => {
+    const sku = variant.sku_product_variant;
+    updated[sku] = {
+      enabled: true,
+      tiers: globalTiers.map(tier => ({
+        ...tier,
+        id: `${tier.id}-${sku}`
+      }))
+    };
+  });
+  return updated;
+}
 
 export function VolumeDiscount({
   form,
@@ -1182,36 +1326,22 @@ export function VolumeDiscount({
   // Update all prices when customer or marketplace prices (props) change
   // Or when pricing information (hbNaik, etc.) changes
   useEffect(() => {
-    const allPrices = getCombinedPrices();
-    
-    // Only update if we have prices and categories
-    if (Object.keys(allPrices).length > 0 && categories.length > 0) {
-      // Check if hbNaik has changed
-      const hbNaikChanged = prevHbNaikRef.current !== hbNaik;
-      prevHbNaikRef.current = hbNaik;
-      
-      // Update global tier prices using extracted function
-      setGlobalTiers(prevTiers => updateGlobalTierPrices(prevTiers, allPrices));
-      
-      // Update variant tier prices using extracted function
-      setVariantDiscounts(prev => updateVariantTierPrices(prev, allPrices));
-      
-      // If hbNaik changed, show a toast notification to inform the user
-      if (hbNaikChanged && isEnabled) {
-        toast({
-          title: "Harga Modal Diperbarui",
-          description: `Perbandingan harga diskon terhadap modal (HB Naik: ${formatCurrency(hbNaik)}) telah diperbarui.`,
-          duration: 3000,
-        });
-      }
-    }
+    updateAllTierPrices({
+      getCombinedPrices,
+      categories,
+      setGlobalTiers,
+      setVariantDiscounts,
+      isEnabled,
+      hbNaik,
+      prevHbNaikRef,
+      toast
+    });
   }, [
     customerPrices, 
     marketplacePrices, 
     categories, 
     isEnabled, 
     getCombinedPrices,
-    // Add pricing information dependencies
     hbNaik,
     usdPrice,
     exchangeRate,
@@ -1221,20 +1351,13 @@ export function VolumeDiscount({
 
   // Initialize variant tiers from global tiers
   const syncVariantTiersWithGlobal = useCallback(() => {
-    setVariantDiscounts(prev => {
-      const updated = { ...prev };
-      variants.forEach(variant => {
-        const sku = variant.sku_product_variant;
-        updated[sku] = {
-          enabled: true,
-          tiers: globalTiers.map(tier => ({
-            ...tier,
-            id: `${tier.id}-${sku}`
-          }))
-        };
-      });
-      return updated;
-    });
+    setVariantDiscounts(prev =>
+      getSyncedVariantDiscounts({
+        prevDiscounts: prev,
+        variants,
+        globalTiers
+      })
+    );
   }, [variants, globalTiers]);
 
   // Handler for customizePerVariant toggle
@@ -1312,53 +1435,28 @@ export function VolumeDiscount({
     // No need to include setters in deps as they are stable
   ]);
 
-  // Update tier data - optimized for real-time updates
+  // Refactored: Use the new object parameter for handleUpdateTier
   const updateTier = useCallback((
     variantSku: string,
     index: number,
     field: string,
     value: number
   ) => {
-    // Skip validation if no categories
-    if (categories.length === 0) {
-      showError("Cannot update tier: No price categories available");
-      return;
-    }
-    
-    const allPrices = getCombinedPrices();
-    
-    if (variantSku === 'global') {
-      const { updatedTiers, error } = updateGlobalTierHelper(
-        globalTiers, index, field, value, allPrices, utils.validateTier
-      );
-      
-      if (error) {
-        // For discount updates, we may want to skip error display during typing
-        if (field !== 'discount') {
-          setTimeout(() => showError(error), 0);
-        }
-        return;
-      }
-      
-      // Update state immediately without the setTimeout delay for real-time updates
-      setGlobalTiers(updatedTiers);
-    } else {
-      const { updatedDiscounts, error } = updateVariantTierHelper(
-        variantDiscounts, variantSku, index, field, value, allPrices, utils.validateTier
-      );
-      
-      if (error) {
-        // For discount updates, we may want to skip error display during typing
-        if (field !== 'discount') {
-          setTimeout(() => showError(error), 0);
-        }
-        return;
-      }
-      
-      // Update state immediately without the setTimeout delay for real-time updates
-      setVariantDiscounts(updatedDiscounts);
-    }
-  }, [categories, getCombinedPrices, globalTiers, showError, variantDiscounts]);
+    handleUpdateTier({
+      variantSku,
+      index,
+      field,
+      value,
+      categories,
+      getCombinedPrices,
+      globalTiers,
+      setGlobalTiers,
+      variantDiscounts,
+      setVariantDiscounts,
+      showError,
+      validateTier: utils.validateTier
+    });
+  }, [categories, getCombinedPrices, globalTiers, setGlobalTiers, variantDiscounts, setVariantDiscounts, showError]);
 
   // Remove tier handler using extracted functions
   const removeTier = useCallback((variantSku: string, index: number) => {
