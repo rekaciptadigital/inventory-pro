@@ -2,13 +2,14 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, TrendingUp, TrendingDown, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
+import { formatCurrency } from '@/lib/utils/format'; // Add missing import for formatCurrency
 import { roundPriceMarkup } from '@/lib/utils/price-rounding';
-import { PriceComparison } from '@/components/ui/price-comparison';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'; // Add imports for tooltip components
 import type { PriceFormFields } from '@/types/form';
 import type { InventoryProduct, InventoryProductVariant } from '@/types/inventory';
 
@@ -33,6 +34,13 @@ interface DiscountTier {
 interface VariantDiscount {
   enabled: boolean;
   tiers: DiscountTier[];
+}
+
+// Add new interface for price profitability info
+interface PriceProfitabilityInfo {
+  isProfit: boolean;
+  difference: number;
+  differencePercent: number;
 }
 
 // Utility functions for validation and calculations
@@ -165,6 +173,18 @@ const utils = {
   }
 };
 
+// Add helper function to calculate profit info
+function calculateProfitability(price: number, baseCost: number): PriceProfitabilityInfo {
+  const difference = price - baseCost;
+  const differencePercent = baseCost > 0 ? (difference / baseCost) * 100 : 0;
+  
+  return {
+    isProfit: price >= baseCost,
+    difference,
+    differencePercent
+  };
+}
+
 // Base input component to avoid code duplication
 function NumericInput({
   value,
@@ -207,7 +227,8 @@ function DiscountTierRow({
   variantSku,
   categories, // Log this prop
   onUpdate,
-  onRemove
+  onRemove,
+  baseCost // Add base cost parameter
 }: Readonly<{
   tier: DiscountTier;
   index: number;
@@ -215,6 +236,7 @@ function DiscountTierRow({
   categories: Array<{ id: string; name: string }>;
   onUpdate: (variantSku: string, index: number, field: string, value: number) => void;
   onRemove: (variantSku: string, index: number) => void;
+  baseCost: number; // HB Naik value from form
 }>) {
   const [localQuantity, setLocalQuantity] = useState(tier.quantity.toString());
   const [localDiscount, setLocalDiscount] = useState(tier.discount.toString());
@@ -267,15 +289,15 @@ function DiscountTierRow({
 
   return (
     <tr className="hover:bg-muted/30">
-      <td className="p-2">
+      <td className="p-2 w-[100px]">
         <NumericInput 
           value={localQuantity}
           onChange={handleQuantityChange}
-          className="w-[100px]"
+          className="w-full"
           onBlur={handleQuantityBlur}
         />
       </td>
-      <td className="p-2">
+      <td className="p-2 w-[100px]">
         <Input
           type="number"
           min="0"
@@ -284,11 +306,11 @@ function DiscountTierRow({
           onChange={(e) => handleDiscountChange(e.target.value)}
           onBlur={handleDiscountBlur}
           onKeyDown={handleDiscountKeyDown}
-          className="w-[100px] text-right"
+          className="w-full text-right"
         />
       </td>
       
-      {/* Price inputs for each category - now with price comparison */}
+      {/* Price inputs for each category - now with price comparison and profitability */}
       {categories.map((category) => {
         const priceValue = tier.prices[category.id] || 0;
         // Get the raw price if available
@@ -296,25 +318,44 @@ function DiscountTierRow({
         const originalPrice = rawPriceData?.original ?? priceValue;
         const roundedPrice = rawPriceData?.rounded ?? priceValue;
         
+        // Calculate profitability compared to base cost
+        const profitInfo = calculateProfitability(roundedPrice, baseCost);
+        
         return (
           <td key={category.id} className="p-2">
             <div className="bg-muted rounded-md px-3 py-2 border text-right">
-              <PriceComparison 
-                originalPrice={originalPrice} 
-                roundedPrice={roundedPrice}
-                showTooltip={true}
-                tooltipPosition="top"
-              />
+              <div className="flex items-center justify-end gap-1">
+                {/* Add profitability indicator icon */}
+                {profitInfo.isProfit ? (
+                  <TrendingUp className={`h-3 w-3 ${profitInfo.difference > baseCost * 0.1 ? 'text-green-500' : 'text-amber-500'}`} />
+                ) : (
+                  <TrendingDown className="h-3 w-3 text-red-500" />
+                )}
+                
+                {/* Enhanced price comparison with profitability info */}
+                <PriceComparisonWithProfit 
+                  originalPrice={originalPrice} 
+                  roundedPrice={roundedPrice}
+                  baseCost={baseCost}
+                  showTooltip={true}
+                  tooltipPosition="top"
+                />
+              </div>
             </div>
           </td>
         );
       })}
       
-      <td className="p-2">
+      <td className="p-2 w-[60px] text-center">
         <Button
+          type="button"
           variant="ghost"
           size="icon"
-          onClick={() => onRemove(variantSku, index)}
+          className="h-8 w-8"
+          onClick={(e) => {
+            e.preventDefault();
+            onRemove(variantSku, index);
+          }}
         >
           <Trash2 className="h-4 w-4 text-destructive" />
         </Button>
@@ -323,49 +364,150 @@ function DiscountTierRow({
   );
 }
 
-// Discount table component
+// Discount table component - perbaikan layout dan struktur tabel
 function DiscountTable({
   variantSku,
   tiers,
   categories,
   onUpdate,
-  onRemove
+  onRemove,
+  baseCost
 }: Readonly<{
   variantSku: string;
   tiers: ReadonlyArray<DiscountTier>;
   categories: ReadonlyArray<{ id: string; name: string }>;
   onUpdate: (variantSku: string, index: number, field: string, value: number) => void;
   onRemove: (variantSku: string, index: number) => void;
+  baseCost: number;
 }>) {
   return (
-    <table className="w-full mt-4">
-      <thead>
-        <tr className="bg-muted/50">
-          <th className="p-2 text-left">QTY</th>
-          <th className="p-2 text-right">Disc (%)</th>
-          {/* Make sure we're showing all category columns */}
-          {categories.map((category) => (
-            <th key={`discount-category-${category.id}`} className="p-2 text-right whitespace-nowrap">
-              {category.name}
-            </th>
+    <div className="w-full mt-4 overflow-x-auto">
+      <table className="w-full min-w-full border-collapse">
+        <thead>
+          <tr className="bg-muted/50">
+            <th className="p-2 text-left w-[100px]">QTY</th>
+            <th className="p-2 text-right w-[100px]">Disc (%)</th>
+            {/* Make sure we're showing all category columns */}
+            {categories.map((category) => (
+              <th key={`discount-category-${category.id}`} className="p-2 text-right whitespace-nowrap">
+                {category.name}
+              </th>
+            ))}
+            <th className="p-2 w-[60px] text-center">Action</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {tiers.map((tier, index) => (
+            <DiscountTierRow
+              key={tier.id}
+              tier={tier}
+              index={index}
+              variantSku={variantSku}
+              categories={categories as Array<{ id: string; name: string }>}
+              onUpdate={onUpdate}
+              onRemove={onRemove}
+              baseCost={baseCost} // Pass base cost to row component
+            />
           ))}
-          <th className="p-2 w-[100px]"></th>
-        </tr>
-      </thead>
-      <tbody className="divide-y">
-        {tiers.map((tier, index) => (
-          <DiscountTierRow
-            key={tier.id}
-            tier={tier}
-            index={index}
-            variantSku={variantSku}
-            categories={categories as Array<{ id: string; name: string }>}
-            onUpdate={onUpdate}
-            onRemove={onRemove}
-          />
-        ))}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Create enhanced PriceComparison component with profit info
+function PriceComparisonWithProfit({
+  originalPrice,
+  roundedPrice,
+  baseCost,
+  showTooltip = true,
+  tooltipPosition = 'top'
+}: Readonly<{
+  originalPrice: number;
+  roundedPrice: number;
+  baseCost: number;
+  showTooltip?: boolean;
+  tooltipPosition?: 'top' | 'bottom' | 'left' | 'right';
+}>) {
+  // Calculate difference and percentage for rounding
+  const difference = roundedPrice - originalPrice;
+  const differencePercentage = originalPrice !== 0 
+    ? (difference / originalPrice) * 100 
+    : 0;
+  
+  // Calculate profit info
+  const profitInfo = calculateProfitability(roundedPrice, baseCost);
+  
+  // Format percentage with appropriate sign and decimal places
+  const formattedPercentage = differencePercentage.toFixed(2);
+  const sign = difference >= 0 ? '+' : '';
+  
+  // Only show comparison if there's a difference
+  const hasDifference = Math.abs(difference) > 0.01;
+  
+  if (!showTooltip) {
+    return (
+      <div className="flex flex-col">
+        <span className={`font-medium ${profitInfo.isProfit ? '' : 'text-red-500'}`}>
+          {formatCurrency(roundedPrice)}
+        </span>
+      </div>
+    );
+  }
+  
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-1 cursor-default">
+            <span className={profitInfo.isProfit ? '' : 'text-red-500'}>{formatCurrency(roundedPrice)}</span>
+            <Info className="h-3 w-3 text-muted-foreground" />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side={tooltipPosition} className="space-y-1 max-w-xs">
+          <div className="space-y-1">
+            <div className="grid grid-cols-2 gap-2">
+              <span className="text-muted-foreground">Original:</span>
+              <span>{formatCurrency(originalPrice)}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <span className="text-muted-foreground">Rounded:</span>
+              <span>{formatCurrency(roundedPrice)}</span>
+            </div>
+            {hasDifference && (
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Rounding:</span>
+                <span className={difference > 0 ? "text-emerald-500" : "text-red-500"}>
+                  {sign}{formatCurrency(difference)} ({sign}{formattedPercentage}%)
+                </span>
+              </div>
+            )}
+
+            {/* Add profit comparison */}
+            <div className="border-t pt-1 mt-1"></div>
+            <div className="grid grid-cols-2 gap-2">
+              <span className="text-muted-foreground">Modal (HB Naik):</span>
+              <span>{formatCurrency(baseCost)}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <span className="text-muted-foreground">Selisih dari Modal:</span>
+              <span className={profitInfo.isProfit ? "text-emerald-500" : "text-red-500"}>
+                {profitInfo.isProfit ? '+' : ''}{formatCurrency(profitInfo.difference)} 
+                ({profitInfo.isProfit ? '+' : ''}{profitInfo.differencePercent.toFixed(2)}%)
+              </span>
+            </div>
+            
+            {/* Add warning for loss */}
+            {!profitInfo.isProfit && (
+              <div className="flex items-center gap-1 text-xs text-red-500 mt-1">
+                <AlertTriangle className="h-3 w-3" />
+                <span>Harga setelah diskon di bawah harga modal!</span>
+              </div>
+            )}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -402,9 +544,13 @@ function DiscountCard({
             />
           )}
           <Button
+            type="button" // Explicitly set type to button to prevent form submission
             variant="outline"
             size="sm"
-            onClick={onAddTier}
+            onClick={(e) => {
+              e.preventDefault(); // Prevent any default behavior
+              onAddTier();
+            }}
             disabled={onToggle && !enabled}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -432,13 +578,15 @@ function RenderDiscountTable({
   tiers,
   categories,
   onUpdate,
-  onRemove
+  onRemove,
+  baseCost
 }: Readonly<{
   variantSku: string;
   tiers: DiscountTier[];
   categories: ReadonlyArray<{ id: string; name: string }>;
   onUpdate: (variantSku: string, index: number, field: string, value: number) => void;
   onRemove: (variantSku: string, index: number) => void;
+  baseCost: number;
 }>) {
   return (
     <DiscountTable
@@ -447,6 +595,7 @@ function RenderDiscountTable({
       categories={categories}
       onUpdate={onUpdate}
       onRemove={onRemove}
+      baseCost={baseCost}
     />
   );
 }
@@ -456,7 +605,8 @@ function createTableRenderer(
   variantSku: string,
   categories: ReadonlyArray<{ id: string; name: string }>,
   onUpdate: (variantSku: string, index: number, field: string, value: number) => void,
-  onRemove: (variantSku: string, index: number) => void
+  onRemove: (variantSku: string, index: number) => void,
+  baseCost: number
 ) {
   // Return a function that accepts tiers and renders the table
   return function renderTable(tiers: DiscountTier[]) {
@@ -467,6 +617,7 @@ function createTableRenderer(
         categories={categories}
         onUpdate={onUpdate}
         onRemove={onRemove}
+        baseCost={baseCost}
       />
     );
   };
@@ -915,7 +1066,12 @@ function handleAddSpecificVariantTier(
   allPrices: Record<string, any>,
   setVariantDiscounts: React.Dispatch<React.SetStateAction<Record<string, VariantDiscount>>>
 ) {
-  setVariantDiscounts(prev => addVariantTier(variantSku, prev, allPrices));
+  try {
+    setVariantDiscounts(prev => addVariantTier(variantSku, prev, allPrices));
+  } catch (error) {
+    console.error("Error adding variant tier:", error);
+    // Don't rethrow error - contain it here
+  }
 }
 // --- End New Helper Function ---
 
@@ -929,15 +1085,20 @@ function handleAddGlobalOrSyncedTier(
   setGlobalTiers: React.Dispatch<React.SetStateAction<DiscountTier[]>>,
   setVariantDiscounts: React.Dispatch<React.SetStateAction<Record<string, VariantDiscount>>>
 ) {
-  const { updatedGlobalTiers, updatedVariantDiscounts } = addGlobalTier(
-    globalTiers,
-    allPrices,
-    customizePerVariant,
-    variants,
-    variantDiscounts
-  );
-  setGlobalTiers(updatedGlobalTiers);
-  setVariantDiscounts(updatedVariantDiscounts);
+  try {
+    const { updatedGlobalTiers, updatedVariantDiscounts } = addGlobalTier(
+      globalTiers,
+      allPrices,
+      customizePerVariant,
+      variants,
+      variantDiscounts
+    );
+    setGlobalTiers(updatedGlobalTiers);
+    setVariantDiscounts(updatedVariantDiscounts);
+  } catch (error) {
+    console.error("Error adding global tier:", error);
+    // Don't rethrow error - contain it here
+  }
 }
 // --- End New Helper Function ---
 
@@ -1002,24 +1163,61 @@ export function VolumeDiscount({
   ]);
   const [variantDiscounts, setVariantDiscounts] = useState<Record<string, VariantDiscount>>({});
 
+  // Get HB Naik value from form and watch it for changes
+  const hbNaik = form.watch('hbNaik') || 0;
+  
+  // Watch other pricing information fields that might affect calculations
+  const usdPrice = form.watch('usdPrice') || 0;
+  const exchangeRate = form.watch('exchangeRate') || 0;
+  const adjustmentPercentage = form.watch('adjustmentPercentage') || 0;
+  
+  // Previous hbNaik value to detect changes
+  const prevHbNaikRef = useRef(hbNaik);
+
   // Helper to combine all price sources - uses props
   const getCombinedPrices = useCallback(() => {
     return getCombinedPricesHelper(customerPrices, marketplacePrices);
   }, [customerPrices, marketplacePrices]); // Depend on props
 
   // Update all prices when customer or marketplace prices (props) change
+  // Or when pricing information (hbNaik, etc.) changes
   useEffect(() => {
     const allPrices = getCombinedPrices();
     
     // Only update if we have prices and categories
     if (Object.keys(allPrices).length > 0 && categories.length > 0) {
+      // Check if hbNaik has changed
+      const hbNaikChanged = prevHbNaikRef.current !== hbNaik;
+      prevHbNaikRef.current = hbNaik;
+      
       // Update global tier prices using extracted function
       setGlobalTiers(prevTiers => updateGlobalTierPrices(prevTiers, allPrices));
       
       // Update variant tier prices using extracted function
       setVariantDiscounts(prev => updateVariantTierPrices(prev, allPrices));
+      
+      // If hbNaik changed, show a toast notification to inform the user
+      if (hbNaikChanged && isEnabled) {
+        toast({
+          title: "Harga Modal Diperbarui",
+          description: `Perbandingan harga diskon terhadap modal (HB Naik: ${formatCurrency(hbNaik)}) telah diperbarui.`,
+          duration: 3000,
+        });
+      }
     }
-  }, [customerPrices, marketplacePrices, categories, isEnabled, getCombinedPrices]); // Depend on props
+  }, [
+    customerPrices, 
+    marketplacePrices, 
+    categories, 
+    isEnabled, 
+    getCombinedPrices,
+    // Add pricing information dependencies
+    hbNaik,
+    usdPrice,
+    exchangeRate,
+    adjustmentPercentage,
+    toast
+  ]);
 
   // Initialize variant tiers from global tiers
   const syncVariantTiersWithGlobal = useCallback(() => {
@@ -1066,32 +1264,42 @@ export function VolumeDiscount({
 
   // Add new tier handler using the extracted helpers
   const addQuantityTier = useCallback((variantSku: string) => {
-    if (categories.length === 0) {
+    try {
+      if (categories.length === 0) {
+        toast({
+          title: "No price categories available",
+          description: "Please add prices before creating discount tiers",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const allPrices = getCombinedPrices();
+      const isSpecificVariant = customizePerVariant && variantSku !== 'global';
+
+      if (isSpecificVariant) {
+        // Call the specific variant helper
+        handleAddSpecificVariantTier(variantSku, allPrices, setVariantDiscounts);
+      } else {
+        // Call the global/synced helper
+        handleAddGlobalOrSyncedTier(
+          globalTiers,
+          allPrices,
+          customizePerVariant,
+          variants,
+          variantDiscounts,
+          setGlobalTiers, // Pass setter
+          setVariantDiscounts // Pass setter
+        );
+      }
+    } catch (error) {
+      // Catch and log any unexpected errors to prevent form submission
+      console.error("Error adding quantity tier:", error);
       toast({
-        title: "No price categories available",
-        description: "Please add prices before creating discount tiers",
+        title: "Error",
+        description: "Failed to add quantity tier. Please try again.",
         variant: "destructive"
       });
-      return;
-    }
-
-    const allPrices = getCombinedPrices();
-    const isSpecificVariant = customizePerVariant && variantSku !== 'global';
-
-    if (isSpecificVariant) {
-      // Call the specific variant helper
-      handleAddSpecificVariantTier(variantSku, allPrices, setVariantDiscounts);
-    } else {
-      // Call the global/synced helper
-      handleAddGlobalOrSyncedTier(
-        globalTiers,
-        allPrices,
-        customizePerVariant,
-        variants,
-        variantDiscounts,
-        setGlobalTiers, // Pass setter
-        setVariantDiscounts // Pass setter
-      );
     }
   }, [
     categories,
@@ -1166,10 +1374,10 @@ export function VolumeDiscount({
     setVariantDiscounts(prev => toggleVariantDiscount(prev, sku, checked));
   }, []);
 
-  // Create table renderer
+  // Get table renderer - now with a dependency on hbNaik to ensure re-render
   const getTableRenderer = useCallback((variantSku: string) => {
-    return createTableRenderer(variantSku, categories, updateTier, removeTier);
-  }, [categories, updateTier, removeTier]);
+    return createTableRenderer(variantSku, categories, updateTier, removeTier, hbNaik);
+  }, [categories, updateTier, removeTier, hbNaik]); // Add hbNaik as dependency
 
   // Don't render anything if there are no variants
   if (!variants.length) return null;
@@ -1202,21 +1410,15 @@ export function VolumeDiscount({
   // Main component rendering
   return (
     <div className="rounded-lg border p-4 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h3 className="text-lg font-medium">Volume Discount</h3>
           <p className="text-sm text-muted-foreground">
             Configure volume-based discounts for variants
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Enable Volume Discount</span>
-            <Switch
-              checked={isEnabled}
-              onCheckedChange={handleEnableToggle} // Use updated handler
-            />
-          </div>
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Tukar urutan toggle - Customize per Variant ke sebelah kiri */}
           {isEnabled && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Customize per Variant</span>
@@ -1226,21 +1428,45 @@ export function VolumeDiscount({
               />
             </div>
           )}
+          {/* Enable Volume Discount tetap di sebelah kanan */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Enable Volume Discount</span>
+            <Switch
+              checked={isEnabled}
+              onCheckedChange={handleEnableToggle}
+            />
+          </div>
         </div>
       </div>
 
       {/* Use the new VolumeDiscountContent component */}
       {isEnabled && (
         <>
-          <VolumeDiscountContent
-            customizePerVariant={customizePerVariant}
-            globalTiers={globalTiers}
-            variants={variants}
-            variantDiscounts={variantDiscounts}
-            getTableRenderer={getTableRenderer}
-            handleVariantToggle={handleVariantToggle}
-            addQuantityTier={addQuantityTier}
-          />
+          <div className="bg-muted/20 p-3 rounded border">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <p className="text-sm">
+                <span className="font-medium">Perbandingan harga modal:</span>{' '}
+                Harga modal (HB Naik) saat ini adalah <span className="font-semibold">{formatCurrency(hbNaik)}</span>.
+                Harga setelah diskon yang di bawah harga modal akan ditandai dengan warna merah.
+                {/* Add live update message */}
+                <span className="ml-1 text-xs italic">Tabel akan otomatis diperbarui jika Pricing Information berubah.</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Tambahkan wrapper dengan overflow-x-auto */}
+          <div className="overflow-x-auto w-full">
+            <VolumeDiscountContent
+              customizePerVariant={customizePerVariant}
+              globalTiers={globalTiers}
+              variants={variants}
+              variantDiscounts={variantDiscounts}
+              getTableRenderer={getTableRenderer}
+              handleVariantToggle={handleVariantToggle}
+              addQuantityTier={addQuantityTier}
+            />
+          </div>
           
           {/* Add price rounding information */}
           <div className="bg-muted/20 p-3 rounded border border-dashed">
