@@ -8,18 +8,25 @@ import { Form } from "@/components/ui/form";
 import { PricingInfo } from "@/components/price-management/pricing-info";
 import { CustomerPrices } from "@/components/price-management/customer-prices";
 import { VariantPrices } from '@/components/price-management/variant-prices';
-// Import the new API function
-import { getPriceDetail, getInventoryProductDetail } from "@/lib/api/price-management";
+import { getPriceDetail, getInventoryProductDetail, updatePriceDetail } from "@/lib/api/price-management";
+import { useToast } from '@/components/ui/use-toast';
 import type { PriceFormFields } from '@/types/form';
-// Import InventoryProduct type
 import type { InventoryProduct } from '@/types/inventory';
 
+// Update the helper function to properly handle nullable inputs
+const safeParseId = (id?: string | null): number | null => {
+  if (!id) return null;
+  return /^\d+$/.test(id) ? parseInt(id, 10) : null;
+};
+
 export function EditPriceForm() {
-  const { id } = useParams();
+  // Add null checking when accessing params.id
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? ''; // Use nullish coalescing instead of logical OR
   const router = useRouter();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  // Update state type to InventoryProduct | null
   const [productDetail, setProductDetail] = useState<InventoryProduct | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -52,8 +59,8 @@ export function EditPriceForm() {
         
         // Fetch both price details and general product details concurrently
         const [priceResponse, productResponse] = await Promise.all([
-          getPriceDetail(id as string),
-          getInventoryProductDetail(id as string) // Fetch general product info
+          getPriceDetail(id),  // Remove unnecessary type assertion
+          getInventoryProductDetail(id) // Remove unnecessary type assertion
         ]);
         
         const priceData = priceResponse.data;
@@ -191,17 +198,367 @@ export function EditPriceForm() {
     return variantPrices;
   };
 
+  // Transform form data to API format
+  const transformFormToApiData = (values: PriceFormFields) => {
+    // Base price data
+    const apiData = {
+      id: parseInt(id ?? '0', 10),
+      usd_price: values.usdPrice,
+      exchange_rate: values.exchangeRate,
+      adjustment_percentage: values.adjustmentPercentage,
+      price_hb_real: values.hbReal,
+      hb_adjustment_price: values.hbNaik,
+      is_manual_product_variant_price_edit: values.isManualVariantPriceEdit,
+      is_enable_volume_discount: values.isEnableVolumeDiscount,
+      is_enable_volume_discount_by_product_variant: values.isEnableVolumeDiscountByProductVariant,
+      
+      // Transform customer prices to array format - FIXED to avoid duplications
+      customer_category_prices: Object.entries(values.customerPrices ?? {})
+        .filter(([categoryId, priceData]) => {
+          // Only include entries with proper price data and name
+          return priceData?.name && 
+                 (priceData?.taxInclusivePrice > 0 || priceData?.preTaxPrice > 0);
+        })
+        .map(([categoryId, priceData]) => {
+          // Parse ID to number if possible
+          const numericId = parseInt(categoryId);
+          const isNumericId = !isNaN(numericId);
+          
+          return {
+            price_category_id: isNumericId ? numericId : categoryId,
+            price_category_name: priceData.name ?? categoryId,
+            formula: `Formula: HB Naik + ${priceData.markup ?? 0}% markup`,
+            percentage: parseFloat(String(priceData.markup ?? 0)),
+            set_default: categoryId === values.defaultPriceCategoryId,
+            pre_tax_price: priceData.preTaxPrice ?? 0,
+            tax_inclusive_price: priceData.taxInclusivePrice ?? 0,
+            tax_id: 2,
+            tax_percentage: priceData.taxPercentage ?? 11,
+            is_custom_tax_inclusive_price: !!priceData.isCustomTaxInclusivePrice,
+            price_category_custom_percentage: parseFloat(String((values.percentages ?? {})[categoryId] ?? priceData.markup ?? 0))
+          };
+        }),
+      
+      // Transform marketplace prices to array format - FIXED to avoid duplications
+      marketplace_category_prices: Object.entries(values.marketplacePrices ?? {})
+        .filter(([categoryId, priceData]) => {
+          // Only include entries with proper price data and name
+          return priceData && 
+                 priceData.name && 
+                 (priceData.price > 0);
+        })
+        .map(([categoryId, priceData]) => {
+          // Parse ID to number if possible
+          const numericId = parseInt(categoryId);
+          const isNumericId = !isNaN(numericId);
+          
+          return {
+            price_category_id: isNumericId ? numericId : categoryId,
+            price_category_name: priceData.name ?? categoryId,
+            price_category_percentage: parseFloat(String(priceData.customPercentage ?? 0)),
+            price_category_set_default: false,
+            price: priceData.price ?? 0,
+            price_category_custom_percentage: parseFloat(String((values.marketplacePercentages ?? {})[categoryId] ?? priceData.customPercentage ?? 0)),
+            is_custom_price_category: !!priceData.isCustomPrice
+          };
+        }),
+      
+      // Transform variant prices with proper type assertion to fix error
+      product_variant_prices: Object.entries(values.variantPrices ?? {})
+        .map(([variantId, variantData]) => {
+          // Find the variant info
+          const variant = productDetail?.product_by_variant?.find(
+            v => v.sku_product_variant === variantId
+          );
+          
+          if (!variant) return null;
+          
+          const allCategories = [
+            ...Object.entries(values.customerPrices ?? {})
+              .filter(([_, data]) => data && data.name) // Only include entries with name
+              .map(([id, data]) => ({
+                id: parseInt(id) || id,
+                name: data.name ?? '',
+                type: 'customer',
+                set_default: id === values.defaultPriceCategoryId
+              })),
+            ...Object.entries(values.marketplacePrices ?? {})
+              .filter(([_, data]) => data && data.name) // Only include entries with name
+              .map(([id, data]) => ({
+                id: parseInt(id) || id,
+                name: data.name ?? '',
+                type: 'marketplace',
+                set_default: false
+              }))
+          ];
+          
+          // Prepare price categories data
+          const priceCategories = allCategories.map(category => {
+            let price = 0;
+            
+            // For customer prices
+            if (category.type === 'customer') {
+              const customerPrice = (variantData.customerPrices ?? {})[category.id as string];
+              price = customerPrice?.rounded ?? 
+                    (values.customerPrices ?? {})[category.id as string]?.taxInclusivePrice ?? 0;
+            } 
+            // For marketplace prices
+            else {
+              const marketplacePrice = (variantData.marketplacePrices ?? {})[category.id as string];
+              price = marketplacePrice?.rounded ?? 
+                    (values.marketplacePrices ?? {})[category.id as string]?.price ?? 0;
+            }
+            
+            return {
+              id: category.id,
+              price,
+              price_category_name: category.name,
+              percentage: parseFloat(String(
+                category.type === 'customer' 
+                  ? ((values.percentages ?? {})[category.id as string] ?? 0)
+                  : ((values.marketplacePercentages ?? {})[category.id as string] ?? 0)
+              )),
+              type: category.type,
+              set_default: category.set_default
+            };
+          });
+          
+          return {
+            variant_id: variant.id,
+            variant_name: variant.full_product_name,
+            sku_product_variant: variant.sku_product_variant,
+            usd_price: variantData.usdPrice ?? values.usdPrice,
+            exchange_rate: variantData.exchangeRate ?? values.exchangeRate,
+            adjustment_percentage: variantData.adjustmentPercentage ?? values.adjustmentPercentage,
+            status: true,
+            price_categories: priceCategories
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null),
+      
+      // Transform volume discounts - ensure this is always a valid array
+      global_volume_discounts: !values.isEnableVolumeDiscount ? [] : 
+        mapGlobalVolumeDiscounts(values, productDetail?.product_by_variant ?? []), // Use ?? instead of ||
+      
+      // Transform variant volume discounts - ensure this is always a valid array
+      variant_volume_discounts: !values.isEnableVolumeDiscount || !values.isEnableVolumeDiscountByProductVariant ? [] :
+        mapVariantVolumeDiscounts(values, productDetail?.product_by_variant ?? []) // Use ?? instead of ||
+          .filter((item): item is NonNullable<typeof item> => item !== null)
+    };
+    
+    return apiData;
+  };
+
+  // Handle form submission with API integration
   const handleSubmit = async (values: PriceFormFields) => {
     setIsSubmitting(true);
     try {
-      // Add your update logic here
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      router.push('/dashboard/price-management');
+      // Transform form data to API format
+      const apiData = transformFormToApiData(values);
+      
+      // Add detailed error logging to debug the API request
+      console.log("Submitting payload to API:", JSON.stringify(apiData, null, 2));
+      
+      // Send update request (add null check for id)
+      if (!id) {
+        throw new Error('Product ID is missing');
+      }
+      
+      // Add API error inspection
+      try {
+        const response = await updatePriceDetail(id, apiData);
+        console.log("API response:", response);
+        
+        // Show success message
+        toast({
+          title: "Success",
+          description: "Product prices have been updated successfully",
+        });
+        
+        // Navigate back to price management list
+        router.push('/dashboard/price-management');
+      } catch (apiError: any) {
+        // Log detailed API error information
+        console.error("API Error:", apiError);
+        console.error("API Error response data:", apiError.response?.data);
+        console.error("API Error status:", apiError.response?.status);
+        
+        // More descriptive error message based on API response
+        let errorMessage = "Failed to update product prices. Please check your data and try again.";
+        
+        if (apiError.response?.data?.message) {
+          errorMessage = apiError.response.data.message;
+        } else if (apiError.response?.data?.error) {
+          errorMessage = apiError.response.data.error;
+        } else if (typeof apiError.response?.data === 'string') {
+          errorMessage = apiError.response.data;
+        }
+        
+        toast({
+          variant: 'destructive',
+          title: `Error (${apiError.response?.status || 'Unknown'})`,
+          description: errorMessage,
+          duration: 5000,
+        });
+      }
     } catch (error) {
-      // Handle error silently
+      console.error("Error preparing form data:", error);
+      
+      // Show error message
+      toast({
+        variant: 'destructive',
+        title: "Error",
+        description: "Failed to prepare form data. Please check your inputs and try again.",
+        duration: 5000,
+      });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Helper function to map global volume discounts
+  const mapGlobalVolumeDiscounts = (values: PriceFormFields, variants: any[]) => {
+    if (!values.isEnableVolumeDiscount) return [];
+    
+    // Get the global tiers data from the form
+    const globalTiers = values.globalVolumeDiscounts ?? [];
+    
+    return globalTiers.map((tier: any) => {
+      // Get all category prices for this tier
+      const priceCategories = [];
+      
+      // Add customer categories - only include those with valid names
+      for (const [categoryId, priceData] of Object.entries(values.customerPrices ?? {})) {
+        if (!priceData || !priceData.name) continue;
+        
+        // Parse ID to number if possible
+        const categoryIdNum = parseInt(categoryId);
+        const isNumericId = !isNaN(categoryIdNum);
+        
+        priceCategories.push({
+          id: null,
+          inventory_product_global_discount_id: null,
+          price_category_id: isNumericId ? categoryIdNum : categoryId,
+          price_category_name: priceData.name,
+          price_category_type: 'customer',
+          price_category_percentage: parseFloat(String(priceData.markup ?? 0)),
+          price_category_set_default: categoryId === values.defaultPriceCategoryId,
+          price: calculateDiscountedPrice(priceData.taxInclusivePrice, tier.discount_percentage)
+        });
+      }
+      
+      // Add marketplace categories - only include those with valid names
+      for (const [categoryId, priceData] of Object.entries(values.marketplacePrices ?? {})) {
+        if (!priceData || !priceData.name) continue;
+        
+        // Parse ID to number if possible
+        const categoryIdNum = parseInt(categoryId);
+        const isNumericId = !isNaN(categoryIdNum);
+        
+        priceCategories.push({
+          id: null,
+          inventory_product_global_discount_id: null,
+          price_category_id: isNumericId ? categoryIdNum : categoryId,
+          price_category_name: priceData.name,
+          price_category_type: 'marketplace',
+          price_category_percentage: parseFloat(String(priceData.customPercentage ?? 0)),
+          price_category_set_default: false,
+          price: calculateDiscountedPrice(priceData.price, tier.discount_percentage)
+        });
+      }
+      
+      return {
+        id: tier.id ?? null,
+        inventory_product_pricing_information_id: safeParseId(id),
+        quantity: tier.quantity,
+        discount_percentage: parseFloat(String(tier.discount_percentage)),
+        global_volume_discount_price_categories: priceCategories
+      };
+    });
+  };
+    
+  // Helper function to map variant volume discounts
+  const mapVariantVolumeDiscounts = (values: PriceFormFields, variants: any[]) => {
+    if (!values.isEnableVolumeDiscount || !values.isEnableVolumeDiscountByProductVariant) return [];
+    
+    // Get the variant volume discount data
+    const variantDiscounts = values.variantVolumeDiscounts ?? [];
+    
+    return variantDiscounts.map((variantDiscount: any) => {
+      // Find the variant info
+      const variant = variants.find(v => v.id === variantDiscount.variant_id);
+      
+      if (!variant) return null;
+      
+      return {
+        id: variantDiscount.id ?? null,
+        inventory_product_pricing_information_id: safeParseId(id),
+        inventory_product_by_variant_id: variant.id,
+        inventory_product_by_variant_full_product_name: variant.full_product_name,
+        inventory_product_by_variant_sku: variant.sku_product_variant,
+        inventory_product_volume_discount_variant_quantities: (
+          variantDiscount.inventory_product_volume_discount_variant_quantities ?? []
+        ).map((qtyItem: any) => {
+          // Get all category prices for this tier
+          const priceCategories = [];
+          
+          // Add customer categories - only include those with valid names
+          for (const [categoryId, priceData] of Object.entries(values.customerPrices ?? {})) {
+            if (!priceData || !priceData.name) continue;
+            
+            // Parse ID to number if possible
+            const categoryIdNum = parseInt(categoryId);
+            const isNumericId = !isNaN(categoryIdNum);
+            
+            priceCategories.push({
+              id: null,
+              inventory_product_vol_disc_variant_qty_id: null,
+              price_category_id: isNumericId ? categoryIdNum : categoryId,
+              price_category_name: priceData.name,
+              price_category_type: 'customer',
+              price_category_percentage: parseFloat(String(priceData.markup ?? 0)),
+              price_category_set_default: categoryId === values.defaultPriceCategoryId,
+              price: calculateDiscountedPrice(priceData.taxInclusivePrice, qtyItem.discount_percentage)
+            });
+          }
+          
+          // Add marketplace categories - only include those with valid names
+          for (const [categoryId, priceData] of Object.entries(values.marketplacePrices ?? {})) {
+            if (!priceData || !priceData.name) continue;
+            
+            // Parse ID to number if possible
+            const categoryIdNum = parseInt(categoryId);
+            const isNumericId = !isNaN(categoryIdNum);
+            
+            priceCategories.push({
+              id: null,
+              inventory_product_vol_disc_variant_qty_id: null,
+              price_category_id: isNumericId ? categoryIdNum : categoryId,
+              price_category_name: priceData.name,
+              price_category_type: 'marketplace',
+              price_category_percentage: parseFloat(String(priceData.customPercentage ?? 0)),
+              price_category_set_default: false,
+              price: calculateDiscountedPrice(priceData.price, qtyItem.discount_percentage)
+            });
+          }
+          
+          return {
+            id: qtyItem.id ?? null,
+            inventory_product_volume_discount_variant_id: variantDiscount.id ?? null,
+            quantity: qtyItem.quantity,
+            discount_percentage: parseFloat(String(qtyItem.discount_percentage)),
+            status: true,
+            inventory_product_volume_discount_variant_price_categories: priceCategories
+          };
+        }),
+        status: true
+      };
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
+  };
+  
+  // Helper function to calculate discounted price
+  const calculateDiscountedPrice = (basePrice: number, discountPercentage: number): number => {
+    return Math.round(basePrice * (1 - discountPercentage / 100));
   };
 
   // --- Loading and Error Handling ---
@@ -253,7 +610,7 @@ export function EditPriceForm() {
                 Cancel
               </Button>
               <Button
-                type="submit" // Use standard submit
+                type="submit"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? 'Updating...' : 'Update Prices'}

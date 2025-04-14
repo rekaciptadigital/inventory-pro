@@ -143,3 +143,113 @@ export async function getPriceDetail(id: string): Promise<ApiResponse<PriceDetai
   const response = await axiosInstance.get(`/inventory-price/${id}`);
   return response.data;
 }
+
+// New interface for the update price request payload
+export interface UpdatePriceDetailPayload {
+  id: number | string;
+  usd_price: number;
+  exchange_rate: number;
+  adjustment_percentage: number;
+  price_hb_real: number;
+  hb_adjustment_price: number;
+  is_manual_product_variant_price_edit: boolean;
+  is_enable_volume_discount: boolean;
+  is_enable_volume_discount_by_product_variant: boolean;
+  customer_category_prices: Array<{
+    id?: number;
+    price_category_id: number | string;
+    price_category_name: string;
+    formula?: string;
+    percentage: number;
+    set_default: boolean;
+    pre_tax_price: number;
+    tax_inclusive_price: number;
+    tax_id?: number;
+    tax_percentage: number;
+    is_custom_tax_inclusive_price: boolean;
+    price_category_custom_percentage?: number;
+  }>;
+  marketplace_category_prices: Array<{
+    id?: number;
+    price_category_id: number | string;
+    price_category_name: string;
+    price_category_percentage: number;
+    price_category_set_default: boolean;
+    price: number;
+    price_category_custom_percentage: number;
+    is_custom_price_category: boolean;
+  }>;
+  product_variant_prices: Array<{
+    variant_id: string;
+    variant_name: string;
+    sku_product_variant: string;
+    usd_price: number;
+    exchange_rate: number;
+    adjustment_percentage: number;
+    status: boolean;
+    price_categories: Array<{
+      id: number | string;
+      price: number;
+      price_category_name: string;
+      percentage: number;
+      type: string;
+      set_default: boolean;
+    }>;
+  }>;
+  global_volume_discounts: Array<{
+    id?: string | null;
+    quantity: number;
+    discount_percentage: number;
+    global_volume_discount_price_categories: Array<{
+      id?: string | null;
+      inventory_product_global_discount_id?: string | null;
+      price_category_id: number | string;
+      price_category_name: string;
+      price_category_type: string;
+      price_category_percentage: number;
+      price_category_set_default: boolean;
+      price: number;
+    }>;
+  }>;
+  variant_volume_discounts: Array<{
+    id?: string | null;
+    inventory_product_by_variant_id: string;
+    inventory_product_by_variant_full_product_name: string;
+    inventory_product_by_variant_sku: string;
+    status: boolean;
+    inventory_product_volume_discount_variant_quantities: Array<{
+      id?: string | null;
+      quantity: number;
+      discount_percentage: number;
+      status: boolean;
+      inventory_product_volume_discount_variant_price_categories: Array<{
+        id?: string | null;
+        price_category_id: number | string;
+        price_category_name: string;
+        price_category_type: string;
+        price_category_percentage: number;
+        price_category_set_default: boolean;
+        price: number;
+      }>;
+    }>;
+  }>;
+}
+
+// New function to update price details with better error handling
+export async function updatePriceDetail(
+  id: string, 
+  data: UpdatePriceDetailPayload
+): Promise<ApiResponse<any>> {
+  try {
+    const response = await axiosInstance.put(`/inventory-price/${id}`, data);
+    return response.data;
+  } catch (error: any) {
+    console.error("API Error Details:", {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
+    throw error;
+  }
+}
