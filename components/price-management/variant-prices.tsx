@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, Fragment, useRef } from 'react';
+import { useEffect, useCallback, Fragment, useRef, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { PriceFormFields } from '@/types/form';
 import { Switch } from '@/components/ui/switch';
@@ -65,6 +65,9 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
   const pricingInfo = formValues.pricingInformation || { usdPrice: 0, adjustmentPercentage: 0 };
   const exchangeRate = formValues.exchangeRate || 0;
   
+  // NEW: Track if prices have been initialized
+  const [pricesInitialized, setPricesInitialized] = useState(false);
+  
   // Helper function to check if a string is purely numeric
   const isNumeric = (str: string) => /^\d+$/.test(str);
   
@@ -124,6 +127,13 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
       prevPricingInfoRef.current = { ...pricingInfo };
     }
   }, [variants, form, pricingInfo, dispatch]);
+  
+  // Set pricesInitialized to true once data is loaded
+  useEffect(() => {
+    if (Object.keys(customerPrices).length > 0 || Object.keys(marketplacePrices).length > 0) {
+      setPricesInitialized(true);
+    }
+  }, [customerPrices, marketplacePrices]); // Add dependency to react to price changes
   
   // Update prices in the form when manual editing occurs
   const updatePricesInForm = useCallback((sku: string, usdPrice: number, adjustment: number) => {
@@ -285,7 +295,13 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
             Loading product variant pricing data...
           </div>
         </div>
-        <VolumeDiscount form={form} product={product} />
+        <VolumeDiscount
+          form={form}
+          product={product}
+          initialCustomerPrices={customerPrices}
+          initialMarketplacePrices={marketplacePrices}
+          pricesInitialized={pricesInitialized}
+        />
       </div>
     );
   }
@@ -447,7 +463,13 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
         </p>
       </div>
 
-      <VolumeDiscount form={form} product={product} />
+      <VolumeDiscount
+        form={form}
+        product={product}
+        initialCustomerPrices={customerPrices}
+        initialMarketplacePrices={marketplacePrices}
+        pricesInitialized={pricesInitialized}
+      />
     </div>
   );
 }

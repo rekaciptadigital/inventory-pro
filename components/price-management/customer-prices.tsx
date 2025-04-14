@@ -188,57 +188,182 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
 
   return (
     <Form {...form}>
-      <form className="space-y-6">
-        {/* Customer Category Prices section */}
-        <div className="rounded-lg border p-4 space-y-4">
-          <div className="flex items-center mb-2">
-            <h3 className="text-lg font-medium">Customer Category Prices</h3>
-            <Badge variant="outline" className="ml-2">From HB Naik</Badge>
-          </div>
-          
-          {/* Headers */}
-          <div className="grid grid-cols-12 gap-4 px-4 py-2 font-medium text-sm">
-            <div className="col-span-3">Customer Category</div>
-            <div className="col-span-3">Markup Percentage (%)</div>
-            <div className="col-span-2">Pre-tax Price</div>
-            <div className="col-span-2">Tax-inclusive Price</div>
-            <div className="col-span-2">Custom Price</div>
-          </div>
-          
-          {/* Customer category rows */}
-          <div className="space-y-2">
-            {categories.map((category) => {
-              const categoryKey = category.name.toLowerCase();
-              const isCustom = manualModes[categoryKey] || false;
-              const prices = calculatePrices(category);
-              const currentPercentage = percentages[categoryKey] ?? category.percentage;
+      {/* Customer Category Prices section */}
+      <div className="rounded-lg border p-4 space-y-4">
+        <div className="flex items-center mb-2">
+          <h3 className="text-lg font-medium">Customer Category Prices</h3>
+          <Badge variant="outline" className="ml-2">From HB Naik</Badge>
+        </div>
+        
+        {/* Headers */}
+        <div className="grid grid-cols-12 gap-4 px-4 py-2 font-medium text-sm">
+          <div className="col-span-3">Customer Category</div>
+          <div className="col-span-3">Markup Percentage (%)</div>
+          <div className="col-span-2">Pre-tax Price</div>
+          <div className="col-span-2">Tax-inclusive Price</div>
+          <div className="col-span-2">Custom Price</div>
+        </div>
+        
+        {/* Customer category rows */}
+        <div className="space-y-2">
+          {categories.map((category) => {
+            const categoryKey = category.name.toLowerCase();
+            const isCustom = manualModes[categoryKey] || false;
+            const prices = calculatePrices(category);
+            const currentPercentage = percentages[categoryKey] ?? category.percentage;
 
-              return (
-                <div 
-                  key={category.id} 
-                  className={`grid grid-cols-12 gap-4 items-center px-4 py-3 rounded-md border ${
-                    isCustom ? 'bg-muted/50' : ''
-                  } ${category.set_default ? 'border-primary/30' : ''}`}
-                >
-                  {/* Category Name */}
-                  <div className="col-span-3">
-                    <span className="font-medium">{category.name}</span>
-                    {category.set_default && (
-                      <Badge variant="default" className="ml-2 text-xs">Default</Badge>
+            return (
+              <div 
+                key={category.id} 
+                className={`grid grid-cols-12 gap-4 items-center px-4 py-3 rounded-md border ${
+                  isCustom ? 'bg-muted/50' : ''
+                } ${category.set_default ? 'border-primary/30' : ''}`}
+              >
+                {/* Category Name */}
+                <div className="col-span-3">
+                  <span className="font-medium">{category.name}</span>
+                  {category.set_default && (
+                    <Badge variant="default" className="ml-2 text-xs">Default</Badge>
+                  )}
+                </div>
+                
+                {/* Markup Percentage */}
+                <div className="col-span-3">
+                  <FormField
+                    control={form.control}
+                    name={`percentages.${categoryKey}`}
+                    render={() => (
+                      <FormControl>
+                        <Input
+                          type="number"
+                          value={currentPercentage}
+                          onChange={(e) => handlePercentageChange(category, e.target.value)}
+                          disabled={!isCustom}
+                          className={!isCustom ? "bg-muted" : ""}
+                        />
+                      </FormControl>
                     )}
-                  </div>
-                  
-                  {/* Markup Percentage */}
-                  <div className="col-span-3">
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {currentPercentage}% from {formatCurrency(hbNaik)}
+                  </p>
+                </div>
+                
+                {/* Pre-tax Price */}
+                <div className="col-span-2">
+                  <FormField
+                    control={form.control}
+                    name={`customerPrices.${categoryKey}.basePrice`}
+                    render={() => (
+                      <FormControl>
+                        <Input
+                          type="text"
+                          value={formatCurrency(prices.basePrice)}
+                          className="bg-muted font-medium"
+                          disabled
+                        />
+                      </FormControl>
+                    )}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Before {prices.appliedTaxPercentage}% tax
+                  </p>
+                </div>
+                
+                {/* Tax-inclusive Price */}
+                <div className="col-span-2">
+                  <FormField
+                    control={form.control}
+                    name={`customerPrices.${categoryKey}.taxInclusivePrice`}
+                    render={() => (
+                      <FormControl>
+                        <Input
+                          type="text"
+                          value={formatCurrency(prices.taxInclusivePrice)}
+                          className="bg-muted font-medium"
+                          disabled
+                        />
+                      </FormControl>
+                    )}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Tax: {formatCurrency(prices.taxAmount)}
+                  </p>
+                </div>
+                
+                {/* Custom Toggle */}
+                <div className="col-span-2 flex items-center justify-end gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {isCustom ? 'Custom' : 'Auto'}
+                  </span>
+                  <Switch
+                    checked={isCustom}
+                    onCheckedChange={(checked) => {
+                      setManualModes(prev => ({
+                        ...prev,
+                        [categoryKey]: checked
+                      }));
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Marketplace Prices section */}
+      <div className="rounded-lg border p-4 space-y-4">
+        <div className="flex items-center mb-2">
+          <h3 className="text-lg font-medium">Marketplace Prices</h3>
+          <Badge variant="outline" className="ml-2">From {defaultCategoryName}</Badge>
+        </div>
+        
+        {/* Headers */}
+        <div className="grid grid-cols-12 gap-4 px-4 py-2 font-medium text-sm">
+          <div className="col-span-3">Marketplace</div>
+          <div className="col-span-4">Markup Percentage (%)</div>
+          <div className="col-span-3">Final Price</div>
+          <div className="col-span-2">Custom Price</div>
+        </div>
+        
+        {/* Marketplace rows */}
+        <div className="space-y-2">
+          {marketplaceCategories.map((category) => {
+            const categoryKey = category.name.toLowerCase();
+            const isCustom = manualModes[`mp_${categoryKey}`] || false;
+            const defaultCategory = categories.find(c => c.set_default);
+            const marketplacePrice = form.watch(`marketplacePrices.${categoryKey}.taxInclusivePrice`) || 0;
+            const currentPercentage = marketplacePercentages[categoryKey] ?? category.percentage;
+
+            // Get default category price for reference
+            const defaultCategoryKey = defaultCategory?.name.toLowerCase() ?? 'retail';
+            const defaultCategoryPrice = form.watch(`customerPrices.${defaultCategoryKey}.taxInclusivePrice`) || 0;
+
+            return (
+              <div 
+                key={category.id} 
+                className={`grid grid-cols-12 gap-4 items-start px-4 py-3 rounded-md border ${
+                  isCustom ? 'bg-muted/50' : ''
+                }`}
+              >
+                {/* Marketplace Name */}
+                <div className="col-span-3 pt-2">
+                  <span className="font-medium">{category.name}</span>
+                </div>
+                
+                {/* Markup Percentage */}
+                <div className="col-span-4">
+                  <div className="flex flex-col">
                     <FormField
                       control={form.control}
-                      name={`percentages.${categoryKey}`}
+                      name={`marketplacePercentages.${categoryKey}`}
                       render={() => (
                         <FormControl>
                           <Input
                             type="number"
                             value={currentPercentage}
-                            onChange={(e) => handlePercentageChange(category, e.target.value)}
+                            onChange={(e) => handleMarketplacePercentageChange(category, e.target.value)}
                             disabled={!isCustom}
                             className={!isCustom ? "bg-muted" : ""}
                           />
@@ -246,20 +371,22 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                       )}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      {currentPercentage}% from {formatCurrency(hbNaik)}
+                      {currentPercentage}% from {formatCurrency(defaultCategoryPrice)}
                     </p>
                   </div>
-                  
-                  {/* Pre-tax Price */}
-                  <div className="col-span-2">
+                </div>
+                
+                {/* Final Price */}
+                <div className="col-span-3">
+                  <div className="flex flex-col">
                     <FormField
                       control={form.control}
-                      name={`customerPrices.${categoryKey}.basePrice`}
+                      name={`marketplacePrices.${categoryKey}.taxInclusivePrice`}
                       render={() => (
                         <FormControl>
                           <Input
                             type="text"
-                            value={formatCurrency(prices.basePrice)}
+                            value={formatCurrency(marketplacePrice)}
                             className="bg-muted font-medium"
                             disabled
                           />
@@ -267,168 +394,39 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                       )}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Before {prices.appliedTaxPercentage}% tax
+                      {defaultCategory?.name} + {currentPercentage}%
                     </p>
                   </div>
-                  
-                  {/* Tax-inclusive Price */}
-                  <div className="col-span-2">
-                    <FormField
-                      control={form.control}
-                      name={`customerPrices.${categoryKey}.taxInclusivePrice`}
-                      render={() => (
-                        <FormControl>
-                          <Input
-                            type="text"
-                            value={formatCurrency(prices.taxInclusivePrice)}
-                            className="bg-muted font-medium"
-                            disabled
-                          />
-                        </FormControl>
-                      )}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Tax: {formatCurrency(prices.taxAmount)}
-                    </p>
-                  </div>
-                  
-                  {/* Custom Toggle */}
-                  <div className="col-span-2 flex items-center justify-end gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {isCustom ? 'Custom' : 'Auto'}
-                    </span>
-                    <Switch
-                      checked={isCustom}
-                      onCheckedChange={(checked) => {
-                        setManualModes(prev => ({
-                          ...prev,
-                          [categoryKey]: checked
-                        }));
-                      }}
-                    />
-                  </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Marketplace Prices section */}
-        <div className="rounded-lg border p-4 space-y-4">
-          <div className="flex items-center mb-2">
-            <h3 className="text-lg font-medium">Marketplace Prices</h3>
-            <Badge variant="outline" className="ml-2">From {defaultCategoryName}</Badge>
-          </div>
-          
-          {/* Headers */}
-          <div className="grid grid-cols-12 gap-4 px-4 py-2 font-medium text-sm">
-            <div className="col-span-3">Marketplace</div>
-            <div className="col-span-4">Markup Percentage (%)</div>
-            <div className="col-span-3">Final Price</div>
-            <div className="col-span-2">Custom Price</div>
-          </div>
-          
-          {/* Marketplace rows */}
-          <div className="space-y-2">
-            {marketplaceCategories.map((category) => {
-              const categoryKey = category.name.toLowerCase();
-              const isCustom = manualModes[`mp_${categoryKey}`] || false;
-              const defaultCategory = categories.find(c => c.set_default);
-              const marketplacePrice = form.watch(`marketplacePrices.${categoryKey}.taxInclusivePrice`) || 0;
-              const currentPercentage = marketplacePercentages[categoryKey] ?? category.percentage;
-
-              // Get default category price for reference
-              const defaultCategoryKey = defaultCategory?.name.toLowerCase() ?? 'retail';
-              const defaultCategoryPrice = form.watch(`customerPrices.${defaultCategoryKey}.taxInclusivePrice`) || 0;
-
-              return (
-                <div 
-                  key={category.id} 
-                  className={`grid grid-cols-12 gap-4 items-start px-4 py-3 rounded-md border ${
-                    isCustom ? 'bg-muted/50' : ''
-                  }`}
-                >
-                  {/* Marketplace Name */}
-                  <div className="col-span-3 pt-2">
-                    <span className="font-medium">{category.name}</span>
-                  </div>
-                  
-                  {/* Markup Percentage */}
-                  <div className="col-span-4">
-                    <div className="flex flex-col">
-                      <FormField
-                        control={form.control}
-                        name={`marketplacePercentages.${categoryKey}`}
-                        render={() => (
-                          <FormControl>
-                            <Input
-                              type="number"
-                              value={currentPercentage}
-                              onChange={(e) => handleMarketplacePercentageChange(category, e.target.value)}
-                              disabled={!isCustom}
-                              className={!isCustom ? "bg-muted" : ""}
-                            />
-                          </FormControl>
-                        )}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {currentPercentage}% from {formatCurrency(defaultCategoryPrice)}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Final Price */}
-                  <div className="col-span-3">
-                    <div className="flex flex-col">
-                      <FormField
-                        control={form.control}
-                        name={`marketplacePrices.${categoryKey}.taxInclusivePrice`}
-                        render={() => (
-                          <FormControl>
-                            <Input
-                              type="text"
-                              value={formatCurrency(marketplacePrice)}
-                              className="bg-muted font-medium"
-                              disabled
-                            />
-                          </FormControl>
-                        )}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {defaultCategory?.name} + {currentPercentage}%
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Custom Toggle */}
-                  <div className="col-span-2 flex items-center justify-end gap-2 pt-2">
-                    <span className="text-xs text-muted-foreground">
-                      {isCustom ? 'Custom' : 'Auto'}
-                    </span>
-                    <Switch
-                      checked={isCustom}
-                      onCheckedChange={(checked) => {
-                        setManualModes(prev => ({
-                          ...prev,
-                          [`mp_${categoryKey}`]: checked
-                        }));
-                      }}
-                    />
-                  </div>
+                
+                {/* Custom Toggle */}
+                <div className="col-span-2 flex items-center justify-end gap-2 pt-2">
+                  <span className="text-xs text-muted-foreground">
+                    {isCustom ? 'Custom' : 'Auto'}
+                  </span>
+                  <Switch
+                    checked={isCustom}
+                    onCheckedChange={(checked) => {
+                      setManualModes(prev => ({
+                        ...prev,
+                        [`mp_${categoryKey}`]: checked
+                      }));
+                    }}
+                  />
                 </div>
-              );
-            })}
-          </div>
-          
-          {/* Price flow explanation */}
-          <div className="bg-muted/20 p-3 rounded border border-dashed mt-2">
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium">Price flow:</span> Marketplace prices are calculated based on the default customer 
-              category price ({defaultCategoryName}) with an additional markup percentage applied.
-            </p>
-          </div>
+              </div>
+            );
+          })}
         </div>
-      </form>
+        
+        {/* Price flow explanation */}
+        <div className="bg-muted/20 p-3 rounded border border-dashed mt-2">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium">Price flow:</span> Marketplace prices are calculated based on the default customer 
+            category price ({defaultCategoryName}) with an additional markup percentage applied.
+          </p>
+        </div>
+      </div>
     </Form>
   );
 }

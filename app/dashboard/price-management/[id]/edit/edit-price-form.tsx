@@ -8,15 +8,19 @@ import { Form } from "@/components/ui/form";
 import { PricingInfo } from "@/components/price-management/pricing-info";
 import { CustomerPrices } from "@/components/price-management/customer-prices";
 import { VariantPrices } from '@/components/price-management/variant-prices';
-import { getPriceDetail } from "@/lib/api/price-management";
+// Import the new API function
+import { getPriceDetail, getInventoryProductDetail } from "@/lib/api/price-management";
 import type { PriceFormFields } from '@/types/form';
+// Import InventoryProduct type
+import type { InventoryProduct } from '@/types/inventory';
 
 export function EditPriceForm() {
   const { id } = useParams();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [productDetail, setProductDetail] = useState<any>(null);
+  // Update state type to InventoryProduct | null
+  const [productDetail, setProductDetail] = useState<InventoryProduct | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<PriceFormFields>({
@@ -40,49 +44,42 @@ export function EditPriceForm() {
   });
 
   useEffect(() => {
-    async function fetchProductPrices() {
+    async function fetchProductData() { // Renamed function
       if (!id) return;
       
       try {
         setIsLoading(true);
-        const response = await getPriceDetail(id as string);
-        const priceData = response.data;
         
-        // Create an enhanced product detail object with all needed properties
-        const enhancedProductDetail = {
-          ...priceData,
-          // Essential ID and name
-          id: priceData.inventory_product_id,
-          product_id: priceData.inventory_product_id,
-          product_name: priceData.product_name || `Product ${priceData.inventory_product_id}`,
-          
-          // Ensure variant data is properly structured for the component
-          product_variants: priceData.product_variant_prices.map((variant: any) => ({
-            id: variant.variant_id,
-            variant_id: variant.variant_id, // Both formats for safety
-            name: variant.variant_name,
-            variant_name: variant.variant_name, // Both formats for safety
-            sku: variant.sku_product_variant,
-            status: variant.status !== undefined ? variant.status : true,
-          })),
-          
-          // Keep original arrays accessible too
-          variants: priceData.product_variant_prices,
-          product_variant_prices: priceData.product_variant_prices,
-          // Add these for compatibility with VariantPrices component
-          product_by_variant: priceData.product_variant_prices.map((variant: any) => ({
-            ...variant,
-            sku_product_variant: variant.sku_product_variant || variant.variant_id,
-            full_product_name: variant.variant_name
-          }))
+        // Fetch both price details and general product details concurrently
+        const [priceResponse, productResponse] = await Promise.all([
+          getPriceDetail(id as string),
+          getInventoryProductDetail(id as string) // Fetch general product info
+        ]);
+        
+        const priceData = priceResponse.data;
+        const productData = productResponse.data; // General product info
+        
+        // Merge data: Prioritize general info from productData, pricing from priceData
+        const mergedProductDetail: InventoryProduct = {
+          ...productData, // Start with general product data
+          id: productData.id, // Ensure correct ID
+          // Override pricing-related fields with data from priceData
+          usdPrice: priceData.usd_price,
+          exchangeRate: priceData.exchange_rate,
+          hbReal: priceData.price_hb_real,
+          adjustmentPercentage: priceData.adjustment_percentage,
+          hbNaik: priceData.hb_adjustment_price,
+          // Keep product_by_variant from productData as it's more complete
+          product_by_variant: productData.product_by_variant || [],
+          // Add other fields from InventoryProduct if needed
         };
 
-        setProductDetail(enhancedProductDetail);
+        setProductDetail(mergedProductDetail); // Set the merged data
         
-        // Map variant prices
+        // Map variant prices (using priceData as source for variant pricing details)
         const mappedVariantPrices = mapVariantPrices(priceData.product_variant_prices);
         
-        // Map API data to form values
+        // Map API data to form values using merged data where appropriate
         form.reset({
           usdPrice: priceData.usd_price,
           exchangeRate: priceData.exchange_rate,
@@ -106,13 +103,14 @@ export function EditPriceForm() {
           variantVolumeDiscounts: priceData.variant_volume_discounts || [],
         });
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch product prices'));
+        console.error("Error fetching product data:", err); // Log the actual error
+        setError(err instanceof Error ? err : new Error('Failed to fetch product data'));
       } finally {
         setIsLoading(false);
       }
     }
     
-    fetchProductPrices();
+    fetchProductData(); // Call the renamed function
   }, [id, form]);
 
   // Helper functions to map API data to form structure
@@ -206,13 +204,18 @@ export function EditPriceForm() {
     }
   };
 
+  // --- Loading and Error Handling ---
   if (isLoading) {
     return <div className="flex justify-center items-center h-[400px]">Loading product prices...</div>;
   }
 
   if (error) {
-    throw error; // This will trigger the error boundary
+    // Consider a more user-friendly error display instead of throwing
+    return <div className="text-destructive p-4 border border-destructive rounded-md">Error loading product data: {error.message}</div>;
+    // throw error; // Or keep throwing if you have a higher-level error boundary
   }
+  // --- End Loading and Error Handling ---
+
 
   return (
     <div className="space-y-6">
@@ -220,7 +223,8 @@ export function EditPriceForm() {
         <div>
           <h1 className="text-3xl font-bold">Edit Product Price</h1>
           <p className="text-muted-foreground">
-            Update pricing information for {productDetail?.product_name || 'Product'}
+            {/* Use full_product_name from the merged productDetail state */}
+            Update pricing information for {productDetail?.full_product_name ?? 'Product'}
           </p>
         </div>
         <Button variant="outline" onClick={() => router.push('/dashboard/price-management')}>
@@ -228,41 +232,45 @@ export function EditPriceForm() {
         </Button>
       </div>
 
-      <Form {...form}>
-        <div className="space-y-6">
-          <PricingInfo form={form} product={productDetail} />
-          <CustomerPrices form={form} />
-
-          {productDetail ? (
-            <VariantPrices 
+      {/* --- Conditionally render form content --- */}
+      {productDetail && (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6"> {/* Add form element and onSubmit */}
+            <PricingInfo form={form} product={productDetail} />
+            <CustomerPrices form={form} />
+            <VariantPrices
               form={form}
               product={productDetail}
             />
-          ) : (
-            <div className="p-4 border rounded-md text-muted-foreground">
-              Product data not available
-            </div>
-          )}
 
-          <div className="flex justify-end space-x-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.push('/dashboard/price-management')}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting}
-              onClick={form.handleSubmit(handleSubmit)}
-            >
-              {isSubmitting ? 'Updating...' : 'Update Prices'}
-            </Button>
-          </div>
-        </div>
-      </Form>
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push('/dashboard/price-management')}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit" // Use standard submit
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Updating...' : 'Update Prices'}
+              </Button>
+            </div>
+          </form> {/* Close form element */}
+        </Form>
+      )}
+      {/* --- End Conditional Rendering --- */}
+
+      {/* --- Show message if productDetail is null after loading --- */}
+      {!productDetail && !isLoading && (
+         <div className="p-4 border rounded-md text-muted-foreground">
+           Product data could not be loaded or is unavailable.
+         </div>
+      )}
+      {/* --- End Message --- */}
     </div>
   );
 }

@@ -132,6 +132,12 @@ export interface VolumeDiscountPriceCategory {
   price: number;
 }
 
+// New function to get general inventory product details
+export async function getInventoryProductDetail(id: string): Promise<ApiResponse<InventoryProduct>> {
+  const response = await axiosInstance.get(`/inventory/${id}`);
+  return response.data;
+}
+
 // New function to get price details for a specific product
 export async function getPriceDetail(id: string): Promise<ApiResponse<PriceDetail>> {
   const response = await axiosInstance.get(`/inventory-price/${id}`);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,16 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency } from '@/lib/utils/format';
 import type { PriceFormFields } from '@/types/form';
-import type { InventoryProduct } from '@/types/inventory';
+import type { InventoryProduct, InventoryProductVariant } from '@/types/inventory';
 
 interface VolumeDiscountProps {
   readonly form: UseFormReturn<PriceFormFields>;
   readonly product: InventoryProduct;
+  // Add props for initial price data
+  readonly initialCustomerPrices?: Record<string, any> | null;
+  readonly initialMarketplacePrices?: Record<string, any> | null;
+  // Add flag to indicate prices are initialized
+  readonly pricesInitialized?: boolean;
 }
 
 interface DiscountTier {
@@ -35,6 +40,7 @@ const utils = {
     basePrices: Record<string, any>,
     discountPercentage: number
   ): Record<string, number> => {
+    
     const result: Record<string, number> = {};
     
     // Make sure we process all price categories
@@ -71,12 +77,15 @@ const utils = {
           if (originalPrice) {
             // Calculate discounted price
             result[category] = Math.round(originalPrice * (1 - discountPercentage / 100));
+          } else {
+             result[category] = 0; // Explicitly set to 0 if no valid price found
           }
         } catch (e) {
-          console.error(`Error calculating discount for ${category}:`, e);
+          console.error(`[VolumeDiscount] Error calculating discount for ${category}:`, e);
+          result[category] = 0; // Set to 0 on error
         }
       });
-    }
+    } 
     
     return result;
   },
@@ -181,7 +190,7 @@ function DiscountTierRow({
   tier,
   index,
   variantSku,
-  categories,
+  categories, // Log this prop
   onUpdate,
   onRemove
 }: Readonly<{
@@ -265,17 +274,20 @@ function DiscountTierRow({
       </td>
       
       {/* Price inputs for each category */}
-      {categories.map((category) => (
-        <td key={category.id} className="p-2">
-          <Input
-            type="text"
-            value={formatCurrency(tier.prices[category.id] || 0)}
-            readOnly
-            disabled
-            className="text-right bg-muted cursor-not-allowed"
-          />
-        </td>
-      ))}
+      {categories.map((category) => {
+        const priceValue = tier.prices[category.id] || 0;
+        return (
+          <td key={category.id} className="p-2">
+            <Input
+              type="text"
+              value={formatCurrency(priceValue)} // Use logged value
+              readOnly
+              disabled
+              className="text-right bg-muted cursor-not-allowed"
+            />
+          </td>
+        );
+      })}
       
       <td className="p-2">
         <Button
@@ -309,7 +321,7 @@ function DiscountTable({
       <thead>
         <tr className="bg-muted/50">
           <th className="p-2 text-left">QTY</th>
-          <th className="p-2 text-right">Discount (%)</th>
+          <th className="p-2 text-right">Disc (%)</th>
           {/* Make sure we're showing all category columns */}
           {categories.map((category) => (
             <th key={`discount-category-${category.id}`} className="p-2 text-right whitespace-nowrap">
@@ -597,44 +609,51 @@ function updateVariantTierHelper(
 
 // Move more logic to module-level functions to reduce nesting depth
 
-// Transform prices into categories array with improved type definitions
+// Transform prices into categories array using the 'name' property within the data
 function createCategoriesFromPrices(
-  customerPrices?: Record<string, { name?: string } & Record<string, any>> | null, 
+  customerPrices?: Record<string, { name?: string } & Record<string, any>> | null,
   marketplacePrices?: Record<string, { name?: string } & Record<string, any>> | null
 ): Array<{ id: string; name: string }> {
+
   const result: Array<{ id: string; name: string }> = [];
-  const uniqueCategories = new Set<string>();
-  
-  // Add customer price categories with proper names
+  const uniqueCategoryNames = new Set<string>(); // Use name for uniqueness check
+
+  // Helper to check if data is a valid price object with a name
+  const isValidPriceDataWithName = (data: any): boolean => {
+    return data && typeof data === 'object' && typeof data.name === 'string' && data.name.trim() !== '';
+  };
+
+  // Add customer price categories using data.name
   if (customerPrices && typeof customerPrices === 'object') {
-    Object.entries(customerPrices).forEach(([key, data]) => {
-      if (!uniqueCategories.has(key)) {
-        uniqueCategories.add(key);
-        // Now TypeScript knows data.name is valid
-        const name = data.name ?? key.charAt(0).toUpperCase() + key.slice(1);
+    Object.values(customerPrices).forEach((data) => { // Iterate through VALUES
+      // Check if data is valid and has a name, and if the name hasn't been added yet
+      if (isValidPriceDataWithName(data) && data.taxInclusivePrice !== undefined && !uniqueCategoryNames.has(data.name!)) {
+        const categoryName = data.name!;
+        const categoryId = categoryName.toLowerCase(); // Use lowercase name as the ID
+        uniqueCategoryNames.add(categoryName); // Add original name to set for uniqueness
         result.push({
-          id: key,
-          name: name
+          id: categoryId,
+          name: categoryName
         });
-      }
+      } 
     });
   }
-  
-  // Add marketplace price categories with proper names
+
+  // Add marketplace price categories using data.name
   if (marketplacePrices && typeof marketplacePrices === 'object') {
-    Object.entries(marketplacePrices).forEach(([key, data]) => {
-      if (!uniqueCategories.has(key)) {
-        uniqueCategories.add(key);
-        // Now TypeScript knows data.name is valid
-        const name = data.name ?? key.charAt(0).toUpperCase() + key.slice(1);
+    Object.values(marketplacePrices).forEach((data) => { // Iterate through VALUES
+      // Check if data is valid and has a name, and if the name hasn't been added yet
+      if (isValidPriceDataWithName(data) && data.price !== undefined && !uniqueCategoryNames.has(data.name!)) {
+        const categoryName = data.name!;
+        const categoryId = categoryName.toLowerCase(); // Use lowercase name as the ID
+        uniqueCategoryNames.add(categoryName); // Add original name to set for uniqueness
         result.push({
-          id: key,
-          name: name
+          id: categoryId,
+          name: categoryName
         });
-      }
+      } 
     });
   }
-  
   return result;
 }
 
@@ -709,23 +728,212 @@ function removeVariantTier(
   };
 }
 
-export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>) {
+// --- New Component: VariantDiscountCardRenderer ---
+// This component renders a single DiscountCard for a variant
+function VariantDiscountCardRenderer({
+  variant,
+  variantDiscounts,
+  globalTiers,
+  getTableRenderer,
+  handleVariantToggle,
+  addQuantityTier
+}: Readonly<{
+  variant: InventoryProductVariant; // Use specific type
+  variantDiscounts: Record<string, VariantDiscount>;
+  globalTiers: DiscountTier[];
+  getTableRenderer: (sku: string) => (tiers: DiscountTier[]) => React.ReactNode;
+  handleVariantToggle: (sku: string, checked: boolean) => void;
+  addQuantityTier: (sku: string) => void;
+}>) {
+  const sku = variant.sku_product_variant;
+  // Determine the initial state for this variant's discount settings
+  const variantDiscount = variantDiscounts[sku] || {
+    enabled: true, // Default to enabled if not found
+    // Default tiers based on global tiers if not customized yet
+    tiers: globalTiers.map(tier => ({ ...tier, id: `${tier.id}-${sku}` }))
+  };
+
+  return (
+    <DiscountCard
+      key={sku} // Key is important for list rendering
+      title={variant.full_product_name}
+      subtitle={`SKU: ${sku}`}
+      enabled={variantDiscount.enabled}
+      onToggle={(checked) => handleVariantToggle(sku, checked)}
+      onAddTier={() => addQuantityTier(sku)}
+      tiers={variantDiscount.tiers}
+      renderTable={getTableRenderer(sku)} // Pass the renderer function for this SKU
+    />
+  );
+}
+// --- End New Component ---
+
+// --- New Component: VariantDiscountListRenderer ---
+// Renders the list of variant discount cards
+function VariantDiscountListRenderer({
+  variants,
+  variantDiscounts,
+  globalTiers,
+  getTableRenderer,
+  handleVariantToggle,
+  addQuantityTier
+}: Readonly<{
+  variants: InventoryProductVariant[];
+  variantDiscounts: Record<string, VariantDiscount>;
+  globalTiers: DiscountTier[];
+  getTableRenderer: (sku: string) => (tiers: DiscountTier[]) => React.ReactNode;
+  handleVariantToggle: (sku: string, checked: boolean) => void;
+  addQuantityTier: (sku: string) => void;
+}>) {
+  return (
+    <div className="space-y-6">
+      {variants.map((variant) => (
+        <VariantDiscountCardRenderer
+          key={variant.sku_product_variant}
+          variant={variant}
+          variantDiscounts={variantDiscounts}
+          globalTiers={globalTiers}
+          getTableRenderer={getTableRenderer}
+          handleVariantToggle={handleVariantToggle}
+          addQuantityTier={addQuantityTier}
+        />
+      ))}
+    </div>
+  );
+}
+// --- End New Component ---
+
+// --- Updated Component: VolumeDiscountContent ---
+// Renders the main content when volume discount is enabled
+function VolumeDiscountContent({
+  customizePerVariant,
+  globalTiers,
+  variants,
+  variantDiscounts,
+  getTableRenderer,
+  handleVariantToggle,
+  addQuantityTier
+}: Readonly<{
+  customizePerVariant: boolean;
+  globalTiers: DiscountTier[];
+  variants: InventoryProductVariant[];
+  variantDiscounts: Record<string, VariantDiscount>;
+  getTableRenderer: (sku: string) => (tiers: DiscountTier[]) => React.ReactNode;
+  handleVariantToggle: (sku: string, checked: boolean) => void;
+  addQuantityTier: (sku: string) => void; // Simplify type to just string
+}>) {
+  return (
+    <div className="space-y-6">
+      {!customizePerVariant ? (
+        <DiscountCard
+          title="Global Discount Rules"
+          onAddTier={() => addQuantityTier('global')} // 'global' is a valid string
+          tiers={globalTiers}
+          renderTable={getTableRenderer('global')}
+        />
+      ) : (
+        // Use the new list renderer component
+        <VariantDiscountListRenderer
+          variants={variants}
+          variantDiscounts={variantDiscounts}
+          globalTiers={globalTiers}
+          getTableRenderer={getTableRenderer}
+          handleVariantToggle={handleVariantToggle}
+          addQuantityTier={addQuantityTier} // No cast needed now
+        />
+      )}
+    </div>
+  );
+}
+// --- End Updated Component ---
+
+
+// --- New Helper Function: handleAddSpecificVariantTier ---
+function handleAddSpecificVariantTier(
+  variantSku: string,
+  allPrices: Record<string, any>,
+  setVariantDiscounts: React.Dispatch<React.SetStateAction<Record<string, VariantDiscount>>>
+) {
+  setVariantDiscounts(prev => addVariantTier(variantSku, prev, allPrices));
+}
+// --- End New Helper Function ---
+
+// --- New Helper Function: handleAddGlobalOrSyncedTier ---
+function handleAddGlobalOrSyncedTier(
+  globalTiers: DiscountTier[],
+  allPrices: Record<string, any>,
+  customizePerVariant: boolean,
+  variants: InventoryProductVariant[],
+  variantDiscounts: Record<string, VariantDiscount>,
+  setGlobalTiers: React.Dispatch<React.SetStateAction<DiscountTier[]>>,
+  setVariantDiscounts: React.Dispatch<React.SetStateAction<Record<string, VariantDiscount>>>
+) {
+  const { updatedGlobalTiers, updatedVariantDiscounts } = addGlobalTier(
+    globalTiers,
+    allPrices,
+    customizePerVariant,
+    variants,
+    variantDiscounts
+  );
+  setGlobalTiers(updatedGlobalTiers);
+  setVariantDiscounts(updatedVariantDiscounts);
+}
+// --- End New Helper Function ---
+
+
+export function VolumeDiscount({
+  form,
+  product,
+  initialCustomerPrices,
+  initialMarketplacePrices,
+  pricesInitialized = false // Default to false
+}: Readonly<VolumeDiscountProps>) {
   const { toast } = useToast();
   const variants = product?.product_by_variant || [];
   
-  // Get customer price categories from the form
-  const customerPrices = form.watch('customerPrices');
-  const marketplacePrices = form.watch('marketplacePrices');
+  // Create ref to store data initialized state
+  const dataInitializedRef = useRef(false);
   
-  // Transform all prices into categories array using the extracted function
-  const categories = useMemo(() => 
-    createCategoriesFromPrices(customerPrices, marketplacePrices), 
-    [customerPrices, marketplacePrices]
+  // Try to get data from form directly if props are empty
+  const customerPrices = initialCustomerPrices || form.getValues('customerPrices') || {};
+  const marketplacePrices = initialMarketplacePrices || form.getValues('marketplacePrices') || {};
+  
+  // Data loading state - true when either passed props has data or when parent says initialization is complete
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  
+  // Set data loaded flag once we have data
+  useEffect(() => {
+    if (pricesInitialized || 
+        Object.keys(customerPrices).length > 0 || 
+        Object.keys(marketplacePrices).length > 0) {
+      setIsDataLoaded(true);
+      dataInitializedRef.current = true;
+    }
+  }, [customerPrices, marketplacePrices, pricesInitialized]);
+
+  // --- Check if source price data is actually populated ---
+  const hasPriceData = useMemo(() => {
+    
+    // Handle null/undefined cases for props
+    const customerKeys = customerPrices ? Object.keys(customerPrices) : [];
+    const marketplaceKeys = marketplacePrices ? Object.keys(marketplacePrices) : [];
+    
+    // Return true if we have any valid keys or if parent says data is initialized
+    return pricesInitialized || 
+           isDataLoaded || 
+           customerKeys.some(key => !/^\d+$/.test(key)) || 
+           marketplaceKeys.some(key => !/^\d+$/.test(key));
+  }, [customerPrices, marketplacePrices, pricesInitialized, isDataLoaded]);
+
+  // Transform all prices into categories array using the props
+  const categories = useMemo(() =>
+    createCategoriesFromPrices(customerPrices, marketplacePrices),
+    [customerPrices, marketplacePrices] // Depend on props
   );
 
   // Main state
-  const [isEnabled, setIsEnabled] = useState(false);
-  const [customizePerVariant, setCustomizePerVariant] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(form.getValues('isEnableVolumeDiscount') || false); // Initialize from form
+  const [customizePerVariant, setCustomizePerVariant] = useState(form.getValues('isEnableVolumeDiscountByProductVariant') || false); // Initialize from form
   const [globalTiers, setGlobalTiers] = useState<DiscountTier[]>([
     { id: 'tier-1', quantity: 10, discount: 5, prices: {} },
     { id: 'tier-2', quantity: 50, discount: 10, prices: {} },
@@ -733,12 +941,12 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
   ]);
   const [variantDiscounts, setVariantDiscounts] = useState<Record<string, VariantDiscount>>({});
 
-  // Helper to combine all price sources - simplified with extracted helper function
+  // Helper to combine all price sources - uses props
   const getCombinedPrices = useCallback(() => {
     return getCombinedPricesHelper(customerPrices, marketplacePrices);
-  }, [customerPrices, marketplacePrices]);
+  }, [customerPrices, marketplacePrices]); // Depend on props
 
-  // Update all prices when customer or marketplace prices change - simplified with extracted functions
+  // Update all prices when customer or marketplace prices (props) change
   useEffect(() => {
     const allPrices = getCombinedPrices();
     
@@ -750,7 +958,7 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
       // Update variant tier prices using extracted function
       setVariantDiscounts(prev => updateVariantTierPrices(prev, allPrices));
     }
-  }, [customerPrices, marketplacePrices, categories, isEnabled, getCombinedPrices]);
+  }, [customerPrices, marketplacePrices, categories, isEnabled, getCombinedPrices]); // Depend on props
 
   // Initialize variant tiers from global tiers
   const syncVariantTiersWithGlobal = useCallback(() => {
@@ -773,10 +981,18 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
   // Handler for customizePerVariant toggle
   const handleCustomizePerVariantChange = useCallback((checked: boolean) => {
     setCustomizePerVariant(checked);
+    form.setValue('isEnableVolumeDiscountByProductVariant', checked); // Update form state
     if (checked) {
       syncVariantTiersWithGlobal();
     }
-  }, [syncVariantTiersWithGlobal]);
+  }, [syncVariantTiersWithGlobal, form]);
+
+  // Handler for main enable toggle
+  const handleEnableToggle = useCallback((checked: boolean) => {
+      setIsEnabled(checked);
+      form.setValue('isEnableVolumeDiscount', checked); // Update form state
+  }, [form]);
+
 
   // Show error toast - simple function
   const showError = useCallback((error: string) => {
@@ -788,8 +1004,7 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
   }, [toast]);
 
   // Add new tier handler using the extracted helpers
-  const addQuantityTier = useCallback((variantSku?: string) => {
-    // Only proceed if we have categories
+  const addQuantityTier = useCallback((variantSku: string) => {
     if (categories.length === 0) {
       toast({
         title: "No price categories available",
@@ -798,27 +1013,34 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
       });
       return;
     }
-    
+
     const allPrices = getCombinedPrices();
-    
-    if (customizePerVariant && variantSku && variantSku !== 'global') {
-      setVariantDiscounts(prev => addVariantTier(variantSku, prev, allPrices));
+    const isSpecificVariant = customizePerVariant && variantSku !== 'global';
+
+    if (isSpecificVariant) {
+      // Call the specific variant helper
+      handleAddSpecificVariantTier(variantSku, allPrices, setVariantDiscounts);
     } else {
-      const result = addGlobalTier(globalTiers, allPrices, customizePerVariant, variants, variantDiscounts);
-      setGlobalTiers(result.updatedGlobalTiers);
-      
-      if (result.updatedVariantDiscounts !== variantDiscounts) {
-        setVariantDiscounts(result.updatedVariantDiscounts);
-      }
+      // Call the global/synced helper
+      handleAddGlobalOrSyncedTier(
+        globalTiers,
+        allPrices,
+        customizePerVariant,
+        variants,
+        variantDiscounts,
+        setGlobalTiers, // Pass setter
+        setVariantDiscounts // Pass setter
+      );
     }
   }, [
     categories,
-    customizePerVariant, 
-    variants, 
-    getCombinedPrices, 
-    globalTiers, 
-    toast, 
-    variantDiscounts
+    customizePerVariant,
+    variants,
+    getCombinedPrices,
+    globalTiers,
+    toast,
+    variantDiscounts,
+    // No need to include setters in deps as they are stable
   ]);
 
   // Update tier data - optimized for real-time updates
@@ -890,9 +1112,13 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
 
   // Don't render anything if there are no variants
   if (!variants.length) return null;
+  
+  // To prevent flash of loading message on fast loads, delay the check
+  const shouldShowLoadingMessage = !hasPriceData || categories.length === 0;
 
-  // Show initial state message if no categories
-  if (categories.length === 0) {
+  // --- Show loading state only when needed ---
+  if (shouldShowLoadingMessage) {
+    // Normal component UI with loading message
     return (
       <div className="rounded-lg border p-4">
         <div className="flex items-center justify-between">
@@ -904,7 +1130,9 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
           </div>
         </div>
         <div className="mt-4 text-muted-foreground">
-          Please add customer or marketplace prices before configuring volume discounts.
+          {!hasPriceData
+            ? "Waiting for base price data to load..."
+            : "Please add customer or marketplace prices before configuring volume discounts."}
         </div>
       </div>
     );
@@ -925,7 +1153,7 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
             <span className="text-sm text-muted-foreground">Enable Volume Discount</span>
             <Switch
               checked={isEnabled}
-              onCheckedChange={setIsEnabled}
+              onCheckedChange={handleEnableToggle} // Use updated handler
             />
           </div>
           {isEnabled && (
@@ -940,40 +1168,17 @@ export function VolumeDiscount({ form, product }: Readonly<VolumeDiscountProps>)
         </div>
       </div>
 
+      {/* Use the new VolumeDiscountContent component */}
       {isEnabled && (
-        <div className="space-y-6">
-          {!customizePerVariant ? (
-            <DiscountCard
-              title="Global Discount Rules"
-              onAddTier={() => addQuantityTier('global')}
-              tiers={globalTiers}
-              renderTable={getTableRenderer('global')}
-            />
-          ) : (
-            <div className="space-y-6">
-              {variants.map((variant) => {
-                const sku = variant.sku_product_variant;
-                const variantDiscount = variantDiscounts[sku] || {
-                  enabled: true,
-                  tiers: globalTiers.map(tier => ({...tier, id: `${tier.id}-${sku}`}))
-                };
-
-                return (
-                  <DiscountCard
-                    key={sku}
-                    title={variant.full_product_name}
-                    subtitle={`SKU: ${sku}`}
-                    enabled={variantDiscount.enabled}
-                    onToggle={(checked) => handleVariantToggle(sku, checked)}
-                    onAddTier={() => addQuantityTier(sku)}
-                    tiers={variantDiscount.tiers}
-                    renderTable={getTableRenderer(sku)}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <VolumeDiscountContent
+          customizePerVariant={customizePerVariant}
+          globalTiers={globalTiers}
+          variants={variants}
+          variantDiscounts={variantDiscounts}
+          getTableRenderer={getTableRenderer}
+          handleVariantToggle={handleVariantToggle}
+          addQuantityTier={addQuantityTier}
+        />
       )}
     </div>
   );

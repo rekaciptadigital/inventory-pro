@@ -185,22 +185,6 @@ export function PricingInfo({ form, product }: Readonly<PricingInfoProps>) {
               </div>
             </div>
           </div>
-          
-          {/* Add a visual price flow diagram */}
-          <div className="bg-muted/20 p-3 rounded border border-dashed">
-            <div className="text-sm font-medium mb-2">Price Flow:</div>
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <div>USD Price</div>
-              <div>→</div>
-              <div>HB Real<br/>(USD × Exchange)</div>
-              <div>→</div>
-              <div>HB Naik<br/>(+ Adjustment %)</div>
-              <div>→</div>
-              <div>Customer Prices<br/>(+ Markup + Tax)</div>
-              <div>→</div>
-              <div>Marketplace Prices<br/>(+ MP Markup)</div>
-            </div>
-          </div>
         </div>
       </div>
     </Form>
