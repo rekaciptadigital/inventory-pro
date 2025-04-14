@@ -5,7 +5,8 @@ import { UseFormReturn } from 'react-hook-form';
 import { PriceFormFields } from '@/types/form';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { formatCurrency } from '@/lib/utils/format';
+import { roundPriceMarkup } from '@/lib/utils/price-rounding';
+import { PriceComparison } from '@/components/ui/price-comparison';
 import type { InventoryProduct } from '@/types/inventory';
 import { VolumeDiscount } from './volume-discount';
 import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
@@ -36,19 +37,27 @@ const formatUsdPrice = (price: number): string => {
   }).format(price);
 };
 
-// Calculate price with markup and tax
-const calculatePrice = (basePrice: number, markup: number, tax: number = 0.11): number => {
+// Calculate price with markup and tax, with rounding applied, store both original and rounded values
+const calculatePrice = (basePrice: number, markup: number, tax: number = 0.11): { 
+  original: number; 
+  rounded: number; 
+} => {
   const priceWithMarkup = basePrice * (1 + markup / 100);
-  const finalPrice = priceWithMarkup * (1 + tax);
-  return Math.round(finalPrice);
+  const rawFinalPrice = priceWithMarkup * (1 + tax);
+  // Apply rounding rules but keep original
+  return {
+    original: rawFinalPrice,
+    rounded: roundPriceMarkup(rawFinalPrice)
+  };
 };
 
 export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }: Readonly<VariantPricesProps>) {
   const dispatch = useAppDispatch();
+  // Since we provide a default empty object here, there's no need for an additional null check
   const { manualPriceEditing, variantData = {} } = useAppSelector(state => state.variantPrices);
   
-  // Cast variantData to the correct type AND ensure it's not undefined
-  const typedVariantData = (variantData || {}) as VariantDataRecord;
+  // Fix: Just use a simple type cast without the redundant null/undefined check
+  const typedVariantData = variantData as VariantDataRecord;
   
   // Get variants from product data
   const variants = product?.product_by_variant || [];
@@ -146,31 +155,52 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
       const hbReal = usdPrice * exchangeRate;
       const hbNaik = hbReal * (1 + adjustment / 100);
       
-      // Update customer category prices
+      // Initialize variant prices object if needed
+      const currentVariantPrices = form.getValues(`variantPrices.${sku}`) || {};
+      const variantPrices = {
+        ...currentVariantPrices,
+        usdPrice,
+        adjustmentPercentage: adjustment,
+        // Fix the always-truthy expressions by properly checking for undefined
+        customerPrices: currentVariantPrices.customerPrices ? { ...currentVariantPrices.customerPrices } : {},
+        marketplacePrices: currentVariantPrices.marketplacePrices ? { ...currentVariantPrices.marketplacePrices } : {}
+      };
+      
+      // Update customer category prices for this variant only
       customerCategories.forEach(category => {
-        const finalPrice = calculatePrice(hbNaik, category.markup);
-        form.setValue(`customerPrices.${category.id}.taxInclusivePrice`, finalPrice);
+        const priceResult = calculatePrice(hbNaik, category.markup);
+        variantPrices.customerPrices[category.id] = {
+          rounded: priceResult.rounded,
+          original: priceResult.original
+        };
       });
       
       // Get the default category price as base for marketplace prices
       const defaultCategory = customerCategories.find(c => c.id === defaultPriceCategory) || customerCategories[0];
       if (defaultCategory) {
-        const defaultPrice = form.getValues(`customerPrices.${defaultCategory.id}.taxInclusivePrice`) || 0;
+        // Use the variant-specific default category price
+        const defaultPrice = variantPrices.customerPrices[defaultCategory.id]?.rounded || 0;
         
-        // Update marketplace prices
+        // Update marketplace prices for this variant only
         marketplaceCategories.forEach(marketplace => {
-          const marketplacePrice = Math.round(defaultPrice * (1 + marketplace.markup / 100));
-          form.setValue(`marketplacePrices.${marketplace.id}.price`, marketplacePrice);
-          (form.setValue as any)(`marketplacePrices.${marketplace.id}.finalPrice`, marketplacePrice);
+          const rawMarketplacePrice = defaultPrice * (1 + marketplace.markup / 100);
+          const marketplacePrice = roundPriceMarkup(rawMarketplacePrice);
+          variantPrices.marketplacePrices[marketplace.id] = {
+            rounded: marketplacePrice,
+            original: rawMarketplacePrice
+          };
         });
       }
       
-      // Update the form's variantPrices
-      form.setValue(`variantPrices.${sku}`, {
-        ...form.getValues(`variantPrices.${sku}`),
-        usdPrice,
-        adjustmentPercentage: adjustment
-      }, { shouldDirty: true });
+      // Update the form's variantPrices with all the variant-specific data
+      form.setValue(`variantPrices.${sku}`, variantPrices, { shouldDirty: true });
+      
+      // Only when in manual mode, we need to update the displayed prices
+      // This is needed because the UI reads from customerPrices and marketplacePrices
+      if (manualPriceEditing) {
+        // Store the current variant's sku in the form so we know which prices to display
+        form.setValue('currentEditingVariantSku', sku);
+      }
     } finally {
       formChangingRef.current = false;
     }
@@ -285,6 +315,56 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
     updatePricesInForm
   ]);
   
+  // Add a function to get the correct price for a variant and category
+  const getVariantCategoryPrice = useCallback((variantSku: string, categoryId: string, priceType: 'customer' | 'marketplace') => {
+    if (!manualPriceEditing) {
+      // If not in manual mode, use global prices
+      if (priceType === 'customer') {
+        return customerPrices[categoryId]?.taxInclusivePrice ?? 0;
+      } else {
+        return (marketplacePrices[categoryId] as any)?.price ?? 
+               (marketplacePrices[categoryId] as any)?.taxInclusivePrice ?? 0;
+      }
+    }
+    
+    // In manual mode, get variant-specific prices
+    const variantData = form.getValues(`variantPrices.${variantSku}`) || {};
+    
+    if (priceType === 'customer') {
+      return variantData.customerPrices?.[categoryId]?.rounded ?? customerPrices[categoryId]?.taxInclusivePrice ?? 0;
+    } else {
+      return variantData.marketplacePrices?.[categoryId]?.rounded ?? 
+             (marketplacePrices[categoryId] as any)?.price ?? 
+             (marketplacePrices[categoryId] as any)?.taxInclusivePrice ?? 0;
+    }
+  }, [manualPriceEditing, customerPrices, marketplacePrices, form]);
+
+  // Similarly for raw prices
+  const getVariantCategoryRawPrice = useCallback((variantSku: string, categoryId: string, priceType: 'customer' | 'marketplace') => {
+    if (!manualPriceEditing) {
+      // If not in manual mode, use global prices
+      if (priceType === 'customer') {
+        return customerPrices[categoryId]?.rawTaxInclusivePrice ?? customerPrices[categoryId]?.taxInclusivePrice ?? 0;
+      } else {
+        return (marketplacePrices[categoryId] as any)?.rawPrice ?? 
+               (marketplacePrices[categoryId] as any)?.price ?? 0;
+      }
+    }
+    
+    // In manual mode, get variant-specific prices
+    const variantData = form.getValues(`variantPrices.${variantSku}`) || {};
+    
+    if (priceType === 'customer') {
+      return variantData.customerPrices?.[categoryId]?.original ?? 
+             customerPrices[categoryId]?.rawTaxInclusivePrice ?? 
+             customerPrices[categoryId]?.taxInclusivePrice ?? 0;
+    } else {
+      return variantData.marketplacePrices?.[categoryId]?.original ?? 
+             (marketplacePrices[categoryId] as any)?.rawPrice ?? 
+             (marketplacePrices[categoryId] as any)?.price ?? 0;
+    }
+  }, [manualPriceEditing, customerPrices, marketplacePrices, form]);
+
   // Show loading state if needed
   if (!variants.length || !customerCategories.length) {
     return (
@@ -411,39 +491,42 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
                           />
                         </td>
                         
-                        {/* Customer category prices - directly from form state */}
+                        {/* Customer category prices - with price comparison */}
                         {customerCategories.map(category => {
-                          const price = customerPrices[category.id]?.taxInclusivePrice || 0;
+                          // Get variant-specific price data
+                          const price = getVariantCategoryPrice(sku, category.id, 'customer');
+                          const rawPrice = getVariantCategoryRawPrice(sku, category.id, 'customer');
+                          
                           return (
                             <td key={`customer-${sku}-${category.id}`} className="p-3">
-                              <Input
-                                type="text"
-                                value={formatCurrency(price)}
-                                disabled={true}
-                                className="text-right bg-muted"
-                              />
+                              <div className="bg-muted rounded-md px-3 py-2 border text-right">
+                                <PriceComparison 
+                                  originalPrice={rawPrice} 
+                                  roundedPrice={price}
+                                  showTooltip={true}
+                                  tooltipPosition="top"
+                                />
+                              </div>
                             </td>
                           );
                         })}
                         
-                        {/* Marketplace prices - directly from form state */}
+                        {/* Marketplace prices - with price comparison */}
                         {marketplaceCategories.map(category => {
-                          // Get price from any available field in marketplace price data
-                          const mpData = marketplacePrices[category.id] || {};
-                          
-                          // Use type assertion to avoid TypeScript errors
-                          const price = (mpData as any).finalPrice || 
-                                        (mpData as any).price || 
-                                        (mpData as any).taxInclusivePrice || 0;
+                          // Get variant-specific marketplace price data
+                          const price = getVariantCategoryPrice(sku, category.id, 'marketplace');
+                          const rawPrice = getVariantCategoryRawPrice(sku, category.id, 'marketplace');
                           
                           return (
                             <td key={`marketplace-${sku}-${category.id}`} className="p-3">
-                              <Input
-                                type="text"
-                                value={formatCurrency(price)}
-                                disabled={true}
-                                className="text-right bg-muted"
-                              />
+                              <div className="bg-muted rounded-md px-3 py-2 border text-right">
+                                <PriceComparison 
+                                  originalPrice={rawPrice} 
+                                  roundedPrice={price}
+                                  showTooltip={true}
+                                  tooltipPosition="top"
+                                />
+                              </div>
                             </td>
                           );
                         })}
@@ -461,6 +544,17 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
             ? "Manual price editing is enabled. Update USD Price and Adjustment values for each variant."
             : "Prices are automatically calculated based on base price settings. Toggle Manual Price Editing to modify individual variants."}
         </p>
+        
+        <div className="bg-muted/20 p-3 rounded border border-dashed">
+          <p className="text-sm text-muted-foreground flex items-center gap-2">
+            <span className="h-3 w-3 bg-blue-500 rounded-full inline-block"></span>
+            <span>Prices shown include automatic rounding based on price magnitude for easier transactions.</span>
+          </p>
+          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+            <span className="h-3 w-3 bg-blue-500/30 rounded-full inline-block"></span>
+            <span>Hover over prices with an info icon to see the original pre-rounding value and rounding difference.</span>
+          </p>
+        </div>
       </div>
 
       <VolumeDiscount

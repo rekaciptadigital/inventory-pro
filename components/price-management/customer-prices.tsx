@@ -12,7 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { getPriceCategories } from "@/lib/api/price-categories";
 import { formatCurrency } from "@/lib/utils/format";
+import { roundPriceMarkup } from "@/lib/utils/price-rounding";
 import { Badge } from "@/components/ui/badge";
+import { PriceComparison } from "@/components/ui/price-comparison";
 import type { PriceCategory } from "@/lib/api/price-categories";
 
 interface CustomerPricesProps {
@@ -69,6 +71,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
    * 1. Base price (HB Naik)
    * 2. Apply markup percentage 
    * 3. Calculate tax amount (fixed 11%)
+   * 4. Apply rounding rules to final price
    */
   const calculatePrices = (category: PriceCategory, customPercentage?: number) => {
     const categoryKey = category.name.toLowerCase();
@@ -78,18 +81,21 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     // Step 3: Calculate tax
     const taxPercentage = 11;
     const taxAmount = basePrice * (taxPercentage / 100);
-    // Final price with tax
-    const taxInclusivePrice = basePrice + taxAmount;
+    // Raw final price with tax (before rounding)
+    const rawTaxInclusivePrice = basePrice + taxAmount;
+    // Step 4: Apply rounding rules for final price
+    const roundedPrice = roundPriceMarkup(rawTaxInclusivePrice);
 
     return {
       basePrice: Math.round(basePrice),
-      preTaxPrice: Math.round(basePrice), // Add missing property
+      preTaxPrice: Math.round(basePrice),
       taxAmount: Math.round(taxAmount),
-      taxInclusivePrice: Math.round(taxInclusivePrice),
+      rawTaxInclusivePrice: rawTaxInclusivePrice, // Store original unrounded price
+      taxInclusivePrice: roundedPrice, // Store rounded price
       appliedTaxPercentage: taxPercentage,
-      taxPercentage: taxPercentage, // Add missing property
-      isCustomTaxInclusivePrice: false, // Add missing property
-      markup: markup // Store markup for reference
+      taxPercentage: taxPercentage,
+      isCustomTaxInclusivePrice: false,
+      markup: markup
     };
   };
 
@@ -103,11 +109,12 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
         preTaxPrice: 0,
         taxAmount: 0, 
         taxInclusivePrice: 0,
+        rawTaxInclusivePrice: 0, // Add raw price field
         appliedTaxPercentage: 11,
         taxPercentage: 11,
         isCustomTaxInclusivePrice: false,
-        // Add required properties for MarketplacePrice type
         price: 0,
+        rawPrice: 0, // Add raw price field
         isCustomPrice: false,
         customPercentage: customPercentage ?? 0
       };
@@ -119,22 +126,25 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     
     // Apply marketplace markup to the default category's tax-inclusive price
     const markup = customPercentage ?? marketplacePercentages[category.name.toLowerCase()] ?? category.percentage;
-    const marketplaceBasePrice = defaultPrices.taxInclusivePrice * (1 + (parseFloat(markup.toString()) / 100));
-    const finalPrice = Math.round(marketplaceBasePrice);
+    const rawMarketplacePrice = defaultPrices.taxInclusivePrice * (1 + (parseFloat(markup.toString()) / 100));
+    
+    // Apply rounding rules to the final marketplace price
+    const finalPrice = roundPriceMarkup(rawMarketplacePrice);
     
     return {
       basePrice: finalPrice,
       preTaxPrice: finalPrice,
       taxAmount: 0, // Tax already included from default category
       taxInclusivePrice: finalPrice,
+      rawTaxInclusivePrice: rawMarketplacePrice, // Store raw price before rounding
       appliedTaxPercentage: 0, // No additional tax
       taxPercentage: 0,
       isCustomTaxInclusivePrice: false,
-      markup: markup, // Store markup value
-      // Add required properties for MarketplacePrice type
-      price: finalPrice, // Same as taxInclusivePrice
-      isCustomPrice: !!customPercentage, // If customPercentage is provided, it's a custom price
-      customPercentage: markup // Use the markup value for customPercentage
+      markup: markup,
+      price: finalPrice,
+      rawPrice: rawMarketplacePrice, // Store raw price before rounding
+      isCustomPrice: !!customPercentage,
+      customPercentage: markup
     };
   };
 
@@ -270,19 +280,20 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                   </p>
                 </div>
                 
-                {/* Tax-inclusive Price */}
+                {/* FIX: Tax-inclusive Price with comparison display */}
                 <div className="col-span-2">
                   <FormField
                     control={form.control}
                     name={`customerPrices.${categoryKey}.taxInclusivePrice`}
                     render={() => (
                       <FormControl>
-                        <Input
-                          type="text"
-                          value={formatCurrency(prices.taxInclusivePrice)}
-                          className="bg-muted font-medium"
-                          disabled
-                        />
+                        {/* Replace Input with div + PriceComparison */}
+                        <div className="flex items-center bg-muted rounded-md px-3 py-2 border">
+                          <PriceComparison 
+                            originalPrice={prices.rawTaxInclusivePrice} 
+                            roundedPrice={prices.taxInclusivePrice}
+                          />
+                        </div>
                       </FormControl>
                     )}
                   />
@@ -333,7 +344,12 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
             const categoryKey = category.name.toLowerCase();
             const isCustom = manualModes[`mp_${categoryKey}`] || false;
             const defaultCategory = categories.find(c => c.set_default);
-            const marketplacePrice = form.watch(`marketplacePrices.${categoryKey}.taxInclusivePrice`) || 0;
+            
+            // Get marketplace price data with both raw and rounded values
+            const marketplacePriceData = form.watch(`marketplacePrices.${categoryKey}`) || {};
+            const marketplacePrice = marketplacePriceData.taxInclusivePrice ?? 0;
+            const rawMarketplacePrice = marketplacePriceData.rawTaxInclusivePrice ?? marketplacePrice; // Use rounded if raw not available
+            
             const currentPercentage = marketplacePercentages[categoryKey] ?? category.percentage;
 
             // Get default category price for reference
@@ -376,7 +392,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                   </div>
                 </div>
                 
-                {/* Final Price */}
+                {/* Final Price with comparison display */}
                 <div className="col-span-3">
                   <div className="flex flex-col">
                     <FormField
@@ -384,12 +400,12 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                       name={`marketplacePrices.${categoryKey}.taxInclusivePrice`}
                       render={() => (
                         <FormControl>
-                          <Input
-                            type="text"
-                            value={formatCurrency(marketplacePrice)}
-                            className="bg-muted font-medium"
-                            disabled
-                          />
+                          <div className="flex items-center bg-muted rounded-md px-3 py-2 border">
+                            <PriceComparison
+                              originalPrice={rawMarketplacePrice}
+                              roundedPrice={marketplacePrice}
+                            />
+                          </div>
                         </FormControl>
                       )}
                     />

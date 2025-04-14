@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import type { PriceFormFields } from '@/types/form';
+import { roundPriceMarkup } from '@/lib/utils/price-rounding';
 
 interface Category {
   id: number;
@@ -65,19 +66,19 @@ export function usePriceCalculations(form: UseFormReturn<PriceFormFields>) {
       const markup = parseFloat(category.percentage?.toString() || '0');
       const basePrice = hbNaik * (1 + (markup / 100));
       const tax = basePrice * 0.11;
-      const taxInclusivePrice = basePrice + tax;
+      
+      // Apply rounding rules to the final tax-inclusive price
+      const rawTaxInclusivePrice = basePrice + tax;
+      const taxInclusivePrice = roundPriceMarkup(rawTaxInclusivePrice);
 
       customerPrices[categoryKey] = {
         basePrice: Number(basePrice.toFixed(2)),
         preTaxPrice: Number(basePrice.toFixed(2)),
-        // Remove the taxAmount property as it doesn't exist in CustomerPrice type
-        taxInclusivePrice: Number(taxInclusivePrice.toFixed(2)),
-        // Remove appliedTaxPercentage as it doesn't exist in the type
+        taxInclusivePrice: taxInclusivePrice,
         taxPercentage: 11,
         isCustomTaxInclusivePrice: false,
         markup: markup,
-        // Add any other properties required by CustomerPrice type
-        name: category.name // Add name property if needed by the type
+        name: category.name
       };
     });
 

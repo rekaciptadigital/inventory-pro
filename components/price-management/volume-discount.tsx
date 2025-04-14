@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
-import { formatCurrency } from '@/lib/utils/format';
+import { roundPriceMarkup } from '@/lib/utils/price-rounding';
+import { PriceComparison } from '@/components/ui/price-comparison';
 import type { PriceFormFields } from '@/types/form';
 import type { InventoryProduct, InventoryProductVariant } from '@/types/inventory';
 
@@ -26,6 +27,7 @@ interface DiscountTier {
   quantity: number;
   discount: number;
   prices: Record<string, number>;
+  rawPrices?: Record<string, { original: number; rounded: number }>;
 }
 
 interface VariantDiscount {
@@ -39,9 +41,9 @@ const utils = {
   calculateDiscountedPrices: (
     basePrices: Record<string, any>,
     discountPercentage: number
-  ): Record<string, number> => {
+  ): Record<string, { original: number; rounded: number }> => {
     
-    const result: Record<string, number> = {};
+    const result: Record<string, { original: number; rounded: number }> = {};
     
     // Make sure we process all price categories
     if (basePrices) {
@@ -75,14 +77,18 @@ const utils = {
           }
           
           if (originalPrice) {
-            // Calculate discounted price
-            result[category] = Math.round(originalPrice * (1 - discountPercentage / 100));
+            // Calculate discounted price and apply rounding rules
+            const rawDiscountedPrice = originalPrice * (1 - discountPercentage / 100);
+            result[category] = {
+              original: rawDiscountedPrice,
+              rounded: roundPriceMarkup(rawDiscountedPrice)
+            };
           } else {
-             result[category] = 0; // Explicitly set to 0 if no valid price found
+             result[category] = { original: 0, rounded: 0 }; // Set to 0 if no valid price found
           }
         } catch (e) {
           console.error(`[VolumeDiscount] Error calculating discount for ${category}:`, e);
-          result[category] = 0; // Set to 0 on error
+          result[category] = { original: 0, rounded: 0 }; // Set to 0 on error
         }
       });
     } 
@@ -141,11 +147,20 @@ const utils = {
     quantity: number,
     discount: number = 0
   ): DiscountTier => {
+    const prices = utils.calculateDiscountedPrices(customerPrices, discount);
+    // Create a flattened version with just rounded prices for backwards compatibility
+    const flatPrices: Record<string, number> = {};
+    
+    Object.entries(prices).forEach(([category, priceData]) => {
+      flatPrices[category] = priceData.rounded;
+    });
+    
     return {
       id: `tier-${Date.now()}`,
       quantity,
       discount,
-      prices: utils.calculateDiscountedPrices(customerPrices, discount),
+      prices: flatPrices,
+      rawPrices: prices // Store the full object with both original and rounded prices
     };
   }
 };
@@ -273,18 +288,24 @@ function DiscountTierRow({
         />
       </td>
       
-      {/* Price inputs for each category */}
+      {/* Price inputs for each category - now with price comparison */}
       {categories.map((category) => {
         const priceValue = tier.prices[category.id] || 0;
+        // Get the raw price if available
+        const rawPriceData = tier.rawPrices?.[category.id];
+        const originalPrice = rawPriceData?.original ?? priceValue;
+        const roundedPrice = rawPriceData?.rounded ?? priceValue;
+        
         return (
           <td key={category.id} className="p-2">
-            <Input
-              type="text"
-              value={formatCurrency(priceValue)} // Use logged value
-              readOnly
-              disabled
-              className="text-right bg-muted cursor-not-allowed"
-            />
+            <div className="bg-muted rounded-md px-3 py-2 border text-right">
+              <PriceComparison 
+                originalPrice={originalPrice} 
+                roundedPrice={roundedPrice}
+                showTooltip={true}
+                tooltipPosition="top"
+              />
+            </div>
           </td>
         );
       })}
@@ -551,7 +572,16 @@ function updateGlobalTierHelper(
       
       // If discount is updated, recalculate prices
       if (field === 'discount') {
-        updatedTier.prices = utils.calculateDiscountedPrices(allPrices, value);
+        const pricesWithBoth = utils.calculateDiscountedPrices(allPrices, value);
+        // Extract just the rounded values for the prices field
+        const flatPrices: Record<string, number> = {};
+        
+        Object.entries(pricesWithBoth).forEach(([category, priceData]) => {
+          flatPrices[category] = priceData.rounded;
+        });
+        
+        updatedTier.prices = flatPrices;
+        updatedTier.rawPrices = pricesWithBoth;
       }
       
       return updatedTier;
@@ -592,7 +622,16 @@ function updateVariantTierHelper(
         const updatedTier = { ...tier, [field]: value };
         
         if (field === 'discount') {
-          updatedTier.prices = utils.calculateDiscountedPrices(allPrices, value);
+          const pricesWithBoth = utils.calculateDiscountedPrices(allPrices, value);
+          // Extract just the rounded values for the prices field
+          const flatPrices: Record<string, number> = {};
+          
+          Object.entries(pricesWithBoth).forEach(([category, priceData]) => {
+            flatPrices[category] = priceData.rounded;
+          });
+          
+          updatedTier.prices = flatPrices;
+          updatedTier.rawPrices = pricesWithBoth;
         }
         
         return updatedTier;
@@ -662,10 +701,21 @@ function updateGlobalTierPrices(
   prevTiers: DiscountTier[],
   allPrices: Record<string, any>
 ): DiscountTier[] {
-  return prevTiers.map(tier => ({
-    ...tier,
-    prices: utils.calculateDiscountedPrices(allPrices, tier.discount)
-  }));
+  return prevTiers.map(tier => {
+    const pricesWithBoth = utils.calculateDiscountedPrices(allPrices, tier.discount);
+    // Create a flattened version with just rounded prices for backwards compatibility
+    const flatPrices: Record<string, number> = {};
+    
+    Object.entries(pricesWithBoth).forEach(([category, priceData]) => {
+      flatPrices[category] = priceData.rounded;
+    });
+    
+    return {
+      ...tier,
+      prices: flatPrices,
+      rawPrices: pricesWithBoth
+    };
+  });
 }
 
 // Update variant tier prices
@@ -679,10 +729,21 @@ function updateVariantTierPrices(
     if (updated[sku]?.enabled) {
       updated[sku] = {
         ...updated[sku],
-        tiers: updated[sku].tiers.map(tier => ({
-          ...tier,
-          prices: utils.calculateDiscountedPrices(allPrices, tier.discount)
-        }))
+        tiers: updated[sku].tiers.map(tier => {
+          const pricesWithBoth = utils.calculateDiscountedPrices(allPrices, tier.discount);
+          // Create a flattened version with just rounded prices for backwards compatibility
+          const flatPrices: Record<string, number> = {};
+          
+          Object.entries(pricesWithBoth).forEach(([category, priceData]) => {
+            flatPrices[category] = priceData.rounded;
+          });
+          
+          return {
+            ...tier,
+            prices: flatPrices,
+            rawPrices: pricesWithBoth
+          };
+        })
       };
     }
   });
@@ -1170,15 +1231,25 @@ export function VolumeDiscount({
 
       {/* Use the new VolumeDiscountContent component */}
       {isEnabled && (
-        <VolumeDiscountContent
-          customizePerVariant={customizePerVariant}
-          globalTiers={globalTiers}
-          variants={variants}
-          variantDiscounts={variantDiscounts}
-          getTableRenderer={getTableRenderer}
-          handleVariantToggle={handleVariantToggle}
-          addQuantityTier={addQuantityTier}
-        />
+        <>
+          <VolumeDiscountContent
+            customizePerVariant={customizePerVariant}
+            globalTiers={globalTiers}
+            variants={variants}
+            variantDiscounts={variantDiscounts}
+            getTableRenderer={getTableRenderer}
+            handleVariantToggle={handleVariantToggle}
+            addQuantityTier={addQuantityTier}
+          />
+          
+          {/* Add price rounding information */}
+          <div className="bg-muted/20 p-3 rounded border border-dashed">
+            <p className="text-sm text-muted-foreground">
+              <strong>Note:</strong> All discount prices are rounded according to price magnitude rules for easier transactions. 
+              Hover over prices to see the pre-rounding value and rounding difference.
+            </p>
+          </div>
+        </>
       )}
     </div>
   );
