@@ -97,7 +97,7 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
       id,
       name: data.name ?? id.charAt(0).toUpperCase() + id.slice(1),
       type: 'marketplace',
-      markup: (data as any).markup || 0
+      markup: (data as any).markup ?? 0
     }));
   
   // Initialize Redux state with variant data (run only once)
@@ -121,14 +121,8 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
         return acc;
       }, {} as Record<string, { usdPrice: number; adjustmentPercentage: number; }>);
       
-      // Use try-catch to help debug the issue if it persists
-      try {
-        // Initialize Redux with variant data
-        dispatch(initializeVariantData(initialVariants));
-        console.log("Variant data initialized successfully");
-      } catch (error) {
-        console.error("Error initializing variant data:", error);
-      }
+      // Initialize Redux with variant data - removed unnecessary try-catch
+      dispatch(initializeVariantData(initialVariants));
       
       initializedRef.current = true;
       

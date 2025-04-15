@@ -637,10 +637,12 @@ function safeClone(obj: any) {
 
 // Helper for getting combined prices
 function getCombinedPricesHelper(customerPrices: any, marketplacePrices: any) {
-  return {
+  const result = {
     ...safeClone(customerPrices),
     ...safeClone(marketplacePrices)
   };
+  
+  return result;
 }
 
 // Helper for adding a tier to global tiers
@@ -804,18 +806,24 @@ function createCategoriesFromPrices(
   customerPrices?: Record<string, { name?: string } & Record<string, any>> | null,
   marketplacePrices?: Record<string, { name?: string } & Record<string, any>> | null
 ): Array<{ id: string; name: string }> {
-
   const result: Array<{ id: string; name: string }> = [];
   const uniqueCategoryNames = new Set<string>(); // Use name for uniqueness check
 
   // Helper to check if data is a valid price object with a name
   const isValidPriceDataWithName = (data: any): boolean => {
-    return data && typeof data === 'object' && typeof data.name === 'string' && data.name.trim() !== '';
+    const isValid = data && typeof data === 'object' && typeof data.name === 'string' && data.name.trim() !== '';
+    return isValid;
+  };
+
+  // Helper to determine if a key is a known marketplace
+  const isKnownMarketplaceKey = (key: string): boolean => {
+    const knownMarketplaces = ['shopee', 'tokopedia', 'tiktok', 'lazada', 'bukalapak'];
+    return knownMarketplaces.includes(key.toLowerCase()) || key.toLowerCase().includes('marketplace');
   };
 
   // Add customer price categories using data.name
   if (customerPrices && typeof customerPrices === 'object') {
-    Object.values(customerPrices).forEach((data) => { // Iterate through VALUES
+    Object.entries(customerPrices).forEach(([key, data]) => { // Iterate through VALUES
       // Check if data is valid and has a name, and if the name hasn't been added yet
       if (isValidPriceDataWithName(data) && data.taxInclusivePrice !== undefined && !uniqueCategoryNames.has(data.name!)) {
         const categoryName = data.name!;
@@ -825,13 +833,61 @@ function createCategoriesFromPrices(
           id: categoryId,
           name: categoryName
         });
-      } 
+      }
     });
   }
 
   // Add marketplace price categories using data.name
   if (marketplacePrices && typeof marketplacePrices === 'object') {
-    Object.values(marketplacePrices).forEach((data) => { // Iterate through VALUES
+    // Create a direct check for string-keyed marketplaces first - these often come after first render
+    const stringKeysToProcess: string[] = [];
+    
+    Object.keys(marketplacePrices).forEach(key => {
+      // Check if this is a direct marketplace key (like 'shopee', 'tokopedia')
+      if (isKnownMarketplaceKey(key) && !uniqueCategoryNames.has(key)) {
+        stringKeysToProcess.push(key);
+      }
+    });
+    
+    // First process direct marketplace keys (they take precedence)
+    stringKeysToProcess.forEach(key => {
+      const data = marketplacePrices[key];
+      
+      if (data && typeof data === 'object') {
+        let categoryName: string;
+        let hasPriceData = false;
+        
+        // Get the name either from the data.name property or format the key itself
+        if (typeof data.name === 'string' && data.name.trim() !== '') {
+          categoryName = data.name;
+        } else {
+          // Format key to title case for display
+          categoryName = key.charAt(0).toUpperCase() + key.slice(1);
+        }
+        
+        // Check if there's any price data that can be used
+        hasPriceData = 'price' in data || 
+                      'taxInclusivePrice' in data || 
+                      Object.values(data).some(v => typeof v === 'number');
+        
+        if (hasPriceData && !uniqueCategoryNames.has(categoryName)) {
+          const categoryId = key.toLowerCase();
+          uniqueCategoryNames.add(categoryName);
+          result.push({
+            id: categoryId,
+            name: categoryName
+          });
+        }
+      }
+    });
+    
+    // Then process regular marketplace entries with object structure
+    Object.entries(marketplacePrices).forEach(([key, data]) => {
+      // Skip direct marketplace keys we already processed
+      if (stringKeysToProcess.includes(key)) {
+        return;
+      }
+      
       // Check if data is valid and has a name, and if the name hasn't been added yet
       if (isValidPriceDataWithName(data) && data.price !== undefined && !uniqueCategoryNames.has(data.name!)) {
         const categoryName = data.name!;
@@ -841,9 +897,28 @@ function createCategoriesFromPrices(
           id: categoryId,
           name: categoryName
         });
-      } 
+      } else if (data && typeof data === 'object' && data.name && typeof data.name === 'string') {
+        const marketplaceName = data.name.toLowerCase();
+        if (isKnownMarketplaceKey(marketplaceName) && !uniqueCategoryNames.has(data.name)) {
+          // Check for price-like property
+          const hasPriceProperty = 'price' in data || 
+                                  'taxInclusivePrice' in data || 
+                                  Object.values(data).some(v => typeof v === 'number');
+          
+          if (hasPriceProperty) {
+            const categoryName = data.name;
+            const categoryId = marketplaceName;
+            uniqueCategoryNames.add(categoryName);
+            result.push({
+              id: categoryId,
+              name: categoryName
+            });
+          }
+        }
+      }
     });
   }
+
   return result;
 }
 
@@ -1348,6 +1423,17 @@ export function VolumeDiscount({
   // Data loading state - true when either passed props has data or when parent says initialization is complete
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   
+  // Add state to track marketplace data
+  const [hasMarketplaceData, setHasMarketplaceData] = useState(
+    marketplacePrices && Object.keys(marketplacePrices).length > 0
+  );
+
+  // Add state to force refresh when marketplace data changes
+  const [marketplaceRefreshCounter, setMarketplaceRefreshCounter] = useState(0);
+  
+  // Reference to store current marketplace keys for comparison
+  const marketplaceKeysRef = useRef<string[]>([]);
+  
   // Set data loaded flag once we have data
   useEffect(() => {
     if (pricesInitialized || 
@@ -1356,11 +1442,17 @@ export function VolumeDiscount({
       setIsDataLoaded(true);
       dataInitializedRef.current = true;
     }
+    
+    // Set marketplace data flag and capture keys for comparison
+    const currentKeys = marketplacePrices ? Object.keys(marketplacePrices) : [];
+    if (currentKeys.length > 0) {
+      setHasMarketplaceData(true);
+      marketplaceKeysRef.current = currentKeys;
+    }
   }, [customerPrices, marketplacePrices, pricesInitialized]);
 
   // --- Check if source price data is actually populated ---
   const hasPriceData = useMemo(() => {
-    
     // Handle null/undefined cases for props
     const customerKeys = customerPrices ? Object.keys(customerPrices) : [];
     const marketplaceKeys = marketplacePrices ? Object.keys(marketplacePrices) : [];
@@ -1373,10 +1465,47 @@ export function VolumeDiscount({
   }, [customerPrices, marketplacePrices, pricesInitialized, isDataLoaded]);
 
   // Transform all prices into categories array using the props
-  const categories = useMemo(() =>
-    createCategoriesFromPrices(customerPrices, marketplacePrices),
-    [customerPrices, marketplacePrices] // Depend on props
-  );
+  const categories = useMemo(() => {
+    const generatedCategories = createCategoriesFromPrices(customerPrices, marketplacePrices);
+    
+    return generatedCategories;
+  }, [customerPrices, marketplacePrices, marketplaceRefreshCounter]); // Include refreshCounter in deps
+
+  // Add effect to watch for late marketplace data using the watch API
+  useEffect(() => {
+    // Use form.watch to detect changes to marketplaceprices
+    const subscription = form.watch((value, { name, type }) => {
+      if (name?.startsWith('marketplacePrices.') || name === 'marketplacePrices') {
+        // Check if we now have marketplace data we didn't have before
+        const currentMarketplaceData = value?.marketplacePrices || {};
+        const marketplaceKeys = Object.keys(currentMarketplaceData);
+        
+        // Check if there are new keys compared to what we had before
+        const hasNewKeys = marketplaceKeys.length > 0 && 
+                          (marketplaceKeys.length > marketplaceKeysRef.current.length || 
+                           marketplaceKeys.some(key => !marketplaceKeysRef.current.includes(key)));
+        
+        if (hasNewKeys) {
+          // Update our reference of current keys
+          marketplaceKeysRef.current = marketplaceKeys;
+          
+          // Set flag to indicate we have marketplace data
+          setHasMarketplaceData(true);
+          
+          // Force a refresh of categories and price calculations
+          setMarketplaceRefreshCounter(prev => prev + 1);
+          
+          // Force form to react to the marketplace changes
+          setTimeout(() => {
+            form.trigger("marketplacePrices");
+          }, 0);          
+        }
+      }
+    });
+    
+    // Clean up subscription
+    return () => subscription.unsubscribe();
+  }, [form, toast]);
 
   // Main state
   const [isEnabled, setIsEnabled] = useState(form.getValues('isEnableVolumeDiscount') || false); // Initialize from form
@@ -1401,8 +1530,21 @@ export function VolumeDiscount({
 
   // Helper to combine all price sources - uses props
   const getCombinedPrices = useCallback(() => {
-    return getCombinedPricesHelper(customerPrices, marketplacePrices);
+    const result = getCombinedPricesHelper(customerPrices, marketplacePrices);
+    return result;
   }, [customerPrices, marketplacePrices]); // Depend on props
+
+  // Effect specifically for marketplace data refresh
+  useEffect(() => {
+    // Only run if we have marketplace data
+    if (hasMarketplaceData && marketplaceRefreshCounter > 0) {
+      // Force recalculation of prices when marketplace data changes
+      const allPrices = getCombinedPrices();
+      
+      setGlobalTiers(prevTiers => updateGlobalTierPrices(prevTiers, allPrices));
+      setVariantDiscounts(prev => updateVariantTierPrices(prev, allPrices));
+    }
+  }, [hasMarketplaceData, marketplaceRefreshCounter, getCombinedPrices]);
 
   // Update all prices when customer or marketplace prices (props) change
   // Or when pricing information (hbNaik, etc.) changes
