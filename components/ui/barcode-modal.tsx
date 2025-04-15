@@ -155,9 +155,16 @@ export function BarcodeModal({ open, onOpenChange, skus }: BarcodeModalProps) {
         let startY = (pageSize.height - totalContentHeight) / 2 + verticalOffset;
         const centerX = pageSize.width / 2;
 
-        // Draw product name
+        // Draw product name with degree symbol handling
         doc.setFontSize(layout.fontSize);
-        const splitName = doc.splitTextToSize(name, pageSize.width - (layout.margins.left + layout.margins.right));
+        doc.setFont('helvetica', 'normal'); // Ensure we're using a font that supports special chars
+        
+        // Enhanced replacement to handle various degree symbol representations
+        const processedName = name
+          .replace(/⁰/g, '°')
+          .replace(/(\d+)\s*[pP°]/g, '$1°');
+        
+        const splitName = doc.splitTextToSize(processedName, pageSize.width - (layout.margins.left + layout.margins.right));
         doc.text(splitName, centerX, startY, { 
           align: 'center',
           baseline: 'top'

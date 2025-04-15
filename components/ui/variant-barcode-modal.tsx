@@ -78,6 +78,7 @@ export function VariantBarcodeModal({ open, onOpenChange, sku, name }: VariantBa
     };
   }, []);
 
+  // Improve the preview rendering to handle degree symbols
   useEffect(() => {
     if (open) {
       setTimeout(() => {
@@ -138,9 +139,17 @@ export function VariantBarcodeModal({ open, onOpenChange, sku, name }: VariantBa
       let startY = (pageSize.height - totalContentHeight) / 2 + verticalOffset;
       const centerX = pageSize.width / 2;
 
-      // Draw product name
+      // Draw product name - modified to handle special characters
       doc.setFontSize(layout.fontSize);
-      const splitName = doc.splitTextToSize(name, pageSize.width - (layout.margins.left + layout.margins.right));
+      doc.setFont('helvetica', 'normal'); // Ensure we're using a font that supports special chars
+      
+      // Enhanced replacement to handle various degree symbol representations
+      const processedName = name
+        .replace(/⁰/g, '°')                 // Convert superscript zero to degree symbol
+        .replace(/(\d+)\s*[pP°º]/g, '$1°')  // Enhanced pattern to catch more degree variations
+        .replace(/(\d+)\s*deg/gi, '$1°');   // Also catch "deg" text representation
+      
+      const splitName = doc.splitTextToSize(processedName, pageSize.width - (layout.margins.left + layout.margins.right));
       doc.text(splitName, centerX, startY, { 
         align: 'center',
         baseline: 'top'
@@ -245,19 +254,22 @@ export function VariantBarcodeModal({ open, onOpenChange, sku, name }: VariantBa
                 
                 {/* Product name inside the canvas */}
                 <div style={{ 
-                  width: '90%', // Slightly narrower for better readability
+                  width: '90%',
                   textAlign: 'center',
-                  fontSize: `${previewDimensions.fontSize * previewSize.width / previewDimensions.paperWidth * 0.8 * 0.425}px`, // adjusted from 0.5 to 0.425
+                  fontSize: `${previewDimensions.fontSize * previewSize.width / previewDimensions.paperWidth * 0.8 * 0.425}px`,
                   fontWeight: 500,
                   marginBottom: '4px',
                   overflow: 'hidden',
                   display: '-webkit-box',
-                  WebkitLineClamp: 2, // Limit to 2 lines
+                  WebkitLineClamp: 2,
                   WebkitBoxOrient: 'vertical',
                   lineHeight: 1.3,
-                  maxHeight: `${previewDimensions.fontSize * previewSize.width / previewDimensions.paperWidth * 0.8 * 0.425 * 2.8}px`, // adjusted max height to match new font size
+                  maxHeight: `${previewDimensions.fontSize * previewSize.width / previewDimensions.paperWidth * 0.8 * 0.425 * 2.8}px`,
                 }}>
-                  {name}
+                  {name
+                    .replace(/⁰/g, '°')
+                    .replace(/(\d+)\s*[pP°º]/g, '$1°')
+                    .replace(/(\d+)\s*deg/gi, '$1°')}
                 </div>
                 
                 <svg
