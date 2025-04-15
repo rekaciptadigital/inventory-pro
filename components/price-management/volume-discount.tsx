@@ -1247,6 +1247,87 @@ function getSyncedVariantDiscounts({
   return updated;
 }
 
+// --- New Component: VolumeDiscountLoading ---
+function VolumeDiscountLoading({ hasPriceData }: Readonly<{ hasPriceData: boolean }>) {
+  return (
+    <div className="rounded-lg border p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-medium">Volume Discount</h3>
+          <p className="text-sm text-muted-foreground">
+            Configure volume-based discounts for variants
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 text-muted-foreground">
+        {!hasPriceData
+          ? "Waiting for base price data to load..."
+          : "Please add customer or marketplace prices before configuring volume discounts."}
+      </div>
+    </div>
+  );
+}
+// --- End New Component ---
+
+// --- New Component: VolumeDiscountEnabledContent ---
+function VolumeDiscountEnabledContent({
+  hbNaik,
+  customizePerVariant,
+  globalTiers,
+  variants,
+  variantDiscounts,
+  getTableRenderer,
+  handleVariantToggle,
+  addQuantityTier
+}: Readonly<{
+  hbNaik: number;
+  customizePerVariant: boolean;
+  globalTiers: DiscountTier[];
+  variants: InventoryProductVariant[];
+  variantDiscounts: Record<string, VariantDiscount>;
+  getTableRenderer: (sku: string) => (tiers: DiscountTier[]) => React.ReactNode;
+  handleVariantToggle: (sku: string, checked: boolean) => void;
+  addQuantityTier: (sku: string) => void;
+}>) {
+  return (
+    <>
+      <div className="bg-muted/20 p-3 rounded border">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <p className="text-sm">
+            <span className="font-medium">Perbandingan harga modal:</span>{' '}
+            Harga modal (HB Naik) saat ini adalah{' '}
+            <span className="font-semibold">{formatCurrency(hbNaik)}</span>.
+            Harga setelah diskon yang di bawah harga modal akan ditandai dengan warna merah.
+            {' '}<span className="ml-1 text-xs italic">Tabel akan otomatis diperbarui jika Pricing Information berubah.</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto w-full">
+        <VolumeDiscountContent
+          customizePerVariant={customizePerVariant}
+          globalTiers={globalTiers}
+          variants={variants}
+          variantDiscounts={variantDiscounts}
+          getTableRenderer={getTableRenderer}
+          handleVariantToggle={handleVariantToggle}
+          addQuantityTier={addQuantityTier}
+        />
+      </div>
+
+      <div className="bg-muted/20 p-3 rounded border border-dashed">
+        <p className="text-sm text-muted-foreground">
+          <strong>Note:</strong> All discount prices are rounded according to price magnitude rules for easier transactions.
+          Hover over prices to see the pre-rounding value and rounding difference.
+        </p>
+      </div>
+    </>
+  );
+}
+// --- End New Component ---
+
+
 export function VolumeDiscount({
   form,
   product,
@@ -1256,7 +1337,7 @@ export function VolumeDiscount({
 }: Readonly<VolumeDiscountProps>) {
   const { toast } = useToast();
   const variants = product?.product_by_variant || [];
-  
+
   // Create ref to store data initialized state
   const dataInitializedRef = useRef(false);
   
@@ -1485,24 +1566,7 @@ export function VolumeDiscount({
 
   // --- Show loading state only when needed ---
   if (shouldShowLoadingMessage) {
-    // Normal component UI with loading message
-    return (
-      <div className="rounded-lg border p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-medium">Volume Discount</h3>
-            <p className="text-sm text-muted-foreground">
-              Configure volume-based discounts for variants
-            </p>
-          </div>
-        </div>
-        <div className="mt-4 text-muted-foreground">
-          {!hasPriceData
-            ? "Waiting for base price data to load..."
-            : "Please add customer or marketplace prices before configuring volume discounts."}
-        </div>
-      </div>
-    );
+    return <VolumeDiscountLoading hasPriceData={hasPriceData} />;
   }
 
   // Main component rendering
@@ -1537,43 +1601,18 @@ export function VolumeDiscount({
         </div>
       </div>
 
-      {/* Use the new VolumeDiscountContent component */}
+      {/* Use the new VolumeDiscountEnabledContent component */}
       {isEnabled && (
-        <>
-          <div className="bg-muted/20 p-3 rounded border">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <p className="text-sm">
-                <span className="font-medium">Perbandingan harga modal:</span>{' '}
-                Harga modal (HB Naik) saat ini adalah <span className="font-semibold">{formatCurrency(hbNaik)}</span>.
-                Harga setelah diskon yang di bawah harga modal akan ditandai dengan warna merah.
-                {/* Add live update message */}
-                <span className="ml-1 text-xs italic">Tabel akan otomatis diperbarui jika Pricing Information berubah.</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Tambahkan wrapper dengan overflow-x-auto */}
-          <div className="overflow-x-auto w-full">
-            <VolumeDiscountContent
-              customizePerVariant={customizePerVariant}
-              globalTiers={globalTiers}
-              variants={variants}
-              variantDiscounts={variantDiscounts}
-              getTableRenderer={getTableRenderer}
-              handleVariantToggle={handleVariantToggle}
-              addQuantityTier={addQuantityTier}
-            />
-          </div>
-          
-          {/* Add price rounding information */}
-          <div className="bg-muted/20 p-3 rounded border border-dashed">
-            <p className="text-sm text-muted-foreground">
-              <strong>Note:</strong> All discount prices are rounded according to price magnitude rules for easier transactions. 
-              Hover over prices to see the pre-rounding value and rounding difference.
-            </p>
-          </div>
-        </>
+        <VolumeDiscountEnabledContent
+          hbNaik={hbNaik}
+          customizePerVariant={customizePerVariant}
+          globalTiers={globalTiers}
+          variants={variants}
+          variantDiscounts={variantDiscounts}
+          getTableRenderer={getTableRenderer}
+          handleVariantToggle={handleVariantToggle}
+          addQuantityTier={addQuantityTier}
+        />
       )}
     </div>
   );
