@@ -27,6 +27,10 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
   const [manualModes, setManualModes] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   
+  // Add state to store custom percentage values when in manual mode
+  const [customPercentages, setCustomPercentages] = useState<Record<string, number>>({});
+  const [customMarketplacePercentages, setCustomMarketplacePercentages] = useState<Record<string, number>>({});
+  
   const formValues = form.watch();
   const hbNaik = formValues.hbNaik || 0;
   const percentages = formValues.percentages || {};
@@ -121,8 +125,10 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     }
     
     const defaultCategoryKey = defaultCategory.name.toLowerCase();
-    // Get the tax-inclusive price from default category (this already includes tax)
-    const defaultPrices = form.watch(`customerPrices.${defaultCategoryKey}`) || calculatePrices(defaultCategory);
+    
+    // IMPORTANT: Always get fresh data from the form rather than cached values
+    // This ensures we're using the most up-to-date price from the default category
+    const defaultPrices = form.getValues(`customerPrices.${defaultCategoryKey}`) || calculatePrices(defaultCategory);
     
     // Apply marketplace markup to the default category's tax-inclusive price
     const markup = customPercentage ?? marketplacePercentages[category.name.toLowerCase()] ?? category.percentage;
@@ -171,9 +177,31 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     const numValue = parseFloat(value);
     
     if (!isNaN(numValue)) {
+      // Store custom value for later restoration
+      setCustomPercentages(prev => ({
+        ...prev,
+        [categoryKey]: numValue
+      }));
+      
       form.setValue(`percentages.${categoryKey}`, numValue);
+      
+      // Calculate and update the customer category prices
       const prices = calculatePrices(category, numValue);
       form.setValue(`customerPrices.${categoryKey}`, prices);
+      
+      // Check if this is the default category
+      if (category.set_default) {
+        // If default category changed, recalculate all marketplace prices immediately
+        // using the newly updated customer price as the base
+        setTimeout(() => {
+          marketplaceCategories.forEach(mpCategory => {
+            const mpCategoryKey = mpCategory.name.toLowerCase();
+            // Need to force recalculation with the updated default price
+            const mpPrices = calculateMarketplacePrices(mpCategory);
+            form.setValue(`marketplacePrices.${mpCategoryKey}`, mpPrices);
+          });
+        }, 0); // Use setTimeout to ensure the customer price is set first
+      }
     }
   };
 
@@ -182,8 +210,84 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
     const numValue = parseFloat(value);
     
     if (!isNaN(numValue)) {
+      // Store custom value for later restoration
+      setCustomMarketplacePercentages(prev => ({
+        ...prev,
+        [categoryKey]: numValue
+      }));
+      
       form.setValue(`marketplacePercentages.${categoryKey}`, numValue);
       const prices = calculateMarketplacePrices(category, numValue);
+      form.setValue(`marketplacePrices.${categoryKey}`, prices);
+    }
+  };
+
+  // Handle toggle for customer categories
+  const handleCustomToggle = (category: PriceCategory, checked: boolean) => {
+    const categoryKey = category.name.toLowerCase();
+    
+    setManualModes(prev => ({
+      ...prev,
+      [categoryKey]: checked
+    }));
+    
+    if (checked) {
+      // Switching to custom mode - restore custom value if exists
+      const customValue = customPercentages[categoryKey] ?? category.percentage;
+      form.setValue(`percentages.${categoryKey}`, customValue);
+      const prices = calculatePrices(category, customValue);
+      form.setValue(`customerPrices.${categoryKey}`, prices);
+      
+      // Add this block: If this is default category, also update marketplace prices when toggling to custom mode
+      if (category.set_default) {
+        setTimeout(() => {
+          marketplaceCategories.forEach(mpCategory => {
+            const mpCategoryKey = mpCategory.name.toLowerCase();
+            const mpPrices = calculateMarketplacePrices(mpCategory);
+            form.setValue(`marketplacePrices.${mpCategoryKey}`, mpPrices);
+          });
+        }, 0);
+      }
+    } else {
+      // Switching to auto mode - restore default value
+      const defaultValue = category.percentage;
+      form.setValue(`percentages.${categoryKey}`, defaultValue);
+      const prices = calculatePrices(category, defaultValue);
+      form.setValue(`customerPrices.${categoryKey}`, prices);
+      
+      // If this is default category, update marketplace prices
+      if (category.set_default) {
+        setTimeout(() => {
+          marketplaceCategories.forEach(mpCategory => {
+            const mpCategoryKey = mpCategory.name.toLowerCase();
+            const mpPrices = calculateMarketplacePrices(mpCategory);
+            form.setValue(`marketplacePrices.${mpCategoryKey}`, mpPrices);
+          });
+        }, 0);
+      }
+    }
+  };
+  
+  // Handle toggle for marketplace categories
+  const handleMarketplaceToggle = (category: PriceCategory, checked: boolean) => {
+    const categoryKey = category.name.toLowerCase();
+    
+    setManualModes(prev => ({
+      ...prev,
+      [`mp_${categoryKey}`]: checked
+    }));
+    
+    if (checked) {
+      // Switching to custom mode - restore custom value if exists
+      const customValue = customMarketplacePercentages[categoryKey] ?? category.percentage;
+      form.setValue(`marketplacePercentages.${categoryKey}`, customValue);
+      const prices = calculateMarketplacePrices(category, customValue);
+      form.setValue(`marketplacePrices.${categoryKey}`, prices);
+    } else {
+      // Switching to auto mode - restore default value
+      const defaultValue = category.percentage;
+      form.setValue(`marketplacePercentages.${categoryKey}`, defaultValue);
+      const prices = calculateMarketplacePrices(category, defaultValue);
       form.setValue(`marketplacePrices.${categoryKey}`, prices);
     }
   };
@@ -290,7 +394,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                         {/* Replace Input with div + PriceComparison */}
                         <div className="flex items-center bg-muted rounded-md px-3 py-2 border">
                           <PriceComparison 
-                            originalPrice={prices.rawTaxInclusivePrice} 
+                            originalPrice={prices.rawTaxInclusivePrice}
                             roundedPrice={prices.taxInclusivePrice}
                           />
                         </div>
@@ -309,12 +413,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                   </span>
                   <Switch
                     checked={isCustom}
-                    onCheckedChange={(checked) => {
-                      setManualModes(prev => ({
-                        ...prev,
-                        [categoryKey]: checked
-                      }));
-                    }}
+                    onCheckedChange={(checked) => handleCustomToggle(category, checked)}
                   />
                 </div>
               </div>
@@ -349,7 +448,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
             const marketplacePriceData = form.watch(`marketplacePrices.${categoryKey}`) || {};
             const marketplacePrice = marketplacePriceData.taxInclusivePrice ?? 0;
             const rawMarketplacePrice = marketplacePriceData.rawTaxInclusivePrice ?? marketplacePrice; // Use rounded if raw not available
-            
+
             const currentPercentage = marketplacePercentages[categoryKey] ?? category.percentage;
 
             // Get default category price for reference
@@ -401,7 +500,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                       render={() => (
                         <FormControl>
                           <div className="flex items-center bg-muted rounded-md px-3 py-2 border">
-                            <PriceComparison
+                            <PriceComparison 
                               originalPrice={rawMarketplacePrice}
                               roundedPrice={marketplacePrice}
                             />
@@ -422,12 +521,7 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
                   </span>
                   <Switch
                     checked={isCustom}
-                    onCheckedChange={(checked) => {
-                      setManualModes(prev => ({
-                        ...prev,
-                        [`mp_${categoryKey}`]: checked
-                      }));
-                    }}
+                    onCheckedChange={(checked) => handleMarketplaceToggle(category, checked)}
                   />
                 </div>
               </div>
