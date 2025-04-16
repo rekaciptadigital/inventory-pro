@@ -130,15 +130,19 @@ export function ProductTypeForm({
       
       // Try each candidate and verify with server
       for (const code of alphabeticCandidates) {
-        // First check locally with our fetched data
         if (!existingCodes.has(code.toUpperCase())) {
-          // Double-check with server
           try {
             const codeExists = await verifyCodeWithServer(code);
             if (!codeExists) {
               return code;
             }
           } catch (error) {
+            // Explicitly handle the error in the catch block
+            console.warn(`Failed to verify code ${code} with server:`, error);
+            // Mark this code as potentially existing by adding it to existingCodes
+            existingCodes.add(code.toUpperCase());
+            // Continue to next candidate
+            continue;
           }
         }
       }
@@ -213,19 +217,29 @@ export function ProductTypeForm({
 
   // Add three-letter candidates derived from the product name
   const addThreeLetterCandidatesFromName = (candidates: string[], cleanName: string, words: string[]): void => {
-    if (cleanName.length >= 3) {
-      // First three letters
-      candidates.push(cleanName.substring(0, 3));
-      
-      // First letter of each word (if 3+ words)
-      if (words.length >= 3) {
-        candidates.push((words[0].charAt(0) + words[1].charAt(0) + words[2].charAt(0)).toUpperCase());
+    try {
+      if (cleanName.length >= 3) {
+        // First three letters
+        candidates.push(cleanName.substring(0, 3));
+        
+        // First letter of each word (if 3+ words)
+        if (words.length >= 3) {
+          candidates.push((words[0].charAt(0) + words[1].charAt(0) + words[2].charAt(0)).toUpperCase());
+        }
+        
+        // First, middle and last letter
+        if (cleanName.length >= 5) {
+          const middle = Math.floor(cleanName.length / 2);
+          candidates.push(cleanName.charAt(0) + cleanName.charAt(middle) + cleanName.charAt(cleanName.length - 1));
+        }
       }
-      
-      // First, middle and last letter
-      if (cleanName.length >= 5) {
-        const middle = Math.floor(cleanName.length / 2);
-        candidates.push(cleanName.charAt(0) + cleanName.charAt(middle) + cleanName.charAt(cleanName.length - 1));
+    } catch (error) {
+      // Handle the error: log and add a fallback candidate
+      console.error("Error in addThreeLetterCandidatesFromName:", error);
+      if (cleanName && cleanName.length > 0) {
+        candidates.push(cleanName.charAt(0) + "XX");
+      } else {
+        candidates.push("XXX");
       }
     }
   };
@@ -413,10 +427,17 @@ export function ProductTypeForm({
 
   // Search for matching product types in API response data
   const searchForDuplicateNames = (data: any[], name: string): boolean => {
-    if (!Array.isArray(data) || data.length === 0) {
-      return false;
+    try {
+      if (!Array.isArray(data) || data.length === 0) {
+        return false;
+      }
+      return data.some(item => isMatchingProductType(item, name));
+    } catch (error) {
+      // Properly handle the error by logging it and returning a safe default value
+      console.error("Error checking for duplicate names:", error);
+      // Return true as a cautious fallback (assume a duplicate might exist)
+      return true;
     }
-    return data.some(item => isMatchingProductType(item, name));
   };
 
   // Check if product type with the same name already exists (where deleted_at is null)
@@ -483,8 +504,8 @@ export function ProductTypeForm({
   const handleApiError = (error: unknown) => {
     
     if (axios.isAxiosError(error)) {
-      const errorMessage = error.response?.data?.message || 
-                        error.response?.data?.error || 
+      const errorMessage = error.response?.data?.message ?? 
+                        error.response?.data?.error ?? 
                         "Failed to save product type";
       
       toast({

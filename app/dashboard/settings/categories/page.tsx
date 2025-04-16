@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { useAppDispatch } from "@/lib/store/hooks"; // Use typed dispatch
 import {
   fetchPriceCategories,
-  setDefaultCategory,
   addCategory,
   updateCategory,
   deleteCategory,
@@ -24,28 +24,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
-import type { PriceCategoryFormData } from "@/lib/api/price-categories";
 import {
-  deletePriceCategory,
   batchUpdatePriceCategories,
 } from "@/lib/api/price-categories";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { FormLabel } from "@/components/ui/form";
 
 export default function CategoriesPage() {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch(); // Use typed dispatch
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
@@ -67,7 +53,7 @@ export default function CategoriesPage() {
       toast({
         title: "Success",
         description: "Default category has been updated",
-        variant: "success",
+        variant: "default", // Changed from "success" to "default"
       });
     } catch (error: any) {
       toast({
@@ -89,7 +75,7 @@ export default function CategoriesPage() {
       const allCategories = [
         ...customerCategories.map((cat) => ({
           id: typeof cat.id === "string" ? null : cat.id,
-          type: "customer",
+          type: "customer" as const, // Add 'as const' to specify literal type
           name: cat.name,
           formula: cat.formula,
           percentage: Number(cat.percentage),
@@ -97,7 +83,7 @@ export default function CategoriesPage() {
         })),
         ...marketplaceCategories.map((cat) => ({
           id: typeof cat.id === "string" ? null : cat.id,
-          type: "marketplace",
+          type: "marketplace" as const, // Add 'as const' to specify literal type
           name: cat.name,
           formula: cat.formula,
           percentage: Number(cat.percentage),
@@ -110,8 +96,8 @@ export default function CategoriesPage() {
       });
 
       if (response.status.code === 200) {
-        const createdCount = response.data?.created?.length || 0;
-        const updatedCount = response.data?.updated?.length || 0;
+        const createdCount = response.data?.created?.length ?? 0;
+        const updatedCount = response.data?.updated?.length ?? 0;
 
         toast({
           variant: "destructive",
@@ -124,7 +110,7 @@ export default function CategoriesPage() {
       }
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.error?.[0] || "Failed to save price categories";
+        error.response?.data?.error?.[0] ?? "Failed to save price categories";
 
       toast({
         variant: "destructive",
@@ -162,7 +148,21 @@ export default function CategoriesPage() {
               </CardDescription>
             </div>
             <Button
-              onClick={() => dispatch(addCategory({ type: "Customer" }))}
+              onClick={() => dispatch(addCategory({
+                type: "Customer",
+                category: {
+                  id: `new-${Date.now()}`,
+                  name: "New Category",
+                  percentage: 0,
+                  formula: "Formula: HB Naik + 0% markup",
+                  status: true,
+                  set_default: false,
+                  temp_key: `new-${Date.now()}`,
+                  type: "customer", // Add missing property
+                  created_at: new Date().toISOString(), // Add missing property
+                  updated_at: new Date().toISOString()  // Add missing property
+                }
+              }))}
               variant="outline"
               size="default"
               disabled={isLoading}
@@ -176,11 +176,12 @@ export default function CategoriesPage() {
         <CardContent>
           <div className="grid gap-4">
             {customerCategories.map((category) => (
-              <div
+              <section
                 key={category.temp_key}
                 className="flex flex-col gap-4 p-4 border rounded-md bg-background relative"
                 onMouseEnter={() => setHoveredCategory(category.id.toString())}
                 onMouseLeave={() => setHoveredCategory(null)}
+                aria-label={`Category: ${category.name}`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -198,10 +199,12 @@ export default function CategoriesPage() {
                         size="sm"
                         onClick={() => handleSetDefault(category.id.toString())}
                         className={cn(
-                          "opacity-0 transition-opacity",
-                          hoveredCategory === category.id.toString() &&
-                            "opacity-100"
+                          // Make button accessible to keyboard users even when visually hidden
+                          "transition-opacity",
+                          hoveredCategory === category.id.toString() ? 
+                            "opacity-100" : "opacity-0 focus:opacity-100"
                         )}
+                        aria-label={`Set ${category.name} as default category`}
                       >
                         Set Default
                       </Button>
@@ -263,7 +266,7 @@ export default function CategoriesPage() {
                         dispatch(
                           deleteCategory({
                             type: "Customer",
-                            id: category.id,
+                            id: typeof category.id === "string" ? null : category.id,
                             temp_key: category.temp_key,
                           })
                         )
@@ -275,7 +278,7 @@ export default function CategoriesPage() {
                     </Button>
                   </div>
                 </div>
-              </div>
+              </section>
             ))}
           </div>
         </CardContent>
@@ -294,7 +297,21 @@ export default function CategoriesPage() {
               </CardDescription>
             </div>
             <Button
-              onClick={() => dispatch(addCategory({ type: "Marketplace" }))}
+              onClick={() => dispatch(addCategory({
+                type: "Marketplace",
+                category: {
+                  id: `new-${Date.now()}`,
+                  name: "New Marketplace",
+                  percentage: 0,
+                  formula: "Formula: Default price + 0% markup",
+                  status: true,
+                  set_default: false,
+                  temp_key: `new-${Date.now()}`,
+                  type: "marketplace", // Add missing property
+                  created_at: new Date().toISOString(), // Add missing property
+                  updated_at: new Date().toISOString()  // Add missing property
+                }
+              }))}
               variant="outline"
               size="default"
               disabled={isLoading}
@@ -339,7 +356,7 @@ export default function CategoriesPage() {
                         ? `Based on ${
                             customerCategories.find(
                               (c) => c.id.toString() === defaultCategory
-                            )?.name || "Default"
+                            )?.name ?? "Default"
                           } category price`
                         : "Please set a default customer category first"}
                     </div>
@@ -376,7 +393,7 @@ export default function CategoriesPage() {
                         dispatch(
                           deleteCategory({
                             type: "Marketplace",
-                            id: category.id,
+                            id: typeof category.id === "string" ? null : category.id,
                             temp_key: category.temp_key,
                           })
                         )
