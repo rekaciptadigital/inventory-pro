@@ -134,11 +134,16 @@ export function ProductForm() {
   const onSubmit = async (values: FormValues) => {
     try {
       setIsSubmitting(true);
+      // Simulate API call or data processing
+      console.log("Form submitted:", values);
+      // Replace with actual API call
+      // await api.addProduct(values); 
       toast({
         title: "Success",
         description: "Product has been added successfully",
       });
     } catch (error) {
+      console.error("Failed to add product:", error); // Log the error
       toast({
         variant: "destructive",
         title: "Error",
@@ -224,6 +229,9 @@ export function ProductForm() {
                     <SelectItem value="KG">Kg</SelectItem>
                     <SelectItem value="GRAM">Gram</SelectItem>
                     <SelectItem value="LOT">Lot</SelectItem>
+                    <SelectItem value="CM">CM</SelectItem>
+                    <SelectItem value="MM">MM</SelectItem>
+                    <SelectItem value="M">M</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
