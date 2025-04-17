@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback, Fragment, useRef, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
+import { AlertTriangle } from 'lucide-react'; // Add import for the AlertTriangle icon
 import { PriceFormFields } from '@/types/form';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
@@ -80,7 +81,7 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
   // Helper function to check if a string is purely numeric
   const isNumeric = (str: string) => /^\d+$/.test(str);
   
-  // Extract customer categories, filtering out numeric IDs
+  // Extract customer categories, filtering out numeric IDs and sort by percentage
   const customerCategories = Object.entries(customerPrices)
     .filter(([id]) => !isNumeric(id)) // Keep only non-numeric string IDs
     .map(([id, data]) => ({
@@ -88,7 +89,8 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
       name: data.name ?? id.charAt(0).toUpperCase() + id.slice(1),
       type: 'customer',
       markup: data.markup ?? 0
-    }));
+    }))
+    .sort((a, b) => a.markup - b.markup); // Sort by markup percentage from lowest to highest
   
   // Extract marketplace categories, filtering out numeric IDs
   const marketplaceCategories = Object.entries(marketplacePrices)
@@ -359,14 +361,43 @@ export function VariantPrices({ form, product, defaultPriceCategory = 'retail' }
     }
   }, [manualPriceEditing, customerPrices, marketplacePrices, form]);
 
-  // Show loading state if needed
-  if (!variants.length || !customerCategories.length) {
+  // Show loading state or no variants message as appropriate
+  if (!customerCategories.length) {
+    // This is true loading state - no price categories loaded yet
     return (
       <div className="space-y-4">
         <div className="rounded-lg border p-4">
           <h3 className="text-lg font-medium mb-2">Product Variant Prices</h3>
           <div className="p-4 border rounded bg-muted/20 text-muted-foreground">
             Loading product variant pricing data...
+          </div>
+        </div>
+        <VolumeDiscount
+          form={form}
+          product={product}
+          initialCustomerPrices={customerPrices}
+          initialMarketplacePrices={marketplacePrices}
+          pricesInitialized={pricesInitialized}
+        />
+      </div>
+    );
+  }
+  
+  if (!variants.length) {
+    // No variants case - show informative message
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border p-4">
+          <h3 className="text-lg font-medium mb-2">Product Variant Prices</h3>
+          <div className="p-4 border rounded bg-yellow-50/50 border-yellow-200">
+            <div className="flex items-center gap-2 text-yellow-800">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              <span className="font-medium">This product doesn't have any variants.</span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Pricing will be applied to the main product directly. You can manage product variants 
+              in the product details section.
+            </p>
           </div>
         </div>
         <VolumeDiscount

@@ -1,4 +1,3 @@
-import axios from "axios";
 import axiosInstance from "./axios";
 import type { ApiResponse } from "@/types/api";
 
@@ -120,6 +119,6 @@ export const setDefaultPriceCategory = async (
     );
     return response.data;
   } catch (error: any) {
-    throw error.response?.data?.error?.[0] || "Failed to set default category";
+    throw error.response?.data?.error?.[0] ?? "Failed to set default category";
   }
 };

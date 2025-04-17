@@ -36,7 +36,11 @@ export default function CategoriesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
-  const customerCategories = useSelector(selectCustomerCategories);
+  // Get customer categories and sort by percentage (lowest to highest)
+  const customerCategories = useSelector(selectCustomerCategories)
+    .slice() // Create a copy of the array to avoid mutating the original
+    .sort((a, b) => parseFloat(String(a.percentage)) - parseFloat(String(b.percentage)));
+  
   const marketplaceCategories = useSelector(selectMarketplaceCategories);
   const isLoading = useSelector(selectIsLoading);
   const defaultCategory = useSelector(selectDefaultCategory);

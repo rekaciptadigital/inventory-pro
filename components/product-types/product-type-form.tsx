@@ -76,7 +76,10 @@ export function ProductTypeForm({
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         return false;
       }
-      throw new Error('Failed to check if code exists');
+      // Log the error for debugging purposes
+      console.error("Failed to check if code exists:", error);
+      // Return true as a conservative fallback (assume code might exist to avoid duplicates)
+      return true;
     }
   };
 
@@ -102,12 +105,14 @@ export function ProductTypeForm({
           hasMorePages = response.data.pagination?.hasNext === true;
           currentPage++;
         } catch (pageError) {
+          console.error("Error fetching product types page:", pageError);
           break; // Stop on error but return what we have so far
         }
       }
       
       return allProductTypes;
     } catch (error) {
+      console.error("Error fetching all product types:", error);
       return [];
     }
   };
@@ -117,7 +122,9 @@ export function ProductTypeForm({
     try {
       // First, get ALL existing product types from server
       const allProductTypes = await fetchAllProductTypes();
-      const allCodes = allProductTypes.map(item => item.code);
+      const allCodes = allProductTypes
+        .filter(item => item && typeof item.code === 'string')
+        .map(item => item.code);
       
       // Extract all existing codes (we need the full codes, not just prefixes)
       const existingCodes = new Set(allCodes.map(code => code.toUpperCase()));
@@ -130,18 +137,20 @@ export function ProductTypeForm({
       
       // Try each candidate and verify with server
       for (const code of alphabeticCandidates) {
+        // First check locally with our fetched data
         if (!existingCodes.has(code.toUpperCase())) {
+          // Double-check with server
           try {
             const codeExists = await verifyCodeWithServer(code);
             if (!codeExists) {
               return code;
             }
           } catch (error) {
-            // Explicitly handle the error in the catch block
-            console.warn(`Failed to verify code ${code} with server:`, error);
+            // Log the error but continue trying other codes
+            console.error(`Failed to verify code ${code} with server:`, error);
             // Mark this code as potentially existing by adding it to existingCodes
             existingCodes.add(code.toUpperCase());
-            // Continue to next candidate
+            // Explicitly handle error by continuing to next candidate
             continue;
           }
         }
@@ -152,9 +161,13 @@ export function ProductTypeForm({
       return fallbackCode;
       
     } catch (error) {
+      // Log the error properly before falling back
+      console.error("Error generating unique code:", error);
+      
       // Last resort fallback that should always work
       const timestamp = new Date().toISOString().replace(/\D/g, '').slice(-6);
-      return `X${timestamp.slice(-2)}`;
+      const randomChar = 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 23)];
+      return `${randomChar}${timestamp.slice(-2)}`;
     }
   };
 
@@ -217,29 +230,19 @@ export function ProductTypeForm({
 
   // Add three-letter candidates derived from the product name
   const addThreeLetterCandidatesFromName = (candidates: string[], cleanName: string, words: string[]): void => {
-    try {
-      if (cleanName.length >= 3) {
-        // First three letters
-        candidates.push(cleanName.substring(0, 3));
-        
-        // First letter of each word (if 3+ words)
-        if (words.length >= 3) {
-          candidates.push((words[0].charAt(0) + words[1].charAt(0) + words[2].charAt(0)).toUpperCase());
-        }
-        
-        // First, middle and last letter
-        if (cleanName.length >= 5) {
-          const middle = Math.floor(cleanName.length / 2);
-          candidates.push(cleanName.charAt(0) + cleanName.charAt(middle) + cleanName.charAt(cleanName.length - 1));
-        }
+    if (cleanName.length >= 3) {
+      // First three letters
+      candidates.push(cleanName.substring(0, 3));
+      
+      // First letter of each word (if 3+ words)
+      if (words.length >= 3) {
+        candidates.push((words[0].charAt(0) + words[1].charAt(0) + words[2].charAt(0)).toUpperCase());
       }
-    } catch (error) {
-      // Handle the error: log and add a fallback candidate
-      console.error("Error in addThreeLetterCandidatesFromName:", error);
-      if (cleanName && cleanName.length > 0) {
-        candidates.push(cleanName.charAt(0) + "XX");
-      } else {
-        candidates.push("XXX");
+      
+      // First, middle and last letter
+      if (cleanName.length >= 5) {
+        const middle = Math.floor(cleanName.length / 2);
+        candidates.push(cleanName.charAt(0) + cleanName.charAt(middle) + cleanName.charAt(cleanName.length - 1));
       }
     }
   };
@@ -362,7 +365,9 @@ export function ProductTypeForm({
   // Simplified verify code function with reduced complexity
   const verifyCodeWithServer = async (code: string): Promise<boolean> => {
     try {
-      return await searchCodeByPrefix(code);
+      // Try the primary approach
+      const exists = await searchCodeByPrefix(code);
+      return exists;
     } catch (error) {
       // Handle specific error cases
       if (axios.isAxiosError(error)) {
@@ -376,11 +381,14 @@ export function ProductTypeForm({
           try {
             return await searchCodeWithFallback(code);
           } catch (fallbackError) {
-            return true; // If we can't verify, assume it might exist
+            console.error("Error during fallback code verification:", fallbackError);
+            throw fallbackError; // Re-throw to handle at caller level
           }
         }
       }
-      return true; // Assume it exists if we can't verify (safer)
+      
+      console.error("Unhandled error during code verification:", error);
+      throw error; // Re-throw the error for proper handling by caller
     }
   };
 
@@ -406,6 +414,8 @@ export function ProductTypeForm({
       
       return code;
     } catch (error) {
+      // Log the error for debugging and proper error handling
+      console.error("Product type code validation failed:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -427,17 +437,10 @@ export function ProductTypeForm({
 
   // Search for matching product types in API response data
   const searchForDuplicateNames = (data: any[], name: string): boolean => {
-    try {
-      if (!Array.isArray(data) || data.length === 0) {
-        return false;
-      }
-      return data.some(item => isMatchingProductType(item, name));
-    } catch (error) {
-      // Properly handle the error by logging it and returning a safe default value
-      console.error("Error checking for duplicate names:", error);
-      // Return true as a cautious fallback (assume a duplicate might exist)
-      return true;
+    if (!Array.isArray(data) || data.length === 0) {
+      return false;
     }
+    return data.some(item => isMatchingProductType(item, name));
   };
 
   // Check if product type with the same name already exists (where deleted_at is null)
@@ -451,7 +454,8 @@ export function ProductTypeForm({
       // Try the primary API approach first with exact name matching
       return await checkNameExistsByAPI(name);
     } catch (error) {
-      // Fall back to manual checking if API approach fails
+      // Log the error before falling back to manual checking
+      console.error("API-based name check failed, falling back to manual check:", error);
       return await checkNameExistsByManualSearch(name);
     }
   };
@@ -625,6 +629,9 @@ export function ProductTypeForm({
       await submitWithRetry(values, finalCode);
       
     } catch (error) {
+      // Log the error for debugging purposes
+      console.error("Error during product type submission:", error);
+      // Handle API error (shows toast to user)
       handleApiError(error);
     }
   };

@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   getPriceCategories,
-  createPriceCategory,
-  updatePriceCategory,
   deletePriceCategory,
   type PriceCategory,
   type PriceCategoryFormData,
@@ -50,8 +48,9 @@ export function usePriceCategories() {
         id: Date.now(), // temporary ID
         name: "",
         formula: `Formula: HB Naik + 0% markup`,
-        percentage: "0",
+        percentage: 0, // Changed from string "0" to number 0
         status: true,
+        type: data.type.toLowerCase() === "customer" ? "customer" : "marketplace", // Add required type property
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -80,8 +79,9 @@ export function usePriceCategories() {
         id: Number(id),
         name: data.name || "",
         formula: data.formula || "",
-        percentage: String(data.percentage || 0),
+        percentage: Number(data.percentage || 0), // Changed from String to Number
         status: data.status ?? true,
+        type: data.type?.toLowerCase() === "customer" ? "customer" : "marketplace", // Add required type property
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };

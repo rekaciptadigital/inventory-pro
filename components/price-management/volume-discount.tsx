@@ -375,11 +375,15 @@ function DiscountTable({
 }: Readonly<{
   variantSku: string;
   tiers: ReadonlyArray<DiscountTier>;
-  categories: ReadonlyArray<{ id: string; name: string }>;
+  categories: ReadonlyArray<{ id: string; name: string; markup?: number; type?: 'customer' | 'marketplace' }>;
   onUpdate: (variantSku: string, index: number, field: string, value: number) => void;
   onRemove: (variantSku: string, index: number) => void;
   baseCost: number;
 }>) {
+  // Note: categories should already be sorted properly from createCategoriesFromPrices
+  // We keep the customer categories first, marketplace categories second
+  const sortedCategories = [...categories];
+
   return (
     <div className="w-full mt-4 overflow-x-auto">
       <table className="w-full min-w-full border-collapse">
@@ -387,8 +391,7 @@ function DiscountTable({
           <tr className="bg-muted/50">
             <th className="p-2 text-left w-[100px]">QTY</th>
             <th className="p-2 text-right w-[100px]">Disc (%)</th>
-            {/* Make sure we're showing all category columns */}
-            {categories.map((category) => (
+            {sortedCategories.map((category) => (
               <th key={`discount-category-${category.id}`} className="p-2 text-right whitespace-nowrap">
                 {category.name}
               </th>
@@ -403,7 +406,7 @@ function DiscountTable({
               tier={tier}
               index={index}
               variantSku={variantSku}
-              categories={categories as Array<{ id: string; name: string }>}
+              categories={sortedCategories as Array<{ id: string; name: string }>}
               onUpdate={onUpdate}
               onRemove={onRemove}
               baseCost={baseCost} // Pass base cost to row component
@@ -803,123 +806,103 @@ function updateVariantTierHelper(
 
 // Transform prices into categories array using the 'name' property within the data
 function createCategoriesFromPrices(
-  customerPrices?: Record<string, { name?: string } & Record<string, any>> | null,
-  marketplacePrices?: Record<string, { name?: string } & Record<string, any>> | null
-): Array<{ id: string; name: string }> {
-  const result: Array<{ id: string; name: string }> = [];
+  customerPrices?: Record<string, { name?: string; markup?: number; type?: string } & Record<string, any>> | null,
+  marketplacePrices?: Record<string, { name?: string; type?: string } & Record<string, any>> | null
+): Array<{ id: string; name: string; markup?: number; type: 'customer' | 'marketplace' }> {
+  // Collect customer categories first (for sorting)
+  const customerCategoryEntries: Array<{ id: string; name: string; markup: number; type: 'customer' }> = [];
+  const marketplaceCategoryEntries: Array<{ id: string; name: string; markup: number; type: 'marketplace' }> = [];
   const uniqueCategoryNames = new Set<string>(); // Use name for uniqueness check
 
   // Helper to check if data is a valid price object with a name
   const isValidPriceDataWithName = (data: any): boolean => {
-    const isValid = data && typeof data === 'object' && typeof data.name === 'string' && data.name.trim() !== '';
-    return isValid;
+    return data && typeof data === 'object' && typeof data.name === 'string' && data.name.trim() !== '';
   };
 
-  // Helper to determine if a key is a known marketplace
-  const isKnownMarketplaceKey = (key: string): boolean => {
-    const knownMarketplaces = ['shopee', 'tokopedia', 'tiktok', 'lazada', 'bukalapak'];
-    return knownMarketplaces.includes(key.toLowerCase()) || key.toLowerCase().includes('marketplace');
-  };
-
-  // Add customer price categories using data.name
+  // Process customer categories
   if (customerPrices && typeof customerPrices === 'object') {
-    Object.entries(customerPrices).forEach(([key, data]) => { // Iterate through VALUES
-      // Check if data is valid and has a name, and if the name hasn't been added yet
-      if (isValidPriceDataWithName(data) && data.taxInclusivePrice !== undefined && !uniqueCategoryNames.has(data.name!)) {
-        const categoryName = data.name!;
-        const categoryId = categoryName.toLowerCase(); // Use lowercase name as the ID
-        uniqueCategoryNames.add(categoryName); // Add original name to set for uniqueness
-        result.push({
-          id: categoryId,
-          name: categoryName
-        });
+    Object.entries(customerPrices).forEach(([key, data]) => {
+      try {
+        if (isValidPriceDataWithName(data) && !uniqueCategoryNames.has(data.name!)) {
+          const categoryName = data.name!;
+          const categoryId = categoryName.toLowerCase();
+          uniqueCategoryNames.add(categoryName);
+          
+          // Extract markup value with priority order
+          let markup = 0;
+          if (typeof data.markup === 'number') {
+            markup = data.markup;
+          } else if (typeof data.percentage === 'number') {
+            markup = data.percentage;
+          } else if (typeof data.customPercentage === 'number') {
+            markup = data.customPercentage;
+          }
+          
+          customerCategoryEntries.push({
+            id: categoryId,
+            name: categoryName,
+            markup: markup,
+            type: 'customer'
+          });
+        }
+      } catch (e) {
+        console.error("Error processing customer category:", e);
       }
     });
+    
+    // Sort customer categories by markup (lowest to highest)
+    customerCategoryEntries.sort((a, b) => a.markup - b.markup);
   }
 
-  // Add marketplace price categories using data.name
+  // Process marketplace categories - simplified and more consistent approach
   if (marketplacePrices && typeof marketplacePrices === 'object') {
-    // Create a direct check for string-keyed marketplaces first - these often come after first render
-    const stringKeysToProcess: string[] = [];
-    
-    Object.keys(marketplacePrices).forEach(key => {
-      // Check if this is a direct marketplace key (like 'shopee', 'tokopedia')
-      if (isKnownMarketplaceKey(key) && !uniqueCategoryNames.has(key)) {
-        stringKeysToProcess.push(key);
-      }
-    });
-    
-    // First process direct marketplace keys (they take precedence)
-    stringKeysToProcess.forEach(key => {
-      const data = marketplacePrices[key];
-      
-      if (data && typeof data === 'object') {
-        let categoryName: string;
-        let hasPriceData = false;
+    // Process all marketplace entries without filtering by hardcoded names
+    Object.entries(marketplacePrices).forEach(([key, data]) => {
+      try {
+        // Skip numeric IDs (same as in VariantPrices component)
+        if (/^\d+$/.test(key)) return;
         
-        // Get the name either from the data.name property or format the key itself
-        if (typeof data.name === 'string' && data.name.trim() !== '') {
+        // Get name from data or format the key (fallback)
+        let categoryName = '';
+        let categoryId = key.toLowerCase();
+        
+        // Use data.name if available (preferred)
+        if (typeof data === 'object' && data !== null && typeof data.name === 'string' && data.name.trim() !== '') {
           categoryName = data.name;
         } else {
-          // Format key to title case for display
+          // Format key as fallback (capitalize first letter)
           categoryName = key.charAt(0).toUpperCase() + key.slice(1);
         }
         
-        // Check if there's any price data that can be used
-        hasPriceData = 'price' in data || 
-                      'taxInclusivePrice' in data || 
-                      Object.values(data).some(v => typeof v === 'number');
+        // Skip if we already processed this name
+        if (uniqueCategoryNames.has(categoryName)) return;
         
-        if (hasPriceData && !uniqueCategoryNames.has(categoryName)) {
-          const categoryId = key.toLowerCase();
-          uniqueCategoryNames.add(categoryName);
-          result.push({
-            id: categoryId,
-            name: categoryName
-          });
+        // Extract markup value with priority order (consistent with customer categories)
+        let markup = 0;
+        if (typeof data?.markup === 'number') {
+          markup = data.markup;
+        } else if (typeof data?.percentage === 'number') {
+          markup = data.percentage;
+        } else if (typeof data?.customPercentage === 'number') {
+          markup = data.customPercentage;
         }
-      }
-    });
-    
-    // Then process regular marketplace entries with object structure
-    Object.entries(marketplacePrices).forEach(([key, data]) => {
-      // Skip direct marketplace keys we already processed
-      if (stringKeysToProcess.includes(key)) {
-        return;
-      }
-      
-      // Check if data is valid and has a name, and if the name hasn't been added yet
-      if (isValidPriceDataWithName(data) && data.price !== undefined && !uniqueCategoryNames.has(data.name!)) {
-        const categoryName = data.name!;
-        const categoryId = categoryName.toLowerCase(); // Use lowercase name as the ID
-        uniqueCategoryNames.add(categoryName); // Add original name to set for uniqueness
-        result.push({
+        
+        // Add to marketplace categories
+        uniqueCategoryNames.add(categoryName);
+        marketplaceCategoryEntries.push({
           id: categoryId,
-          name: categoryName
+          name: categoryName,
+          markup: markup,
+          type: 'marketplace'
         });
-      } else if (data && typeof data === 'object' && data.name && typeof data.name === 'string') {
-        const marketplaceName = data.name.toLowerCase();
-        if (isKnownMarketplaceKey(marketplaceName) && !uniqueCategoryNames.has(data.name)) {
-          // Check for price-like property
-          const hasPriceProperty = 'price' in data || 
-                                  'taxInclusivePrice' in data || 
-                                  Object.values(data).some(v => typeof v === 'number');
-          
-          if (hasPriceProperty) {
-            const categoryName = data.name;
-            const categoryId = marketplaceName;
-            uniqueCategoryNames.add(categoryName);
-            result.push({
-              id: categoryId,
-              name: categoryName
-            });
-          }
-        }
+      } catch (e) {
+        console.error("Error processing marketplace category:", e, { key, data });
       }
     });
   }
 
-  return result;
+  // Combine sorted customer categories and marketplace categories
+  return [...customerCategoryEntries, ...marketplaceCategoryEntries];
 }
 
 // Update global tier prices
@@ -1121,29 +1104,34 @@ function VolumeDiscountContent({
   handleVariantToggle: (sku: string, checked: boolean) => void;
   addQuantityTier: (sku: string) => void; // Simplify type to just string
 }>) {
+  // Detect if we're dealing with a synthetic "main product" variant
+  const isSingleMainProduct = variants.length === 1 && 
+                              variants[0] && 
+                              (variants[0].sku_product_variant.startsWith('main-') || 
+                               !variants[0].sku_product_variant.includes('-'));
+  
+  // Extract nested ternary into a separate variable
+  const cardTitle = isSingleMainProduct ? "Main Product Discount Rules" : "Global Discount Rules";
+  
+  // Extract complex condition into a separate variable
+  const shouldUseGlobalRules = !customizePerVariant || isSingleMainProduct;
+
   return (
     <div className="space-y-6">
-      {!customizePerVariant ? (
-        <DiscountCard
-          title="Global Discount Rules"
-          onAddTier={() => addQuantityTier('global')} // 'global' is a valid string
-          tiers={globalTiers}
-          renderTable={getTableRenderer('global')}
-        />
-      ) : (
-        // Use the new list renderer component
-        <VariantDiscountListRenderer
-          variants={variants}
-          variantDiscounts={variantDiscounts}
-          globalTiers={globalTiers}
-          getTableRenderer={getTableRenderer}
-          handleVariantToggle={handleVariantToggle}
-          addQuantityTier={addQuantityTier} // No cast needed now
-        />
-      )}
+      <RenderDiscountContent 
+        shouldUseGlobalRules={shouldUseGlobalRules}
+        cardTitle={cardTitle}
+        globalTiers={globalTiers}
+        getTableRenderer={getTableRenderer}
+        variants={variants}
+        variantDiscounts={variantDiscounts}
+        handleVariantToggle={handleVariantToggle}
+        addQuantityTier={addQuantityTier}
+      />
     </div>
   );
 }
+
 // --- End Updated Component ---
 
 
@@ -1402,6 +1390,48 @@ function VolumeDiscountEnabledContent({
 }
 // --- End New Component ---
 
+// New helper component to handle conditional rendering without ternary in JSX
+function RenderDiscountContent({
+  shouldUseGlobalRules,
+  cardTitle,
+  globalTiers,
+  getTableRenderer,
+  variants,
+  variantDiscounts,
+  handleVariantToggle,
+  addQuantityTier
+}: Readonly<{
+  shouldUseGlobalRules: boolean;
+  cardTitle: string;
+  globalTiers: DiscountTier[];
+  getTableRenderer: (sku: string) => (tiers: DiscountTier[]) => React.ReactNode;
+  variants: InventoryProductVariant[];
+  variantDiscounts: Record<string, VariantDiscount>;
+  handleVariantToggle: (sku: string, checked: boolean) => void;
+  addQuantityTier: (sku: string) => void;
+}>) {
+  if (shouldUseGlobalRules) {
+    return (
+      <DiscountCard
+        title={cardTitle}
+        onAddTier={() => addQuantityTier('global')}
+        tiers={globalTiers}
+        renderTable={getTableRenderer('global')}
+      />
+    );
+  }
+  
+  return (
+    <VariantDiscountListRenderer
+      variants={variants}
+      variantDiscounts={variantDiscounts}
+      globalTiers={globalTiers}
+      getTableRenderer={getTableRenderer}
+      handleVariantToggle={handleVariantToggle}
+      addQuantityTier={addQuantityTier}
+    />
+  );
+}
 
 export function VolumeDiscount({
   form,
@@ -1411,7 +1441,36 @@ export function VolumeDiscount({
   pricesInitialized = false // Default to false
 }: Readonly<VolumeDiscountProps>) {
   const { toast } = useToast();
-  const variants = product?.product_by_variant || [];
+  
+  // Get variants from product or create synthetic variant from product if no variants exist
+  const variants = useMemo(() => {
+    if (product?.product_by_variant?.length) {
+      return product.product_by_variant;
+    }
+    
+    // Create a synthetic "main product" variant when no variants exist
+    if (product) {
+      // Create synthetic variant with only properties that exist in the InventoryProductVariant type
+      // and use type assertion for additional properties needed for calculations
+      const mainProductVariant = {
+        id: String(product.id),
+        sku_product_variant: product.sku || `main-${product.id}`,
+        full_product_name: product.full_product_name || 'Main Product',
+        inventory_product_id: Number(product.id),
+      } as InventoryProductVariant;
+      
+      // Store values in form state instead of trying to add them to the variant object
+      if (product.hbNaik) form.setValue('hbNaik', product.hbNaik);
+      if (product.hbReal) form.setValue('hbReal', product.hbReal);
+      if (product.usdPrice) form.setValue('usdPrice', product.usdPrice);
+      if (product.exchangeRate) form.setValue('exchangeRate', product.exchangeRate);
+      if (product.adjustmentPercentage) form.setValue('adjustmentPercentage', product.adjustmentPercentage);
+      
+      return [mainProductVariant];
+    }
+    
+    return [];
+  }, [product, form]);
 
   // Create ref to store data initialized state
   const dataInitializedRef = useRef(false);
@@ -1427,7 +1486,7 @@ export function VolumeDiscount({
   const [hasMarketplaceData, setHasMarketplaceData] = useState(
     marketplacePrices && Object.keys(marketplacePrices).length > 0
   );
-
+  
   // Add state to force refresh when marketplace data changes
   const [marketplaceRefreshCounter, setMarketplaceRefreshCounter] = useState(0);
   
@@ -1498,7 +1557,7 @@ export function VolumeDiscount({
           // Force form to react to the marketplace changes
           setTimeout(() => {
             form.trigger("marketplacePrices");
-          }, 0);          
+          }, 0);
         }
       }
     });
@@ -1508,7 +1567,7 @@ export function VolumeDiscount({
   }, [form, toast]);
 
   // Main state
-  const [isEnabled, setIsEnabled] = useState(form.getValues('isEnableVolumeDiscount') || false); // Initialize from form
+  const [isEnabled, setIsEnabled] = useState(form.getValues('isEnableVolumeDiscount') || false); // Initialize from form     
   const [customizePerVariant, setCustomizePerVariant] = useState(form.getValues('isEnableVolumeDiscountByProductVariant') || false); // Initialize from form
   const [globalTiers, setGlobalTiers] = useState<DiscountTier[]>([
     { id: 'tier-1', quantity: 10, discount: 5, prices: {} },
@@ -1527,7 +1586,7 @@ export function VolumeDiscount({
   
   // Previous hbNaik value to detect changes
   const prevHbNaikRef = useRef(hbNaik);
-
+  
   // Helper to combine all price sources - uses props
   const getCombinedPrices = useCallback(() => {
     const result = getCombinedPricesHelper(customerPrices, marketplacePrices);
@@ -1564,7 +1623,7 @@ export function VolumeDiscount({
     marketplacePrices, 
     categories, 
     isEnabled, 
-    getCombinedPrices,
+    getCombinedPrices, 
     hbNaik,
     usdPrice,
     exchangeRate,
@@ -1594,8 +1653,8 @@ export function VolumeDiscount({
 
   // Handler for main enable toggle
   const handleEnableToggle = useCallback((checked: boolean) => {
-      setIsEnabled(checked);
-      form.setValue('isEnableVolumeDiscount', checked); // Update form state
+    setIsEnabled(checked);
+    form.setValue('isEnableVolumeDiscount', checked); // Update form state
   }, [form]);
 
 
@@ -1702,7 +1761,7 @@ export function VolumeDiscount({
 
   // Don't render anything if there are no variants
   if (!variants.length) return null;
-  
+
   // To prevent flash of loading message on fast loads, delay the check
   const shouldShowLoadingMessage = !hasPriceData || categories.length === 0;
 
@@ -1710,6 +1769,12 @@ export function VolumeDiscount({
   if (shouldShowLoadingMessage) {
     return <VolumeDiscountLoading hasPriceData={hasPriceData} />;
   }
+
+  // Extract the complex condition into a variable to avoid nested ternary
+  const effectiveCustomizePerVariant = customizePerVariant && product?.product_by_variant?.length > 1;
+  
+  // Extract condition for displaying the "Customize per Variant" toggle to avoid nested ternary
+  const shouldShowCustomizeToggle = isEnabled && product?.product_by_variant?.length > 1;
 
   // Main component rendering
   return (
@@ -1722,8 +1787,8 @@ export function VolumeDiscount({
           </p>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
-          {/* Tukar urutan toggle - Customize per Variant ke sebelah kiri */}
-          {isEnabled && (
+          {/* Only show "Customize per Variant" toggle when there are actual product variants */}
+          {shouldShowCustomizeToggle && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Customize per Variant</span>
               <Switch
@@ -1732,7 +1797,7 @@ export function VolumeDiscount({
               />
             </div>
           )}
-          {/* Enable Volume Discount tetap di sebelah kanan */}
+          
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Enable Volume Discount</span>
             <Switch
@@ -1743,11 +1808,11 @@ export function VolumeDiscount({
         </div>
       </div>
 
-      {/* Use the new VolumeDiscountEnabledContent component */}
+      {/* Render content appropriately for no-variant case */}
       {isEnabled && (
         <VolumeDiscountEnabledContent
           hbNaik={hbNaik}
-          customizePerVariant={customizePerVariant}
+          customizePerVariant={effectiveCustomizePerVariant}
           globalTiers={globalTiers}
           variants={variants}
           variantDiscounts={variantDiscounts}

@@ -42,19 +42,27 @@ export function CustomerPrices({ form }: Readonly<CustomerPricesProps>) {
       try {
         const response = await getPriceCategories();
         // Filter customer and marketplace categories
-        const customerCategories = response.data
+        let customerCategories = response.data
           .find(group => group.type.toLowerCase() === 'customer')
           ?.categories || [];
         const mpCategories = response.data
           .find(group => group.type.toLowerCase() === 'marketplace')
           ?.categories || [];
         
+        // Sort customer categories by percentage (lowest to highest)
+        customerCategories = customerCategories.sort((a, b) => 
+          parseFloat(String(a.percentage)) - parseFloat(String(b.percentage))
+        );
+        
         // Find default category and store it in form state
         const defaultCategory = customerCategories.find(c => c.set_default);
         if (defaultCategory) {
-          form.setValue('defaultPriceCategoryId', defaultCategory.name.toLowerCase());
+          form.setValue('defaultPriceCategoryId', defaultCategory.id.toString());
+        } else if (customerCategories.length > 0) {
+          // Set first category as default if none is marked
+          form.setValue('defaultPriceCategoryId', customerCategories[0].id.toString());
         } else {
-          // Set fallback default if none is marked as default
+          // Fallback default
           form.setValue('defaultPriceCategoryId', 'retail');
         }
         
